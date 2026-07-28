@@ -166,7 +166,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
       <div className="px-4 pb-3">
         {thumbnail && (
           <div className="relative mb-3 overflow-hidden rounded-[20px] border border-amber-400/20">
-            <img src={thumbnail} alt={item.title} className="h-56 w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <img src={thumbnail} alt={item.title} className="h-48 sm:h-56 w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
             {(item.type === 'video' || item.type === 'audio') && (
               <div className="absolute inset-0 flex items-center justify-center">

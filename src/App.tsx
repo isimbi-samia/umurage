@@ -25,6 +25,7 @@ import Upload from '@/pages/Upload';
 import HeritageArchive from '@/pages/HeritageArchive';
 import PostDetail from '@/pages/PostDetail';
 import Verification from '@/pages/Verification';
+import TruthDetector from '@/pages/TruthDetector';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient({
@@ -51,13 +52,13 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         menuOpen={sidebarOpen}
       />
 
-      <main className="relative z-10 lg:ml-[220px] lg:mr-[320px] pt-16 h-[calc(100vh-64px)] overflow-auto">
-        <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="relative z-10 pt-16 min-h-screen overflow-auto lg:pr-80">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>
 
-      <div className="hidden lg:block fixed right-0 top-16 h-[calc(100vh-64px)] w-[320px] overflow-auto p-4 z-20">
+      <div className="hidden lg:block fixed right-0 top-16 h-[calc(100vh-64px)] w-80 overflow-auto p-4 z-20">
         <RightSidebar />
       </div>
 
@@ -101,6 +102,7 @@ const App: React.FC = () => {
                 <Route path="/heritage-archive" element={<HeritageArchive />} />
                 <Route path="/post/:id" element={<PostDetail />} />
                 <Route path="/verification" element={<Verification />} />
+                <Route path="/truth-detector" element={<TruthDetector />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AppLayout>

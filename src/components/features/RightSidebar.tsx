@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle, Calendar, MapPin, Loader2, Sparkles, Clock, MapPin as MapPinIcon, Music, Camera, BookOpen, Users, Star } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { useVerifiedCreators, useFollowing, useToggleFollow } from '@/hooks/useFollow';
 import { useTrending } from '@/hooks/usePosts';
 import { useEvents } from '@/hooks/useFollow';
@@ -16,6 +17,7 @@ const RightSidebar: React.FC = () => {
   const { data: liveEvents, isLoading: eventsLoading } = useEvents();
   const { data: liveTrending, isLoading: trendingLoading } = useTrending();
   const { data: followingSet } = useFollowing(user?.id);
+  const navigate = useNavigate();
 
   const creators = liveCreators && liveCreators.length > 0 ? liveCreators : null;
   const events = liveEvents && liveEvents.length > 0 ? liveEvents : null;
@@ -57,7 +59,16 @@ const RightSidebar: React.FC = () => {
             {(trending || TRENDING).slice(0, 5).map((item: unknown, idx: number) => {
               const i = item as { rank?: number; title: string; views?: string; thumbnail?: string; thumbnail_url?: string };
               return (
-                <div key={idx} className="flex items-center gap-3 rounded-2xl border border-umurage-gold-light/20 bg-[rgba(242,205,124,0.08)] p-3 transition-all duration-200 hover:border-umurage-gold-light/25 hover:bg-[rgba(249,225,168,0.18)]">
+                <div
+                  key={idx}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    const id = (i as any).id;
+                    if (id) navigate(`/post/${id}`);
+                  }}
+                  className="cursor-pointer flex items-center gap-3 rounded-2xl border border-umurage-gold-light/20 bg-[rgba(242,205,124,0.08)] p-3 transition-all duration-200 hover:border-umurage-gold-light/25 hover:bg-[rgba(249,225,168,0.18)]"
+                >
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-umurage-gold-light/15 text-sm font-semibold text-umurage-gold-light">{i.rank || idx + 1}</span>
                   <div className="h-12 w-16 overflow-hidden rounded-2xl bg-slate-800">
                     <img
@@ -75,7 +86,7 @@ const RightSidebar: React.FC = () => {
             })}
           </div>
         )}
-        <button className="mt-4 block w-full rounded-full border border-umurage-gold-light/20 bg-umurage-gold-light/10 py-2 text-center text-xs font-medium text-umurage-gold-light transition-colors hover:border-umurage-gold-light/30 hover:bg-umurage-gold-light/20">
+            <button onClick={() => navigate('/')} className="mt-4 block w-full rounded-full border border-umurage-gold-light/20 bg-umurage-gold-light/10 py-2 text-center text-xs font-medium text-umurage-gold-light transition-colors hover:border-umurage-gold-light/30 hover:bg-umurage-gold-light/20">
           {t('trending.seeMore')}
         </button>
       </div>
@@ -113,7 +124,13 @@ const RightSidebar: React.FC = () => {
               const vType = c.verifiedType || c.verified_type || 'Verified';
 
               return (
-                <div key={creatorId} className="flex items-center gap-3 rounded-2xl border border-umurage-gold-light/20 bg-[rgba(242,205,124,0.08)] p-3">
+                <div
+                  key={creatorId}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/profile?user=${creatorId}`)}
+                  className="cursor-pointer flex items-center gap-3 rounded-2xl border border-umurage-gold-light/20 bg-[rgba(242,205,124,0.08)] p-3"
+                >
                   <div className="relative flex-shrink-0">
                     <img src={avatar} alt={name} className="h-10 w-10 rounded-full border border-umurage-gold-light/20 object-cover" />
                     {c.verified !== false && (
@@ -130,7 +147,7 @@ const RightSidebar: React.FC = () => {
                     <span className="text-[10px] text-umurage-muted">{vType}</span>
                   </div>
                   <button
-                    onClick={() => handleFollow(creatorId)}
+                    onClick={(e) => { e.stopPropagation(); handleFollow(creatorId); }}
                     disabled={toggleFollow.isPending}
                     className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all duration-200 ${
                       isFollowing
@@ -162,7 +179,13 @@ const RightSidebar: React.FC = () => {
             {(events || UPCOMING_EVENTS).slice(0, 4).map((ev: unknown) => {
               const e = ev as { id: string; title: string; event_date?: string; date?: string; location?: string; type?: string; image_url?: string; image?: string };
               return (
-                <div key={e.id} className="flex items-start gap-3 rounded-2xl border border-umurage-gold-light/20 bg-[rgba(242,205,124,0.08)] p-3 transition-all duration-200 hover:border-umurage-gold-light/30 hover:bg-[rgba(249,225,168,0.18)]">
+                <div
+                  key={e.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/events?event=${e.id}`)}
+                  className="cursor-pointer flex items-start gap-3 rounded-2xl border border-umurage-gold-light/20 bg-[rgba(242,205,124,0.08)] p-3 transition-all duration-200 hover:border-umurage-gold-light/30 hover:bg-[rgba(249,225,168,0.18)]"
+                >
                   <img
                     src={e.image_url || e.image || 'https://images.unsplash.com/photo-1551632436-cbf8dd35adfa?w=60&h=60&fit=crop'}
                     alt={e.title}

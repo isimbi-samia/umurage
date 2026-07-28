@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -785,6 +786,8 @@ const EventsPage: React.FC = () => {
   const [createDefaultDate, setCreateDefaultDate] = useState('');
 
   const { data: events = [], isLoading } = useAllEvents(selectedFilter === 'All' ? undefined : selectedFilter);
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: rsvpMap = new Map<string, string>() } = useMyRSVPs(user?.id);
   const rsvpMutation = useRSVP();
 
@@ -810,6 +813,26 @@ const EventsPage: React.FC = () => {
 
   const upcomingEvents = events.filter(e => e.event_date >= new Date().toISOString().split('T')[0]);
   const pastEvents = events.filter(e => e.event_date < new Date().toISOString().split('T')[0]);
+
+  // Open event from URL query ?event={id}
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const evId = params.get('event');
+    if (!evId) return;
+    if (events.length === 0) return;
+    const found = events.find(e => e.id === evId);
+    if (found) setSelectedEvent(found);
+  }, [location.search, events]);
+
+  // Keep URL in sync when opening/closing selected event
+  React.useEffect(() => {
+    if (selectedEvent) {
+      navigate(`/events?event=${selectedEvent.id}`, { replace: true });
+    } else {
+      // clear query params when closed
+      if (location.search.includes('event=')) navigate('/events', { replace: true });
+    }
+  }, [selectedEvent]);
 
   return (
     <div className="animate-fade-in">

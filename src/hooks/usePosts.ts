@@ -131,6 +131,14 @@ export function useCreatePost() {
       category: string;
       region?: string;
       tags?: string[];
+      truth_score?: number | null;
+      cultural_relevance?: boolean | null;
+      cultural_topics?: string[] | null;
+      flagged?: boolean | null;
+      truth_analysis?: string | null;
+      analyzed_at?: string | null;
+      analyzed_by?: string | null;
+      story_expires_at?: string | null;
     }) => {
       const { data, error } = await supabase.from('posts').insert(post).select().single();
       if (error) throw error;
@@ -138,6 +146,7 @@ export function useCreatePost() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['posts'] });
+      qc.invalidateQueries({ queryKey: ['stories'] });
       toast.success('Content published successfully!');
     },
     onError: (err: Error) => toast.error(err.message),

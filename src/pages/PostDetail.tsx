@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Heart, MessageCircle, Share2, Bookmark,
-  Play, Pause, CheckCircle, Loader2, Send, Eye, Clock, MapPin, Tag, X
+  Play, Pause, CheckCircle, Loader2, Send, Eye, Clock, MapPin, Tag, X, Shield, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -42,6 +42,12 @@ interface Post {
   created_at: string;
   updated_at: string;
   author: PostAuthor;
+  truth_score: number | null;
+  cultural_relevance: boolean | null;
+  cultural_topics: string[] | null;
+  flagged: boolean | null;
+  truth_analysis: string | null;
+  analyzed_at: string | null;
 }
 
 function timeAgo(dateStr: string): string {
@@ -276,6 +282,30 @@ const PostDetail: React.FC = () => {
                   <Tag size={10} /> {tag}
                 </span>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Truth Detection */}
+        {(post.truth_score !== null && post.truth_score !== undefined) && (
+          <div className="px-6 pb-4">
+            <div className={`rounded-xl border p-3 ${post.cultural_relevance ? 'bg-green-900/10 border-green-800/30' : 'bg-red-900/10 border-red-800/30'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Shield size={14} className={post.cultural_relevance ? 'text-green-400' : 'text-red-400'} />
+                <span className={`text-xs font-semibold ${post.cultural_relevance ? 'text-green-400' : 'text-red-400'}`}>
+                  {post.cultural_relevance ? 'Culturally Relevant' : 'Not Culturally Relevant'}
+                </span>
+                <span className="ml-auto text-xs text-umurage-subtle">Score: {post.truth_score}%</span>
+              </div>
+              {post.truth_analysis && (
+                <p className="text-umurage-muted text-xs leading-relaxed">{post.truth_analysis}</p>
+              )}
+              {post.flagged && (
+                <div className="flex items-center gap-1 mt-2 text-red-400 text-xs">
+                  <AlertCircle size={12} />
+                  <span>This content has been flagged for review</span>
+                </div>
+              )}
             </div>
           </div>
         )}

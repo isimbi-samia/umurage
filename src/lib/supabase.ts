@@ -36,7 +36,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          type: 'video' | 'article' | 'audio' | 'book' | 'image';
+          type: 'video' | 'article' | 'audio' | 'book' | 'image' | 'story';
           title: string;
           description: string | null;
           thumbnail_url: string | null;
@@ -51,6 +51,14 @@ export type Database = {
           shares_count: number;
           published: boolean;
           created_at: string;
+          truth_score: number | null;
+          cultural_relevance: boolean | null;
+          cultural_topics: string[] | null;
+          flagged: boolean | null;
+          truth_analysis: string | null;
+          analyzed_at: string | null;
+          analyzed_by: string | null;
+          story_expires_at: string | null;
         };
       };
       likes: { Row: { id: string; post_id: string; user_id: string } };

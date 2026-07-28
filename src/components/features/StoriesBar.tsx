@@ -4,9 +4,17 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { STORIES } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useStories } from '@/hooks/useStories';
 
 interface StoryViewerProps {
-  story: typeof STORIES[number];
+  story: {
+    id: string;
+    title: string;
+    user: { name: string; avatar: string; verified: boolean };
+    createdAt: string;
+    hasNew?: boolean;
+    isAdd?: boolean;
+  };
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -91,10 +99,43 @@ const StoriesBar: React.FC = () => {
   const [viewingIdx, setViewingIdx] = useState<number | null>(null);
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
 
-  const activeStories = STORIES.filter(s => {
+  const { data: liveStories, isLoading } = useStories();
+
+  const dbStories = (liveStories || []).map(s => ({
+    id: s.id,
+    title: s.title,
+    user: {
+      name: s.author?.username || 'User',
+      avatar: s.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${s.author?.username || 'U'}`,
+      verified: s.author?.verified || false,
+    },
+    createdAt: s.created_at,
+    hasNew: false,
+    isAdd: false,
+    mediaUrl: s.media_url,
+    thumbnailUrl: s.thumbnail_url,
+  }));
+
+  const fallbackStories = STORIES.filter(s => !s.isAdd).map(s => ({
+    id: s.id,
+    title: s.title,
+    user: {
+      name: s.user.name,
+      avatar: s.user.avatar,
+      verified: s.user.verified,
+    },
+    createdAt: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString(),
+    hasNew: s.hasNew,
+    isAdd: false,
+    mediaUrl: s.mediaUrl,
+    thumbnailUrl: s.thumbnailUrl,
+  }));
+
+  const allStories = [...dbStories, ...fallbackStories, ...STORIES.filter(s => s.isAdd)];
+  const activeStories = allStories.filter(s => {
     if (s.isAdd) return false;
     if (!s.createdAt) return true;
-    return Date.now() - new Date(s.createdAt).getTime() < 24 * 60 * 60 * 1000;
+    return Date.now() - new Date(s.createdAt).getTime() < 48 * 60 * 60 * 1000;
   });
 
   const handleStoryClick = (storyId: string) => {
@@ -119,38 +160,45 @@ const StoriesBar: React.FC = () => {
 
   return (
     <>
-      <div className="w-full sticky top-16 z-30">
+      <div className="w-full sticky top-16 z-40 backdrop-blur-sm bg-black/30 border-b border-white/5">
         <div className="mx-auto max-w-4xl px-0 lg:px-0">
-          <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-hide">
+          <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-hide">
             <button
               type="button"
               onClick={() => (!isAuthenticated ? openAuth('login') : navigate('/upload'))}
               aria-label="Add your story"
-              className="flex flex-col items-center gap-1 px-2"
+              className="flex flex-col items-center gap-1 px-1"
             >
-              <div className="basket-ring has-new">
-                <div className="basket-ring-inner h-14 w-14 flex items-center justify-center rounded-full bg-transparent text-umurage-gold text-lg font-bold">
+              <div className="story-ring has-new">
+                <div className="story-ring-inner h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-transparent text-umurage-gold text-lg font-bold">
                   +
                 </div>
               </div>
-              <span className="text-[11px] text-umurage-cream/70">Your Story</span>
+              <span className="text-[10px] text-umurage-cream/70">Your Story</span>
             </button>
 
-            {activeStories.map(story => (
-              <button
-                key={story.id}
-                onClick={() => handleStoryClick(story.id)}
-                aria-label={story.title || story.user.name}
-                className="flex flex-col items-center gap-1 px-2"
-              >
-                <div className={`basket-ring ${story.hasNew && !viewedStories.has(story.id) ? 'has-new' : ''}`}>
-                  <div className="basket-ring-inner h-14 w-14 rounded-full overflow-hidden bg-transparent">
-                    <img src={story.user.avatar} alt={story.user.name} className="h-full w-full object-cover" />
+            {isLoading ? (
+              <div className="flex items-center gap-1 px-1">
+                <Sparkles size={14} className="text-umurage-gold animate-spin" />
+                <span className="text-[10px] text-umurage-muted">Loading stories...</span>
+              </div>
+            ) : (
+              activeStories.map(story => (
+                <button
+                  key={story.id}
+                  onClick={() => handleStoryClick(story.id)}
+                  aria-label={story.title || story.user.name}
+                  className="flex flex-col items-center gap-1 px-1"
+                >
+                  <div className={`story-ring ${story.hasNew && !viewedStories.has(story.id) ? 'has-new' : ''}`}>
+                    <div className="story-ring-inner h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden bg-transparent">
+                      <img src={story.user.avatar} alt={story.user.name} className="h-full w-full object-cover" />
+                    </div>
                   </div>
-                </div>
-                <span className="text-[11px] text-umurage-cream/70 truncate max-w-[64px] text-center">{story.user.name.split(' ')[0]}</span>
-              </button>
-            ))}
+                  <span className="text-[10px] text-umurage-cream/70 truncate max-w-[56px] text-center">{story.user.name.split(' ')[0]}</span>
+                </button>
+              ))
+            )}
           </div>
         </div>
       </div>
