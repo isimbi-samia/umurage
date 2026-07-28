@@ -41,6 +41,14 @@ export interface Story {
   user: User;
   hasNew: boolean;
   isAdd?: boolean;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  type?: 'video' | 'image' | 'audio' | 'book' | 'article';
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  createdAt?: string;
 }
 
 export interface TrendingItem {

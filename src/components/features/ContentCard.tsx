@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send, X } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToggleLike, useToggleSave, useComments, useAddComment } from '@/hooks/usePosts';
-import { useUserLikes, useUserSaves } from '@/hooks/usePosts';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -33,7 +32,6 @@ interface Post {
   shares_count: number;
   created_at: string;
   author: PostAuthor;
-  // mock compat
   likes?: number;
   comments?: number;
   shares?: number;
@@ -127,101 +125,99 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   }[item.type] || 'article';
 
   return (
-    <article className="umurage-card rounded-2xl overflow-hidden mb-4 animate-fade-in group cursor-pointer" onClick={handleCardClick}>
-      {/* Author row */}
+    <article className="animate-fade-in group cursor-pointer overflow-hidden rounded-[24px] border border-amber-400/20 bg-[rgba(27,16,8,0.9)] shadow-[0_16px_40px_rgba(0,0,0,0.24)]" onClick={handleCardClick}>
       <div className="flex items-start gap-3 p-4 pb-3">
         <div className="relative flex-shrink-0">
           <img
             src={authorAvatar}
             alt={authorName}
-            className="w-10 h-10 rounded-full object-cover border-2 border-umurage-border"
+            className="h-11 w-11 rounded-full border border-umurage-gold/25 object-cover"
             onClick={e => { e.stopPropagation(); navigate(`/profile?user=${item.author?.id}`); }}
           />
           {item.author?.verified && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-umurage-verified border border-umurage-bg flex items-center justify-center">
-              <span className="text-white text-[7px] font-bold">✓</span>
+            <div className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-[#0f0905] bg-emerald-500">
+              <span className="text-[7px] font-bold text-white">✓</span>
             </div>
           )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span
-              className="text-umurage-cream text-sm font-semibold hover:text-umurage-gold transition-colors cursor-pointer"
+              className="cursor-pointer text-sm font-semibold text-umurage-gold-light transition-colors hover:text-umurage-gold"
               onClick={e => { e.stopPropagation(); navigate(`/profile?user=${item.author?.id}`); }}
             >
               {authorName}
             </span>
-            {item.author?.verified && <CheckCircle size={14} className="text-umurage-verified flex-shrink-0" />}
+            {item.author?.verified && <CheckCircle size={14} className="flex-shrink-0 text-emerald-400" />}
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-umurage-subtle text-xs">{item.timeAgo || timeAgo(item.created_at)}</span>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-xs text-umurage-gold-light/60">{item.timeAgo || timeAgo(item.created_at)}</span>
             {item.region && (
               <>
-                <span className="text-umurage-border text-xs">•</span>
-                <span className="text-umurage-subtle text-xs">{item.region}</span>
+                <span className="text-[11px] text-umurage-gold-light/35">·</span>
+                <span className="text-xs text-umurage-gold-light/60">{item.region}</span>
               </>
             )}
           </div>
         </div>
-        <span className={`type-badge ${typeBadgeClass}`}>{item.type}</span>
+        <span className={`type-badge ${typeBadgeClass}`}>{item.type.toUpperCase()}</span>
       </div>
 
-      {/* Content */}
-      <div className="flex gap-4 px-4 pb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-umurage-cream font-semibold text-base leading-snug mb-1.5 group-hover:text-umurage-gold transition-colors">
+      <div className="px-4 pb-3">
+        {thumbnail && (
+          <div className="relative mb-3 overflow-hidden rounded-[20px] border border-amber-400/20">
+            <img src={thumbnail} alt={item.title} className="h-56 w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+            {(item.type === 'video' || item.type === 'audio') && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-umurage-gold/90 shadow-[0_0_24px_rgba(212,162,76,0.35)]">
+                  <Play size={18} className="ml-0.5 text-[#1b140f]" fill="currentColor" />
+                </div>
+              </div>
+            )}
+            {item.duration && (
+              <div className="absolute bottom-2 right-2 rounded-full border border-umurage-gold/20 bg-black/70 px-2 py-1 text-[10px] font-mono text-umurage-gold-light">
+                {item.duration}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <h3 className="mb-2 text-base font-semibold leading-snug text-umurage-gold-light transition-colors group-hover:text-umurage-cream">
             {item.title}
           </h3>
-          <p className="text-umurage-muted text-sm leading-relaxed line-clamp-2">{item.description}</p>
+          <p className="text-sm leading-relaxed text-umurage-gold-light/70">{item.description}</p>
           {item.tags && item.tags.length > 0 && (
-            <div className="flex gap-1.5 mt-2 flex-wrap">
+            <div className="mt-3 flex flex-wrap gap-2">
               {item.tags.slice(0, 3).map(tag => (
-                <span key={tag} className="text-[10px] text-umurage-gold/70 bg-umurage-gold/8 border border-umurage-gold/15 px-2 py-0.5 rounded-full">
+                <span key={tag} className="rounded-full border border-umurage-gold/20 bg-umurage-gold/10 px-2.5 py-1 text-[10px] font-medium text-umurage-gold-light">
                   #{tag}
                 </span>
               ))}
             </div>
           )}
         </div>
-
-        {thumbnail && (
-          <div className="relative flex-shrink-0 w-32 h-24 rounded-xl overflow-hidden">
-            <img src={thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-            {(item.type === 'video' || item.type === 'audio') && (
-              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                <div className="w-9 h-9 rounded-full bg-umurage-gold/90 flex items-center justify-center">
-                  <Play size={14} className="text-umurage-bg ml-0.5" fill="currentColor" />
-                </div>
-              </div>
-            )}
-            {item.duration && (
-              <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
-                {item.duration}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-umurage-border/50" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between border-t border-amber-400/15 px-4 py-3" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-4">
           <button
             onClick={handleLike}
             disabled={toggleLike.isPending}
-            className={`flex items-center gap-1.5 text-sm transition-all duration-150 hover:scale-105 ${isLiked ? 'text-red-400' : 'text-umurage-subtle hover:text-red-400'}`}
+            className={`flex items-center gap-1.5 text-sm transition-all duration-150 hover:scale-105 ${isLiked ? 'text-rose-400' : 'text-umurage-gold-light/70 hover:text-rose-400'}`}
           >
             {toggleLike.isPending ? <Loader2 size={15} className="animate-spin" /> : <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />}
             <span>{likesCount}</span>
           </button>
           <button
             onClick={handleCommentToggle}
-            className={`flex items-center gap-1.5 text-sm transition-colors ${showComments ? 'text-umurage-gold' : 'text-umurage-subtle hover:text-umurage-gold'}`}
+            className={`flex items-center gap-1.5 text-sm transition-colors ${showComments ? 'text-umurage-gold' : 'text-umurage-gold-light/70 hover:text-umurage-gold'}`}
           >
             <MessageCircle size={16} />
             <span>{commentsCount}</span>
           </button>
-          <button onClick={handleShare} className="flex items-center gap-1.5 text-sm text-umurage-subtle hover:text-umurage-gold transition-colors">
+          <button onClick={handleShare} className="flex items-center gap-1.5 text-sm text-umurage-gold-light/70 transition-colors hover:text-umurage-gold">
             <Share2 size={16} />
             <span>{sharesCount}</span>
           </button>
@@ -229,34 +225,33 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
         <button
           onClick={handleSave}
           disabled={toggleSave.isPending}
-          className={`transition-all duration-150 hover:scale-105 ${isSaved ? 'text-umurage-gold' : 'text-umurage-subtle hover:text-umurage-gold'}`}
+          className={`transition-all duration-150 hover:scale-105 ${isSaved ? 'text-umurage-gold' : 'text-umurage-gold-light/70 hover:text-umurage-gold'}`}
         >
           {toggleSave.isPending ? <Loader2 size={15} className="animate-spin" /> : <Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'} />}
         </button>
       </div>
 
-      {/* Comments panel */}
       {showComments && (
-        <div className="border-t border-umurage-border/50 px-4 py-4 bg-umurage-surface/30 animate-fade-in" onClick={e => e.stopPropagation()}>
-          <div className="space-y-3 mb-4 max-h-52 overflow-y-auto">
+        <div className="animate-fade-in border-t border-amber-400/15 bg-black/10 px-4 py-4" onClick={e => e.stopPropagation()}>
+          <div className="mb-4 max-h-52 space-y-3 overflow-y-auto">
             {comments.length === 0 ? (
-              <p className="text-umurage-subtle text-xs text-center py-4">No comments yet. Be the first!</p>
+              <p className="py-4 text-center text-xs text-umurage-gold-light/60">No comments yet. Be the first!</p>
             ) : (
               comments.map((c: { id: string; author?: { avatar_url?: string | null; username?: string | null; email?: string }; content: string; created_at: string }) => (
                 <div key={c.id} className="flex gap-2.5">
                   <img
                     src={c.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.author?.username || 'U'}`}
                     alt={c.author?.username || 'User'}
-                    className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-umurage-border"
+                    className="h-7 w-7 flex-shrink-0 rounded-full border border-umurage-gold/20 object-cover"
                   />
                   <div className="flex-1">
-                    <div className="bg-umurage-card rounded-xl px-3 py-2">
-                      <span className="text-umurage-cream text-xs font-semibold">
+                    <div className="rounded-xl bg-[#1d130d] px-3 py-2">
+                      <span className="text-xs font-semibold text-umurage-gold-light">
                         {c.author?.username || c.author?.email?.split('@')[0] || 'User'}
                       </span>
-                      <p className="text-umurage-muted text-xs mt-0.5 leading-relaxed">{c.content}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-umurage-gold-light/70">{c.content}</p>
                     </div>
-                    <span className="text-umurage-subtle text-[10px] ml-2">{timeAgo(c.created_at)}</span>
+                    <span className="ml-2 text-[10px] text-umurage-gold-light/50">{timeAgo(c.created_at)}</span>
                   </div>
                 </div>
               ))
@@ -267,23 +262,23 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
               <img
                 src={user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name || 'U'}`}
                 alt={user?.name || 'You'}
-                className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-umurage-border"
+                className="h-7 w-7 flex-shrink-0 rounded-full border border-umurage-gold/20 object-cover"
               />
-              <div className="flex-1 flex gap-2 bg-umurage-card border border-umurage-border rounded-xl px-3 py-2">
+              <div className="flex flex-1 gap-2 rounded-xl border border-umurage-gold/20 bg-[#1d130d] px-3 py-2">
                 <input
                   type="text"
                   value={commentText}
                   onChange={e => setCommentText(e.target.value)}
                   placeholder="Write a comment..."
-                  className="flex-1 bg-transparent text-umurage-cream text-sm placeholder-umurage-subtle focus:outline-none"
+                  className="flex-1 bg-transparent text-sm text-umurage-gold-light placeholder-umurage-gold-light/40 focus:outline-none"
                 />
-                <button type="submit" disabled={!commentText.trim() || addComment.isPending} className="text-umurage-gold disabled:opacity-40 hover:text-umurage-gold-light transition-colors">
+                <button type="submit" disabled={!commentText.trim() || addComment.isPending} className="text-umurage-gold transition-colors hover:text-umurage-gold-light disabled:opacity-40">
                   {addComment.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 </button>
               </div>
             </form>
           ) : (
-            <button onClick={() => openAuth('login')} className="btn-outline-gold w-full text-xs py-2">Sign in to comment</button>
+            <button onClick={() => openAuth('login')} className="btn-outline-gold w-full py-2 text-xs">Sign in to comment</button>
           )}
         </div>
       )}

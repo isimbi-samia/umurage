@@ -39,9 +39,10 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-umurage-bg relative">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(218,163,72,0.18),_transparent_24%),linear-gradient(135deg,_#140c06_0%,_#2b180d_55%,_#130a06_100%)] text-umurage-cream relative overflow-x-hidden">
       <div className="inyambo-bg" />
-      <div className="fixed inset-0 imigongo-pattern pointer-events-none z-0 opacity-60" />
+      <div className="fixed inset-0 imigongo-pattern pointer-events-none z-0 opacity-70" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_100%_0%,_rgba(218,163,72,0.14),_transparent_30%)]" />
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <TopBar
@@ -49,8 +50,8 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         menuOpen={sidebarOpen}
       />
 
-      <main className="relative z-10 lg:ml-56 pt-16 min-h-screen">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <main className="relative z-10 lg:ml-[280px] pt-16 min-h-screen">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>

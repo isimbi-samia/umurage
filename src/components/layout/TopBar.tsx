@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Search, Bell, MessageSquare, ChevronDown, Menu, X, Upload, LogOut, User, Loader2,
-  CheckCircle, Heart, UserPlus, MessageCircle, Shield
+  CheckCircle, Heart, UserPlus, MessageCircle, Shield, Filter, SlidersHorizontal
 } from 'lucide-react';
 import { useLanguage, LangCode } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,7 +43,6 @@ const NOTIF_ICONS: Record<string, React.ReactNode> = {
   verification: <Shield size={14} className="text-purple-400" />,
 };
 
-// ---- Notification Panel ----
 const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ userId, onClose }) => {
   const { t } = useLanguage();
   const { data: notifications = [], isLoading } = useNotifications(userId);
@@ -64,7 +63,6 @@ const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ 
       className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-umurage-border overflow-hidden z-50 animate-fade-in"
       style={{ background: 'rgba(13,8,3,0.99)' }}
     >
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-umurage-border">
         <div className="flex items-center gap-2">
           <Bell size={16} className="text-umurage-gold" />
@@ -86,7 +84,6 @@ const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ 
         )}
       </div>
 
-      {/* List */}
       <div className="max-h-80 overflow-y-auto">
         {isLoading ? (
           <div className="flex justify-center py-8">
@@ -135,7 +132,6 @@ const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ 
   );
 };
 
-// ---- TopBar ----
 const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
   const { lang, setLang, t } = useLanguage();
   const { user, isAuthenticated, openAuth, logout } = useAuth();
@@ -213,31 +209,29 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
 
   return (
     <header
-      className="fixed top-0 left-0 lg:left-56 right-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-umurage-border"
+      className="fixed top-0 left-0 lg:left-[280px] right-0 z-20 flex items-center gap-4 px-4 py-3 border-b border-umurage-border"
       style={{ background: 'rgba(15,10,5,0.96)', backdropFilter: 'blur(14px)', height: '64px' }}
     >
-      {/* Mobile menu */}
       <button onClick={onMenuToggle} className="lg:hidden text-umurage-muted hover:text-umurage-cream p-2 rounded-lg transition-colors">
         {menuOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Search */}
-      <div className="flex-1 max-w-xl relative" ref={searchRef}>
+      <div className="flex-1 max-w-2xl relative" ref={searchRef}>
         <form onSubmit={handleSearchSubmit}>
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-umurage-subtle" />
             <input
               type="text"
               value={searchVal}
               onChange={e => setSearchVal(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               placeholder={t('search.placeholder')}
-              className="w-full border border-umurage-border rounded-xl pl-9 pr-10 py-2.5 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/50 transition-colors"
+              className="w-full border border-umurage-border rounded-2xl pl-11 pr-10 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/50 transition-colors"
               style={{ background: 'rgba(34,21,8,0.8)' }}
             />
-            {searchLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-umurage-gold animate-spin" />}
+            {searchLoading && <Loader2 size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-gold animate-spin" />}
             {searchVal && !searchLoading && (
-              <button type="button" onClick={() => { setSearchVal(''); setSearchResults([]); setNoResults(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-cream transition-colors">
+              <button type="button" onClick={() => { setSearchVal(''); setSearchResults([]); setNoResults(false); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-cream transition-colors">
                 <X size={14} />
               </button>
             )}
@@ -245,7 +239,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
         </form>
 
         {searchFocused && searchVal.length >= 2 && (
-          <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-umurage-border overflow-hidden z-50 animate-fade-in" style={{ background: 'rgba(22,14,5,0.99)' }}>
+          <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-umurage-border overflow-hidden z-50 animate-fade-in" style={{ background: 'rgba(22,14,5,0.99)' }}>
             {searchLoading ? (
               <div className="flex items-center justify-center py-6 gap-2">
                 <Loader2 size={16} className="text-umurage-gold animate-spin" />
@@ -287,7 +281,6 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
-        {/* Language */}
         <div className="relative">
           <select value={lang} onChange={e => setLang(e.target.value as LangCode)} className="lang-select pr-6 text-sm font-semibold cursor-pointer">
             {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
@@ -301,7 +294,6 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
               <Upload size={14} /> <span>{t('upload')}</span>
             </button>
 
-            {/* Notifications Bell */}
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
@@ -320,12 +312,10 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
               )}
             </div>
 
-            {/* Discussions */}
             <button onClick={() => navigate('/discussions')} className="p-2 text-umurage-muted hover:text-umurage-cream rounded-lg hover:bg-umurage-card transition-colors">
               <MessageSquare size={18} />
             </button>
 
-            {/* User menu */}
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifs(false); }}

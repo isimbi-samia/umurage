@@ -1,10 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, Eye, ChevronLeft, ChevronRight, Upload, Loader2 } from 'lucide-react';
+import { Plus, X, Eye, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { STORIES } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
 interface StoryViewerProps {
@@ -31,96 +29,76 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
         }
         return p + 1;
       });
-    }, 50); // 5 seconds total
+    }, 50);
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [story.id]);
+  }, [story.id, hasNext, onNext, onClose]);
 
   if (story.isAdd) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
-      <div className="relative w-full max-w-sm h-[80vh] rounded-2xl overflow-hidden">
-        {/* Progress bar */}
-        <div className="absolute top-3 left-3 right-3 z-20 flex gap-1">
-          <div className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
-            <div className="h-full bg-white rounded-full transition-none" style={{ width: `${progress}%` }} />
+      <div className="relative h-[82vh] w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.45)]">
+        <div className="absolute left-3 right-3 top-3 z-20 flex gap-1">
+          <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/30">
+            <div className="h-full rounded-full bg-white transition-none" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
-        {/* Close */}
-        <button onClick={onClose} className="absolute top-6 right-3 z-20 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors">
-          <X size={16} />
-        </button>
+        <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60">
+          return (
+            <>
+              <div className="w-full">
+                <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-hide">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/upload')}
+                    aria-label="Add your story"
+                    className="flex flex-col items-center gap-1 px-2"
+                  >
+                    <div className="basket-ring has-new">
+                      <div className="basket-ring-inner h-14 w-14 flex items-center justify-center rounded-full bg-[#1b1009] text-umurage-gold text-lg font-bold">
+                        +
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-umurage-cream/70">Your Story</span>
+                  </button>
 
-        {/* Story content */}
-        <div className="w-full h-full bg-gradient-to-b from-umurage-bg to-umurage-card flex flex-col items-center justify-center p-6">
-          <img
-            src={story.user.avatar || 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=300&h=400&fit=crop'}
-            alt={story.user.name}
-            className="w-full h-full object-cover absolute inset-0 opacity-30"
-          />
-          <div className="relative z-10 text-center">
-            <img
-              src={story.user.avatar}
-              alt={story.user.name}
-              className="w-16 h-16 rounded-full object-cover border-3 border-umurage-gold mx-auto mb-3"
-            />
-            <p className="text-white font-semibold text-lg">{story.user.name}</p>
-            {story.user.verified && <p className="text-umurage-gold text-xs mt-0.5">✓ Verified Creator</p>}
-          </div>
-        </div>
+                  {activeStories.map(story => (
+                    <button
+                      key={story.id}
+                      onClick={() => handleStoryClick(story.id)}
+                      aria-label={story.title || story.user.name}
+                      className="flex flex-col items-center gap-1 px-2"
+                    >
+                      <div className={`basket-ring ${story.hasNew && !viewedStories.has(story.id) ? 'has-new' : ''}`}>
+                        <div className="basket-ring-inner h-14 w-14 rounded-full overflow-hidden">
+                          <img src={story.user.avatar} alt={story.user.name} className="h-full w-full object-cover" />
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-umurage-cream/70 truncate max-w-[64px] text-center">{story.user.name.split(' ')[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-        {/* Nav overlays */}
-        {hasPrev && (
-          <button onClick={onPrev} className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/30 flex items-center justify-center text-white hover:bg-black/50">
-            <ChevronLeft size={18} />
-          </button>
-        )}
-        {hasNext && (
-          <button onClick={onNext} className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/30 flex items-center justify-center text-white hover:bg-black/50">
-            <ChevronRight size={18} />
-          </button>
-        )}
-
-        {/* User info bar */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent z-10">
-          <p className="text-white/70 text-xs text-center">Tap sides to navigate • Tap ✕ to close</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StoriesBar: React.FC = () => {
-  const { t } = useLanguage();
-  const { isAuthenticated, openAuth } = useAuth();
-  const navigate = useNavigate();
-  const [viewingIdx, setViewingIdx] = useState<number | null>(null);
-  const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
-
-  const nonAddStories = STORIES.filter(s => !s.isAdd);
-
-  const handleStoryClick = (storyId: string, idx: number) => {
-    if (storyId === 's0') {
-      // "Your Story" add button
-      if (!isAuthenticated) { openAuth('login'); return; }
-      navigate('/upload');
-      return;
-    }
-    // Open story viewer at right index
-    const nonAddIdx = nonAddStories.findIndex(s => s.id === storyId);
-    if (nonAddIdx >= 0) {
-      setViewingIdx(nonAddIdx);
-      setViewedStories(prev => new Set([...prev, storyId]));
-    }
-  };
-
+              {viewingIdx !== null && activeStories[viewingIdx] && (
+                <StoryViewer
+                  story={activeStories[viewingIdx]}
+                  onClose={handleClose}
+                  onPrev={handlePrev}
+                  onNext={handleNext}
+                  hasPrev={viewingIdx > 0}
+                  hasNext={viewingIdx < activeStories.length - 1}
+                />
+              )}
+            </>
+          );
   const handlePrev = () => setViewingIdx(p => (p !== null && p > 0 ? p - 1 : p));
   const handleNext = () => {
     setViewingIdx(p => {
-      if (p !== null && p < nonAddStories.length - 1) {
-        setViewedStories(prev => new Set([...prev, nonAddStories[p + 1].id]));
+      if (p !== null && p < activeStories.length - 1) {
+        setViewedStories(prev => new Set([...prev, activeStories[p + 1].id]));
         return p + 1;
       }
       return p;
@@ -131,66 +109,50 @@ const StoriesBar: React.FC = () => {
   return (
     <>
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="section-title">{t('stories.title')}</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="glass-pill mb-2">{t('stories.title')}</p>
+            <h2 className="section-title">{t('stories.title')}</h2>
+          </div>
           <button
             onClick={() => navigate('/stories')}
-            className="text-umurage-gold text-sm font-medium hover:text-umurage-gold-light transition-colors"
+            className="text-sm font-medium text-umurage-gold transition-colors hover:text-umurage-gold-light"
           >
             {t('stories.seeAll')}
           </button>
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {STORIES.map((story) => (
+          {activeStories.map((story) => (
             <div
               key={story.id}
-              onClick={() => handleStoryClick(story.id, 0)}
-              className="flex flex-col items-center gap-2 cursor-pointer flex-shrink-0 group"
+              onClick={() => handleStoryClick(story.id)}
+              className="flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 group"
             >
               <div className="relative">
-                {story.isAdd ? (
-                  <div className="w-16 h-16 rounded-full bg-umurage-card border-2 border-dashed border-umurage-border flex items-center justify-center group-hover:border-umurage-gold/60 transition-all duration-200">
-                    <Plus size={24} className="text-umurage-gold" />
+                <div className={`basket-ring ${story.hasNew && !viewedStories.has(story.id) ? 'has-new' : ''}`}>
+                  <div className="basket-ring-inner h-20 w-20">
+                    <img
+                      src={story.user.avatar || 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=300&h=400&fit=crop'}
+                      alt={story.user.name}
+                      className="h-full w-full rounded-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
                   </div>
-                ) : (
-                  <div className="relative">
-                    <div
-                      className="w-16 h-16 rounded-full p-0.5"
-                      style={story.hasNew && !viewedStories.has(story.id) ? {
-                        background: 'conic-gradient(#C8960C 0deg, #6B4A10 45deg, #E8B422 90deg, #8B6914 135deg, #C8960C 180deg, #6B4A10 225deg, #E8B422 270deg, #8B6914 315deg, #C8960C 360deg)',
-                      } : { background: '#3D2510' }}
-                    >
-                      <div className="w-full h-full rounded-full overflow-hidden border-2 border-umurage-bg">
-                        <img
-                          src={story.user.avatar}
-                          alt={story.user.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                      </div>
-                    </div>
-                    {story.user.verified && (
-                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-umurage-verified border-2 border-umurage-bg flex items-center justify-center">
-                        <span className="text-white text-[8px] font-bold">✓</span>
-                      </div>
-                    )}
-                    {viewedStories.has(story.id) && (
-                      <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
-                        <Eye size={14} className="text-white/60" />
-                      </div>
-                    )}
+                </div>
+                {story.user.verified && (
+                  <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#0f0905] bg-emerald-500 shadow-lg">
+                    <Sparkles size={10} className="text-white" />
                   </div>
                 )}
               </div>
-              <span className="text-[11px] text-umurage-muted text-center max-w-[64px] truncate group-hover:text-umurage-cream transition-colors">
-                {story.isAdd ? t('stories.yourStory') : story.user.name.split(' ')[0]}
+              <span className="max-w-[72px] truncate text-center text-[11px] text-umurage-cream/65 transition-colors group-hover:text-umurage-cream">
+                {story.user.name.split(' ')[0]}
               </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Story Viewer Modal */}
       {viewingIdx !== null && nonAddStories[viewingIdx] && (
         <StoryViewer
           story={nonAddStories[viewingIdx]}

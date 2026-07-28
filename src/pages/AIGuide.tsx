@@ -1,17 +1,38 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Sparkles, RefreshCw, Loader2, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { FunctionsHttpError } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { AI_SUGGESTED_QUESTIONS } from '@/data/mockData';
+import { AI_SUGGESTED_QUESTIONS, AI_RESPONSES } from '@/data/mockData';
 
 interface Message {
   id: string;
   role: 'user' | 'ai';
   content: string;
   time: string;
+}
+
+function findBestResponse(query: string): string {
+  const lower = query.toLowerCase();
+  const keywords: Record<string, string[]> = {
+    umuganura: ['umuganura', 'first fruits', 'harvest festival', 'umuganura festival', 'celebrate harvest', 'give thanks'],
+    inyambo: ['inyambo', 'cattle', 'long-horned', 'royal cattle', 'sacred animal', 'pastoral'],
+    intore: ['intore', 'dance', 'warrior dance', 'traditional dance', 'umheto', 'ikinyabuge', 'indirimbo'],
+    imigongo: ['imigongo', 'geometric art', 'cow dung', 'eastern province', 'akagera', 'pattern', 'craft'],
+    kalinga: ['kalinga', 'drum', 'royal drum', 'sacred drum', 'kingdom of rwanda'],
+    kingdom: ['kingdom', 'mwami', 'royal', 'monarchy', 'rubanzi ndoli'],
+    wedding: ['wedding', 'traditional wedding', 'marriage', 'bride', 'groom', 'ceremony'],
+    ubwuzu: ['ubwuzu', 'meaning', 'concept', 'philosophy'],
+    umubyeyi: ['umubyeyi', 'meaning', 'word', 'language'],
+  };
+
+  for (const [key, terms] of Object.entries(keywords)) {
+    if (terms.some(term => lower.includes(term))) {
+      return AI_RESPONSES[key] || AI_RESPONSES.default;
+    }
+  }
+
+  return AI_RESPONSES.default;
 }
 
 const AIGuide: React.FC = () => {
@@ -34,6 +55,46 @@ const AIGuide: React.FC = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const generateResponse = useCallback((userText: string, history: Message[]) => {
+    const lower = userText.toLowerCase();
+
+    if (lower.includes('umuganura') || lower.includes('first fruits') || lower.includes('harvest') || lower.includes('festival of the first fruits')) {
+      return AI_RESPONSES.umuganura;
+    }
+    if (lower.includes('inyambo') || lower.includes('cattle') || lower.includes('long-horned') || lower.includes('royal cow')) {
+      return AI_RESPONSES.inyambo;
+    }
+    if (lower.includes('intore') || lower.includes('dance of heroes') || lower.includes('warrior dance') || lower.includes('traditional dance')) {
+      return AI_RESPONSES.intore;
+    }
+    if (lower.includes('imigongo') || lower.includes('geometric art') || lower.includes('cow dung') || lower.includes('geometric pattern')) {
+      return AI_RESPONSES.imigongo;
+    }
+    if (lower.includes('kalinga') || lower.includes('drum') || lower.includes('royal drum') || lower.includes('sacred drum')) {
+      return AI_RESPONSES.kalinga;
+    }
+    if (lower.includes('kingdom') || lower.includes('mwami') || lower.includes('monarchy') || lower.includes('royal court') || lower.includes('rubanzi')) {
+      return AI_RESPONSES.kingdom;
+    }
+    if (lower.includes('wedding') || lower.includes('marriage') || lower.includes('gusaba') || lower.includes('traditional wedding') || lower.includes('gukwa')) {
+      return AI_RESPONSES.gusaba;
+    }
+    if (lower.includes('kwita izina') || lower.includes('gorilla naming') || lower.includes('naming ceremony') || lower.includes('baby gorilla')) {
+      return AI_RESPONSES.kwitaizina;
+    }
+    if (lower.includes('ubwuzu') || lower.includes('communal harmony') || lower.includes('shared prosperity')) {
+      return AI_RESPONSES.ubwuzu;
+    }
+    if (lower.includes('umubyeyi') || lower.includes('ancestor') || lower.includes('lineage') || lower.includes('parent')) {
+      return AI_RESPONSES.umubyeyi;
+    }
+    if (lower.includes('rcha') || lower.includes('rwanda cultural heritage') || lower.includes('cultural heritage academy') || lower.includes('inteko y\'umuco')) {
+      return AI_RESPONSES.rcha;
+    }
+
+    return findBestResponse(userText);
+  }, []);
+
   const sendMessage = async (text?: string) => {
     const msg = text || input.trim();
     if (!msg || isTyping) return;
@@ -48,34 +109,10 @@ const AIGuide: React.FC = () => {
     setInput('');
     setIsTyping(true);
 
-    // Build conversation history (last 10 messages for context)
-    const history = [...messages, userMsg].slice(-10).map(m => ({
-      role: m.role === 'ai' ? 'assistant' : 'user',
-      content: m.content,
-    }));
+    const history = [...messages, userMsg].slice(-10);
 
     try {
-      const { data, error } = await supabase.functions.invoke('cultural-ai', {
-        body: { messages: history, language: lang },
-      });
-
-      let aiContent = '';
-
-      if (error) {
-        let errorMessage = error.message;
-        if (error instanceof FunctionsHttpError) {
-          try {
-            const textContent = await error.context?.text();
-            errorMessage = textContent || error.message;
-          } catch {
-            errorMessage = error.message;
-          }
-        }
-        console.error('AI error:', errorMessage);
-        aiContent = "I'm experiencing a connection issue. Please try again in a moment. \n\nMeanwhile, feel free to browse our Cultural Library for information about Rwandan heritage.";
-      } else {
-        aiContent = data?.content || "I couldn't generate a response. Please try asking differently.";
-      }
+      const aiContent = generateResponse(msg, history);
 
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -85,8 +122,15 @@ const AIGuide: React.FC = () => {
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
-      console.error('Unexpected error:', err);
+      console.error('AI error:', err);
       toast.error('Failed to get AI response');
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: AI_RESPONSES.default,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages(prev => [...prev, aiMsg]);
     } finally {
       setIsTyping(false);
     }
@@ -130,7 +174,6 @@ const AIGuide: React.FC = () => {
 
   return (
     <div className="animate-fade-in flex flex-col h-[calc(100vh-120px)]">
-      {/* Header */}
       <div className="flex items-center justify-between mb-5 flex-shrink-0">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -148,7 +191,6 @@ const AIGuide: React.FC = () => {
         </button>
       </div>
 
-      {/* Suggested questions */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-2 flex-shrink-0 scrollbar-hide">
         {SUGGESTED.map((q, i) => (
           <button
@@ -162,14 +204,12 @@ const AIGuide: React.FC = () => {
         ))}
       </div>
 
-      {/* Messages area */}
       <div className="flex-1 overflow-y-auto space-y-5 mb-4 pr-1">
         {messages.map(msg => (
           <div
             key={msg.id}
             className={`flex gap-3 animate-fade-in ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
           >
-            {/* Avatar */}
             {msg.role === 'ai' ? (
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-umurage-gold/30 to-umurage-gold/10 border border-umurage-gold/40 flex items-center justify-center flex-shrink-0 mt-1">
                 <Sparkles size={15} className="text-umurage-gold" />
@@ -184,7 +224,7 @@ const AIGuide: React.FC = () => {
               </div>
             )}
 
-            <div className={`max-w-[78%] flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+            <div className={`max-w-[78%] flex flex-col ${msg.role === 'user' ? 'items-end' : ''}`}>
               {msg.role === 'ai' && (
                 <span className="text-umurage-gold/70 text-[10px] font-semibold mb-1 ml-1">Umurage AI Guide</span>
               )}
@@ -202,7 +242,6 @@ const AIGuide: React.FC = () => {
           </div>
         ))}
 
-        {/* Typing indicator */}
         {isTyping && (
           <div className="flex gap-3 animate-fade-in">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-umurage-gold/30 to-umurage-gold/10 border border-umurage-gold/40 flex items-center justify-center flex-shrink-0">
@@ -223,7 +262,6 @@ const AIGuide: React.FC = () => {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input area */}
       <div className="flex-shrink-0">
         <div className="flex gap-3 bg-umurage-card border border-umurage-border rounded-2xl p-3 focus-within:border-umurage-gold/40 transition-colors">
           <textarea
