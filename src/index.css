@@ -168,7 +168,7 @@
   }
 
   .premium-panel {
-    @apply rounded-[24px] border border-umurage-gold-light/30 bg-[rgba(39,22,9,0.92)] shadow-[0_18px_45px_rgba(0,0,0,0.28)] backdrop-blur-xl;
+    @apply rounded-[24px] border border-umurage-gold-light/30 bg-[rgba(39,22,9,0.68)] shadow-[0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur-xl;
   }
   .glass-pill {
     @apply inline-flex items-center gap-2 rounded-full border border-umurage-gold-light/30 bg-umurage-gold-light/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.25em] text-umurage-gold-light/90 backdrop-blur-md;
@@ -186,8 +186,8 @@
   }
 
   .auth-modal-card {
-    @apply relative rounded-[32px] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.45)] border border-umurage-border/90;
-    background: rgba(10, 6, 2, 0.96);
+    @apply relative rounded-[32px] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.38)] border border-umurage-border/90;
+    background: rgba(10, 6, 2, 0.86);
     min-width: min(100%, 420px);
   }
   .auth-modal-card::before {

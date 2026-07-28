@@ -125,7 +125,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   }[item.type] || 'article';
 
   return (
-    <article className="animate-fade-in group cursor-pointer overflow-hidden rounded-[24px] border border-amber-400/20 bg-[rgba(27,16,8,0.9)] shadow-[0_16px_40px_rgba(0,0,0,0.24)]" onClick={handleCardClick}>
+    <article className="animate-fade-in group cursor-pointer overflow-hidden rounded-[24px] border border-amber-400/20 bg-[rgba(27,16,8,0.65)] shadow-[0_16px_40px_rgba(0,0,0,0.18)]" onClick={handleCardClick}>
       <div className="flex items-start gap-3 p-4 pb-3">
         <div className="relative flex-shrink-0">
           <img

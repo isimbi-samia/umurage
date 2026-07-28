@@ -6,6 +6,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
+import RightSidebar from '@/components/features/RightSidebar';
 import AuthModal from '@/components/features/AuthModal';
 import Home from '@/pages/Home';
 import Library from '@/pages/Library';
@@ -50,11 +51,15 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         menuOpen={sidebarOpen}
       />
 
-      <main className="relative z-10 lg:ml-[280px] pt-16 min-h-screen">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="relative z-10 lg:ml-[220px] lg:mr-[320px] pt-16 h-[calc(100vh-64px)] overflow-auto">
+        <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>
+
+      <div className="hidden lg:block fixed right-0 top-16 h-[calc(100vh-64px)] w-[320px] overflow-auto p-4 z-20">
+        <RightSidebar />
+      </div>
 
       <AuthModal />
       <Toaster

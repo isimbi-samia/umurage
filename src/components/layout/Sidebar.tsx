@@ -57,18 +57,19 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       <aside
         className={`
           fixed left-0 top-0 h-full z-40 flex flex-col
-          w-[280px] border-r border-[#4a2a12]/80 bg-[#1a100b]
+          w-[220px] border-r border-[#4a2a12]/80 bg-[#1a100b]
           shadow-[12px_0_40px_rgba(0,0,0,0.26)]
           transition-transform duration-300
           ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
+        style={{ paddingTop: '4rem' }}
       >
-        <div className="flex items-center gap-3 border-b border-[#5c3417]/50 px-5 py-5">
-          <div className="w-11 h-11 rounded-2xl overflow-hidden flex-shrink-0 border border-amber-400/30 shadow-[0_0_16px_rgba(212,162,76,0.2)]">
+        <div className="flex items-center gap-3 border-b border-[#5c3417]/50 px-4 py-4">
+          <div className="w-9 h-9 rounded-2xl overflow-hidden flex-shrink-0 border border-amber-400/30 shadow-[0_0_12px_rgba(212,162,76,0.18)]">
             <img src={logoImg} alt="Umurage Hub" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="font-cinzel text-amber-300 font-bold text-sm leading-tight tracking-[0.25em]">
+            <h1 className="font-cinzel text-amber-300 font-bold text-xs leading-tight tracking-[0.25em]">
               UMURAGE HUB
             </h1>
             <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.25em] text-amber-200/60">
@@ -77,25 +78,25 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1 scrollbar-hide">
+        <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-1 scrollbar-thin scrollbar-thumb-amber-400/40">
           {NAV_ITEMS.map(({ label, icon: Icon, path }) => (
             <button
               key={label}
               onClick={() => handleNav(path)}
-              className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 ${location.pathname === path ? 'bg-[#3f260f] text-amber-200 shadow-[0_10px_24px_rgba(0,0,0,0.18)]' : 'text-[#f5e6d0]/80 hover:bg-[#2f1b0c] hover:text-amber-100'}`}
+              className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-xs font-medium transition-all duration-200 ${location.pathname === path ? 'bg-[#3f260f] text-amber-200 shadow-[0_10px_24px_rgba(0,0,0,0.18)]' : 'text-[#f5e6d0]/80 hover:bg-[#2f1b0c] hover:text-amber-100'}`}
             >
-              <Icon size={16} className={`flex-shrink-0 ${location.pathname === path ? 'text-amber-300' : 'text-amber-200/70'}`} />
-              <span>{label}</span>
+              <Icon size={14} className={`flex-shrink-0 ${location.pathname === path ? 'text-amber-300' : 'text-amber-200/70'}`} />
+              <span className="truncate">{label}</span>
             </button>
           ))}
 
           <button
             type="button"
             onClick={() => (!isAuthenticated ? openAuth('login') : handleNav('/upload'))}
-            className="mt-2 flex w-full items-center gap-3 rounded-2xl bg-amber-400/90 px-3 py-2.5 text-left text-sm font-semibold text-[#140c06] transition-all duration-200 hover:bg-amber-300"
+            className="mt-2 flex w-full items-center gap-3 rounded-lg bg-amber-400/90 px-2 py-2 text-left text-xs font-semibold text-[#140c06] transition-all duration-200 hover:bg-amber-300"
           >
-            <Upload size={16} className="flex-shrink-0 text-[#140c06]" />
-            <span>Share a Story</span>
+            <Upload size={14} className="flex-shrink-0 text-[#140c06]" />
+            <span className="truncate">Share a Story</span>
           </button>
 
           {isAuthenticated && (

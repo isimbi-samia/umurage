@@ -46,54 +46,65 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
         </div>
 
         <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60">
-          return (
-            <>
-              <div className="w-full">
-                <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-hide">
-                  <button
-                    type="button"
-                    onClick={() => navigate('/upload')}
-                    aria-label="Add your story"
-                    className="flex flex-col items-center gap-1 px-2"
-                  >
-                    <div className="basket-ring has-new">
-                      <div className="basket-ring-inner h-14 w-14 flex items-center justify-center rounded-full bg-[#1b1009] text-umurage-gold text-lg font-bold">
-                        +
-                      </div>
-                    </div>
-                    <span className="text-[11px] text-umurage-cream/70">Your Story</span>
-                  </button>
+          <X size={16} />
+        </button>
 
-                  {activeStories.map(story => (
-                    <button
-                      key={story.id}
-                      onClick={() => handleStoryClick(story.id)}
-                      aria-label={story.title || story.user.name}
-                      className="flex flex-col items-center gap-1 px-2"
-                    >
-                      <div className={`basket-ring ${story.hasNew && !viewedStories.has(story.id) ? 'has-new' : ''}`}>
-                        <div className="basket-ring-inner h-14 w-14 rounded-full overflow-hidden">
-                          <img src={story.user.avatar} alt={story.user.name} className="h-full w-full object-cover" />
-                        </div>
-                      </div>
-                      <span className="text-[11px] text-umurage-cream/70 truncate max-w-[64px] text-center">{story.user.name.split(' ')[0]}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#2e1c10] to-[#0f0905] p-6">
+          <img
+            src={story.user.avatar || 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=300&h=400&fit=crop'}
+            alt={story.user.name}
+            className="absolute inset-0 h-full w-full object-cover opacity-30"
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(212,162,76,0.26),_transparent_38%)]" />
+          <div className="relative z-10 text-center p-4">
+            <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-umurage-gold/50 bg-black/20 p-1 shadow-[0_0_20px_rgba(212,162,76,0.3)]">
+              <img src={story.user.avatar} alt={story.user.name} className="h-full w-full rounded-full object-cover" />
+            </div>
+            <p className="text-lg font-semibold text-white">{story.user.name}</p>
+            {story.user.verified && <p className="mt-1 text-xs text-umurage-gold">✓ Verified Creator</p>}
+          </div>
+        </div>
 
-              {viewingIdx !== null && activeStories[viewingIdx] && (
-                <StoryViewer
-                  story={activeStories[viewingIdx]}
-                  onClose={handleClose}
-                  onPrev={handlePrev}
-                  onNext={handleNext}
-                  hasPrev={viewingIdx > 0}
-                  hasNext={viewingIdx < activeStories.length - 1}
-                />
-              )}
-            </>
-          );
+        {hasPrev && (
+          <button onClick={onPrev} className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50">
+            <ChevronLeft size={18} />
+          </button>
+        )}
+        {hasNext && (
+          <button onClick={onNext} className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50">
+            <ChevronRight size={18} />
+          </button>
+        )}
+
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-4">
+          <p className="text-center text-xs text-amber-50/70">Swipe or tap the sides to explore • Tap ✕ to close</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StoriesBar: React.FC = () => {
+  const { t } = useLanguage();
+  const { isAuthenticated, openAuth } = useAuth();
+  const navigate = useNavigate();
+  const [viewingIdx, setViewingIdx] = useState<number | null>(null);
+  const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
+
+  const activeStories = STORIES.filter(s => {
+    if (s.isAdd) return false;
+    if (!s.createdAt) return true;
+    return Date.now() - new Date(s.createdAt).getTime() < 24 * 60 * 60 * 1000;
+  });
+
+  const handleStoryClick = (storyId: string) => {
+    const activeIdx = activeStories.findIndex(s => s.id === storyId);
+    if (activeIdx >= 0) {
+      setViewingIdx(activeIdx);
+      setViewedStories(prev => new Set([...prev, storyId]));
+    }
+  };
+
   const handlePrev = () => setViewingIdx(p => (p !== null && p > 0 ? p - 1 : p));
   const handleNext = () => {
     setViewingIdx(p => {
@@ -108,59 +119,50 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
 
   return (
     <>
-      <div className="mb-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="glass-pill mb-2">{t('stories.title')}</p>
-            <h2 className="section-title">{t('stories.title')}</h2>
-          </div>
-          <button
-            onClick={() => navigate('/stories')}
-            className="text-sm font-medium text-umurage-gold transition-colors hover:text-umurage-gold-light"
-          >
-            {t('stories.seeAll')}
-          </button>
-        </div>
-
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {activeStories.map((story) => (
-            <div
-              key={story.id}
-              onClick={() => handleStoryClick(story.id)}
-              className="flex flex-shrink-0 cursor-pointer flex-col items-center gap-2 group"
+      <div className="w-full sticky top-16 z-30">
+        <div className="mx-auto max-w-4xl px-0 lg:px-0">
+          <div className="flex items-center gap-3 overflow-x-auto py-2 scrollbar-hide">
+            <button
+              type="button"
+              onClick={() => (!isAuthenticated ? openAuth('login') : navigate('/upload'))}
+              aria-label="Add your story"
+              className="flex flex-col items-center gap-1 px-2"
             >
-              <div className="relative">
+              <div className="basket-ring has-new">
+                <div className="basket-ring-inner h-14 w-14 flex items-center justify-center rounded-full bg-transparent text-umurage-gold text-lg font-bold">
+                  +
+                </div>
+              </div>
+              <span className="text-[11px] text-umurage-cream/70">Your Story</span>
+            </button>
+
+            {activeStories.map(story => (
+              <button
+                key={story.id}
+                onClick={() => handleStoryClick(story.id)}
+                aria-label={story.title || story.user.name}
+                className="flex flex-col items-center gap-1 px-2"
+              >
                 <div className={`basket-ring ${story.hasNew && !viewedStories.has(story.id) ? 'has-new' : ''}`}>
-                  <div className="basket-ring-inner h-20 w-20">
-                    <img
-                      src={story.user.avatar || 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=300&h=400&fit=crop'}
-                      alt={story.user.name}
-                      className="h-full w-full rounded-full object-cover transition-transform duration-200 group-hover:scale-105"
-                    />
+                  <div className="basket-ring-inner h-14 w-14 rounded-full overflow-hidden bg-transparent">
+                    <img src={story.user.avatar} alt={story.user.name} className="h-full w-full object-cover" />
                   </div>
                 </div>
-                {story.user.verified && (
-                  <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#0f0905] bg-emerald-500 shadow-lg">
-                    <Sparkles size={10} className="text-white" />
-                  </div>
-                )}
-              </div>
-              <span className="max-w-[72px] truncate text-center text-[11px] text-umurage-cream/65 transition-colors group-hover:text-umurage-cream">
-                {story.user.name.split(' ')[0]}
-              </span>
-            </div>
-          ))}
+                <span className="text-[11px] text-umurage-cream/70 truncate max-w-[64px] text-center">{story.user.name.split(' ')[0]}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {viewingIdx !== null && nonAddStories[viewingIdx] && (
+      {viewingIdx !== null && activeStories[viewingIdx] && (
         <StoryViewer
-          story={nonAddStories[viewingIdx]}
+          story={activeStories[viewingIdx]}
           onClose={handleClose}
           onPrev={handlePrev}
           onNext={handleNext}
           hasPrev={viewingIdx > 0}
-          hasNext={viewingIdx < nonAddStories.length - 1}
+          hasNext={viewingIdx < activeStories.length - 1}
         />
       )}
     </>

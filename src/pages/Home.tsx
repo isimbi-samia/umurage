@@ -31,20 +31,19 @@ const Home: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <div className="flex-1 min-w-0">
-        <div className="mb-5 rounded-[28px] border border-amber-400/20 bg-[rgba(27,16,8,0.8)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.24)]">
-          <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-3">
+          <div className="mb-2 flex items-center justify-between">
             <div>
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-amber-300/80">Stories</p>
-              <h2 className="text-xl font-semibold text-amber-50">Voices from the community</h2>
+              <p className="mb-0 text-[11px] font-semibold uppercase tracking-[0.35em] text-amber-300/80">Stories</p>
             </div>
-            <div className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[11px] font-medium text-amber-200">
-              Featured contributors
-            </div>
+            <div className="text-sm text-amber-200">Featured contributors</div>
           </div>
-          <StoriesBar />
+          <div className="">
+            <StoriesBar />
+          </div>
         </div>
 
-        <div className="mb-5 rounded-[24px] border border-umurage-gold/20 bg-[rgba(28,16,8,0.75)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.24)]">
+        <div className="mb-5 rounded-[24px] border border-umurage-gold/20 bg-[rgba(28,16,8,0.45)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.18)]">
           <div className="flex items-center justify-between gap-4">
             <div className="relative flex-1">
               <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-umurage-gold/20 rounded-full" />
@@ -121,9 +120,7 @@ const Home: React.FC = () => {
         )}
       </div>
 
-      <div className="hidden lg:block">
-        <RightSidebar />
-      </div>
+      
     </div>
   );
 };
