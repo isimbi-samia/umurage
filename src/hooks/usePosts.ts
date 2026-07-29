@@ -1,6 +1,8 @@
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { subscribeToTable } from '@/lib/realtime';
 
 // Fetch posts with author info
 export function usePosts(tab: 'foryou' | 'following' | 'explore' = 'foryou', userId?: string) {
@@ -36,6 +38,26 @@ export function usePosts(tab: 'foryou' | 'following' | 'explore' = 'foryou', use
     },
     staleTime: 30000,
   });
+}
+
+// Add a background subscription to invalidate posts when changes occur
+export function usePostsRealtimeSync() {
+  const qc = useQueryClient();
+  React.useEffect(() => {
+    const unsub = subscribeToTable('posts', () => {
+      qc.invalidateQueries({ queryKey: ['posts'] });
+    });
+    return () => unsub();
+  }, [qc]);
+}
+
+export function useRealtimeSyncAll() {
+  const qc = useQueryClient();
+  React.useEffect(() => {
+    const tables = ['posts', 'likes', 'saves', 'comments', 'follows', 'messages', 'user_profiles'];
+    const unsubscribers = tables.map(t => subscribeToTable(t, () => qc.invalidateQueries()));
+    return () => unsubscribers.forEach(u => u());
+  }, [qc]);
 }
 
 // Fetch user's liked post IDs

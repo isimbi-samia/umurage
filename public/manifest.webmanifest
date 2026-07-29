@@ -1,0 +1,20 @@
+{
+  "name": "Umurage Hub",
+  "short_name": "Umurage",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#130a06",
+  "theme_color": "#d8a348",
+  "description": "Umurage Hub – Rwanda's Living Digital Memory",
+  "icons": [
+    { "src": "/assets/logo.png", "sizes": "72x72", "type": "image/png" },
+    { "src": "/assets/logo.png", "sizes": "96x96", "type": "image/png" },
+    { "src": "/assets/logo.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/assets/logo.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/assets/logo.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "/assets/logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/logo.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "/assets/logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

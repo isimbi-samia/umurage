@@ -77,11 +77,6 @@ const Upload: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [compressing, setCompressing] = useState(false);
-  const [truthDetected, setTruthDetected] = useState<boolean | null>(null);
-  const [truthScore, setTruthScore] = useState<number | null>(null);
-  const [truthFlagged, setTruthFlagged] = useState(false);
-  const [truthAnalyzing, setTruthAnalyzing] = useState(false);
-  const [truthResult, setTruthResult] = useState<any>(null);
 
   const selectedType = CONTENT_TYPES.find(t => t.value === type)!;
 
@@ -106,7 +101,7 @@ const Upload: React.FC = () => {
         <p className="text-umurage-muted text-sm text-center max-w-sm mb-6">Your cultural content is now live on Umurage Hub for all to discover.</p>
         <div className="flex gap-3">
           <button onClick={() => navigate('/')} className="btn-gold px-6 py-2.5">View Feed</button>
-          <button onClick={() => { setSuccess(false); setTitle(''); setDescription(''); setMediaFile(null); setThumbnailFile(null); setThumbnailPreview(''); setMediaPreviewUrl(''); setUploadProgress(0); setTags(''); setTruthDetected(null); setTruthScore(null); setTruthFlagged(false); setTruthResult(null); }} className="btn-outline-gold px-6 py-2.5">Upload Another</button>
+          <button onClick={() => { setSuccess(false); setTitle(''); setDescription(''); setMediaFile(null); setThumbnailFile(null); setThumbnailPreview(''); setMediaPreviewUrl(''); setUploadProgress(0); setTags(''); }} className="btn-outline-gold px-6 py-2.5">Upload Another</button>
         </div>
       </div>
     );
@@ -188,39 +183,7 @@ const Upload: React.FC = () => {
     if (!title.trim()) { toast.error('Please add a title'); return; }
     if (!user) return;
 
-    // Step 1: Run truth detector BEFORE publishing
-    setTruthAnalyzing(true);
-    let truthResultData: any = null;
-    try {
-      const { data: truthData, error: truthError } = await supabase.functions.invoke('truth-detector', {
-        body: {
-          title: title.trim(),
-          description: description.trim() || '',
-          tags: tags.split(',').map((t: string) => t.trim()).filter(Boolean),
-          content: description.trim() || '',
-        },
-      });
-      if (truthError) throw truthError;
-      truthResultData = truthData;
-      setTruthResult(truthData);
-      setTruthDetected(truthData.is_culturally_relevant);
-      setTruthScore(truthData.score);
-      setTruthFlagged(truthData.flagged);
-    } catch (err) {
-      console.error('Truth detector error:', err);
-      toast.error('Truth analysis failed. Please try again.');
-      setTruthAnalyzing(false);
-      return;
-    }
-    setTruthAnalyzing(false);
-
-    // Step 2: If not culturally relevant, STOP the upload
-    if (truthResultData && !truthResultData.is_culturally_relevant) {
-      toast.error('Content rejected: This does not appear to be related to Rwandan culture. Please upload cultural content only.');
-      return;
-    }
-
-    // Step 3: Proceed with upload
+    // Proceed with upload
     setUploading(true);
     setUploadProgress(0);
 
@@ -251,13 +214,7 @@ const Upload: React.FC = () => {
         category,
         region,
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-        truth_score: truthResultData?.score ?? null,
-        cultural_relevance: truthResultData?.is_culturally_relevant ?? null,
-        cultural_topics: truthResultData?.cultural_topics ?? null,
-        flagged: truthResultData?.flagged ?? null,
-        truth_analysis: truthResultData?.reason ?? null,
-        analyzed_at: new Date().toISOString(),
-        analyzed_by: user.id,
+        // truth detector removed: no analysis metadata
         story_expires_at: type === 'story' ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null,
       });
 
@@ -288,7 +245,7 @@ const Upload: React.FC = () => {
         <Shield size={18} className="text-umurage-gold flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-umurage-gold-light text-xs font-semibold">Cultural Content Only</p>
-          <p className="text-umurage-subtle text-[11px] mt-0.5">All uploads are analyzed by our Truth Detector AI. Content not related to Rwandan culture will be blocked before publishing.</p>
+          <p className="text-umurage-subtle text-[11px] mt-0.5">Please upload content related to Rwandan culture; non-cultural content may be removed.</p>
         </div>
       </div>
 
@@ -504,73 +461,6 @@ const Upload: React.FC = () => {
             <p className="text-umurage-subtle text-xs mt-2">
               {uploadProgress < 40 ? 'Compressing and uploading thumbnail...' : uploadProgress < 90 ? 'Uploading main file...' : 'Saving to database...'}
             </p>
-          </div>
-        )}
-
-        {/* Truth Detector Results after publishing */}
-        {truthResult && success && (
-          <div className="umurage-card rounded-2xl p-5 mb-5 animate-fade-in">
-            <div className="flex items-center gap-2 mb-3">
-              <Shield size={18} className="text-umurage-gold" />
-              <h3 className="text-umurage-cream font-semibold text-sm">Cultural Relevance Analysis</h3>
-              {truthResult.flagged ? (
-                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 border border-red-800/40 font-semibold flex items-center gap-1">
-                  <AlertCircle size={10} /> FLAGGED
-                </span>
-              ) : (
-                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-800/40 font-semibold flex items-center gap-1">
-                  <CheckCircle size={10} /> APPROVED
-                </span>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="bg-umurage-surface border border-umurage-border rounded-xl p-3 text-center">
-                <p className="text-umurage-subtle text-[10px] uppercase tracking-wider mb-1">Relevance Score</p>
-                <p className={`text-2xl font-bold ${truthResult.is_culturally_relevant ? 'text-green-400' : 'text-red-400'}`}>
-                  {truthResult.score}%
-                </p>
-              </div>
-              <div className="bg-umurage-surface border border-umurage-border rounded-xl p-3 text-center">
-                <p className="text-umurage-subtle text-[10px] uppercase tracking-wider mb-1">Confidence</p>
-                <p className="text-2xl font-bold text-umurage-gold">{truthResult.confidence}%</p>
-              </div>
-            </div>
-            {truthResult.rwandan_keywords_found && truthResult.rwandan_keywords_found.length > 0 && (
-              <div className="mb-2">
-                <p className="text-umurage-subtle text-[10px] uppercase tracking-wider mb-1.5">Cultural Keywords</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {truthResult.rwandan_keywords_found.map(kw => (
-                    <span key={kw} className="text-[10px] px-2 py-0.5 rounded-full bg-green-900/20 text-green-400 border border-green-800/30">{kw}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {truthResult.non_cultural_indicators && truthResult.non_cultural_indicators.length > 0 && (
-              <div className="mb-2">
-                <p className="text-umurage-subtle text-[10px] uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <XCircle size={10} className="text-red-400" /> Non-Cultural Indicators
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {truthResult.non_cultural_indicators.map(ind => (
-                    <span key={ind} className="text-[10px] px-2 py-0.5 rounded-full bg-red-900/20 text-red-400 border border-red-800/30">{ind}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {truthResult.cultural_topics && truthResult.cultural_topics.length > 0 && (
-              <div className="mb-2">
-                <p className="text-umurage-subtle text-[10px] uppercase tracking-wider mb-1.5">Detected Topics</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {truthResult.cultural_topics.map(topic => (
-                    <span key={topic} className="text-[10px] px-2 py-0.5 rounded-full bg-umurage-gold/10 text-umurage-gold border border-umurage-gold/20">{topic}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="flex items-start gap-2 p-3 bg-umurage-gold/5 border border-umurage-gold/20 rounded-xl">
-              <Info size={14} className="text-umurage-gold flex-shrink-0 mt-0.5" />
-              <p className="text-umurage-subtle text-xs leading-relaxed">{truthResult.reason}</p>
-            </div>
           </div>
         )}
 
