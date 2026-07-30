@@ -10,7 +10,7 @@ interface AuthUser {
   avatar: string;
   email: string;
   bio: string;
-  role: 'user' | 'creator' | 'elder' | 'organization';
+  role: 'user' | 'creator' | 'elder' | 'organization' | 'student' | 'museum' | 'cultural_institution' | 'researcher' | 'tourist_guide' | 'community_member';
   verified: boolean;
   verifiedType?: string;
   followers: number;
@@ -32,6 +32,18 @@ interface AuthContextType {
   sendOtp: (email: string) => Promise<void>;
   verifyOtp: (token: string) => Promise<void>;
   completeSignup: (name: string, username: string, password: string, role: string, phone?: string) => Promise<void>;
+  // Direct password signup
+  registerUser: (data: {
+    full_name: string;
+    username: string;
+    email: string;
+    phone_number: string;
+    password: string;
+    confirmPassword: string;
+    role: string;
+    acceptTerms: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
+  registerLoading: boolean;
   // Login (email/username/phone + password)
   loginWithPassword: (identifier: string, password: string) => Promise<void>;
   // Forgot password flow
@@ -84,6 +96,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [registerLoading, setRegisterLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [otpStep, setOtpStep] = useState<'idle' | 'otp-sent' | 'otp-verified'>('idle');
@@ -249,6 +262,117 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast.success('Welcome to Umurage Hub! 🇷🇼');
   };
 
+  // ── Direct Password Registration ────────────────────────────────
+  const registerUser = async (data: {
+    full_name: string;
+    username: string;
+    email: string;
+    phone_number: string;
+    password: string;
+    confirmPassword: string;
+    role: string;
+    acceptTerms: boolean;
+  }): Promise<{ success: boolean; error?: string }> => {
+    const { full_name, username, email, phone_number, password, confirmPassword, role, acceptTerms } = data;
+
+    // Validation
+    if (!full_name || !username || !email || !password || !confirmPassword || !role) {
+      return { success: false, error: 'Please fill in all required fields.' };
+    }
+    if (!acceptTerms) {
+      return { success: false, error: 'You must accept the Terms and Privacy Policy to continue.' };
+    }
+    if (password !== confirmPassword) {
+      return { success: false, error: 'Passwords do not match.' };
+    }
+    if (password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters.' };
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+    if (!usernameRegex.test(username)) {
+      return { success: false, error: 'Username must be 3-30 characters and contain only letters, numbers, and underscores.' };
+    }
+
+    setRegisterLoading(true);
+    try {
+      // Check if username already exists
+      const { data: existingProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('username', username.toLowerCase().trim())
+        .maybeSingle();
+
+      if (existingProfile) {
+        return { success: false, error: 'This username is already taken. Please choose a different one.' };
+      }
+
+      // Step 1: Create Supabase auth user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            full_name,
+            username: username.toLowerCase().trim(),
+            phone_number: phone_number || null,
+            role,
+          },
+        },
+      });
+
+      if (signUpError) {
+        const msg = signUpError.message.toLowerCase();
+        if (msg.includes('already registered') || msg.includes('already exists')) {
+          return { success: false, error: 'An account with this email already exists. Please log in instead.' };
+        }
+        if (msg.includes('weak password')) {
+          return { success: false, error: 'Password is too weak. Use at least 6 characters.' };
+        }
+        return { success: false, error: signUpError.message };
+      }
+
+      if (!signUpData.user) {
+        return { success: false, error: 'Registration failed. Please try again.' };
+      }
+
+      // Step 2: Create profile record
+      const profileData: Record<string, unknown> = {
+        id: signUpData.user.id,
+        full_name: full_name.trim(),
+        username: username.toLowerCase().trim(),
+        email: email.trim().toLowerCase(),
+        phone_number: phone_number || null,
+        role,
+        verified: false,
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0,
+      };
+
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert(profileData);
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        // Auth user was created but profile failed — this is non-fatal
+        // The user can still log in but profile data may be incomplete
+      }
+
+      const authUser = await fetchProfile(signUpData.user);
+      setUser(authUser);
+      setRegisterLoading(false);
+      return { success: true };
+    } catch (err: unknown) {
+      setRegisterLoading(false);
+      return { success: false, error: (err as Error).message || 'An unexpected error occurred.' };
+    }
+  };
+
   // ── Login: email | username | phone + password ───────────────────────────
   const loginWithPassword = async (identifier: string, password: string) => {
     // Resolve to email first (handles username/phone lookup)
@@ -376,22 +500,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     resetForgotPasswordFlow();
   };
 
-  return (
-    <AuthContext.Provider value={{
-      user, isAuthenticated: !!user, loading,
-      otpStep, otpEmail,
-      sendOtp, verifyOtp, completeSignup,
-      loginWithPassword,
-      forgotPasswordStep, forgotPasswordEmail,
-      sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
-      logout,
-      showAuthModal, authMode, openAuth, closeAuth,
-      updateProfile,
-      refreshUser,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+    return (
+      <AuthContext.Provider value={{
+        user, isAuthenticated: !!user, loading, registerLoading,
+        otpStep, otpEmail,
+        sendOtp, verifyOtp, completeSignup,
+        registerUser,
+        loginWithPassword,
+        forgotPasswordStep, forgotPasswordEmail,
+        sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
+        logout,
+        showAuthModal, authMode, openAuth, closeAuth,
+        updateProfile,
+        refreshUser,
+      }}>
+        {children}
+      </AuthContext.Provider>
+    );
 };
 
 export const useAuth = () => {

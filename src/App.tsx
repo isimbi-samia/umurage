@@ -25,6 +25,8 @@ import Upload from '@/pages/Upload';
 import HeritageArchive from '@/pages/HeritageArchive';
 import PostDetail from '@/pages/PostDetail';
 import Verification from '@/pages/Verification';
+import Register from '@/pages/Register';
+import Login from '@/pages/Login';
 import NotFound from '@/pages/NotFound';
 import RealtimeInitializer from '@/components/RealtimeInitializer';
 
@@ -103,6 +105,8 @@ const App: React.FC = () => {
                 <Route path="/heritage-archive" element={<HeritageArchive />} />
                 <Route path="/post/:id" element={<PostDetail />} />
                 <Route path="/verification" element={<Verification />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/login" element={<Login />} />
                 {/* Truth detector removed */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

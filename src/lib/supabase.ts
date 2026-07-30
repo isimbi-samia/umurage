@@ -15,23 +15,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export type Database = {
   public: {
     Tables: {
-      user_profiles: {
-        Row: {
-          id: string;
-          username: string | null;
-          email: string;
-          bio: string | null;
-          avatar_url: string | null;
-          role: 'user' | 'creator' | 'elder' | 'organization';
-          verified: boolean;
-          verified_type: string | null;
-          location: string | null;
-          interests: string[];
-          followers_count: number;
-          following_count: number;
-          posts_count: number;
-        };
-      };
+       user_profiles: {
+         Row: {
+           id: string;
+           username: string | null;
+           email: string;
+           bio: string | null;
+           avatar_url: string | null;
+           role: 'user' | 'creator' | 'elder' | 'organization' | 'student' | 'museum' | 'cultural_institution' | 'researcher' | 'tourist_guide' | 'community_member';
+           verified: boolean;
+           verified_type: string | null;
+           location: string | null;
+           interests: string[];
+           followers_count: number;
+           following_count: number;
+           posts_count: number;
+           full_name: string | null;
+           phone_number: string | null;
+         };
+       };
       posts: {
         Row: {
           id: string;
