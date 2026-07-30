@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
   Upload as UploadIcon, X, Image, Video, Mic, BookOpen, FileText,
-  Loader2, CheckCircle, CloudUpload, Play, Pause, ZoomIn, AlertCircle, Shield, XCircle, Info
+  Loader2, CheckCircle, CloudUpload, Play, Pause, ZoomIn, AlertCircle, Shield, XCircle, Info, Radio
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
