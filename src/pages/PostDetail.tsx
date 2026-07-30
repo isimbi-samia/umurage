@@ -79,7 +79,7 @@ function usePost(postId: string | undefined) {
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  video: '🎥', article: '📄', audio: '🎙️', book: '📚', image: '🖼️',
+  video: '🎥', article: '📄', audio: '🎙️', book: '📚', image: '🖼️', story: '📱', document: '📎',
 };
 
 const PostDetail: React.FC = () => {
@@ -249,6 +249,26 @@ const PostDetail: React.FC = () => {
             {post.type === 'image' && (
               <div className="rounded-xl overflow-hidden">
                 <img src={post.media_url} alt={post.title} className="w-full object-cover max-h-96" />
+              </div>
+            )}
+            {(post.type === 'document' || post.type === 'book') && (
+              <div className="rounded-xl bg-umurage-surface border border-umurage-border p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-umurage-gold/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">📎</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-umurage-cream text-sm font-semibold truncate">{post.title}</p>
+                  <p className="text-umurage-subtle text-xs capitalize">{post.type}</p>
+                </div>
+                <a
+                  href={post.media_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline-gold text-xs px-3 py-1.5 flex-shrink-0"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Open
+                </a>
               </div>
             )}
           </div>

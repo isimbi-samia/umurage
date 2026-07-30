@@ -54,7 +54,7 @@ export function usePostsRealtimeSync() {
 export function useRealtimeSyncAll() {
   const qc = useQueryClient();
   React.useEffect(() => {
-    const tables = ['posts', 'likes', 'saves', 'comments', 'follows', 'messages', 'user_profiles'];
+    const tables = ['posts', 'likes', 'saves', 'comments', 'follows', 'messages', 'user_profiles', 'notifications'];
     const unsubscribers = tables.map(t => subscribeToTable(t, () => qc.invalidateQueries()));
     return () => unsubscribers.forEach(u => u());
   }, [qc]);
@@ -166,9 +166,15 @@ export function useCreatePost() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['posts'] });
       qc.invalidateQueries({ queryKey: ['stories'] });
+      qc.invalidateQueries({ queryKey: ['trending'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-unread'] });
+      qc.invalidateQueries({ queryKey: ['user-posts', data.user_id] });
+      qc.invalidateQueries({ queryKey: ['profile', data.user_id] });
+      qc.invalidateQueries({ queryKey: ['heritage-recordings', data.user_id] });
       toast.success('Content published successfully!');
     },
     onError: (err: Error) => toast.error(err.message),
