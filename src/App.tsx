@@ -25,8 +25,8 @@ import Upload from '@/pages/Upload';
 import HeritageArchive from '@/pages/HeritageArchive';
 import PostDetail from '@/pages/PostDetail';
 import Verification from '@/pages/Verification';
-import TruthDetector from '@/pages/TruthDetector';
 import NotFound from '@/pages/NotFound';
+import RealtimeInitializer from '@/components/RealtimeInitializer';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +80,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
+      <RealtimeInitializer />
       <LanguageProvider>
         <AuthProvider>
           <BrowserRouter>
@@ -102,7 +103,7 @@ const App: React.FC = () => {
                 <Route path="/heritage-archive" element={<HeritageArchive />} />
                 <Route path="/post/:id" element={<PostDetail />} />
                 <Route path="/verification" element={<Verification />} />
-                <Route path="/truth-detector" element={<TruthDetector />} />
+                {/* Truth detector removed */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AppLayout>

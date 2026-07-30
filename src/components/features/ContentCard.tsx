@@ -17,7 +17,7 @@ interface PostAuthor {
 
 interface Post {
   id: string;
-  type: 'video' | 'article' | 'audio' | 'book' | 'image';
+  type: 'video' | 'article' | 'audio' | 'book' | 'image' | 'story' | 'document';
   title: string;
   description: string | null;
   thumbnail_url: string | null;
@@ -121,7 +121,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   const thumbnail = item.thumbnail_url || item.thumbnail;
 
   const typeBadgeClass = {
-    video: 'video', article: 'article', audio: 'audio', book: 'book', image: 'image',
+    video: 'video', article: 'article', audio: 'audio', book: 'book', image: 'image', story: 'story', document: 'book',
   }[item.type] || 'article';
 
   return (

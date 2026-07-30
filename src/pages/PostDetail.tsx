@@ -79,7 +79,7 @@ function usePost(postId: string | undefined) {
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  video: '🎥', article: '📄', audio: '🎙️', book: '📚', image: '🖼️',
+  video: '🎥', article: '📄', audio: '🎙️', book: '📚', image: '🖼️', story: '📱', document: '📎',
 };
 
 const PostDetail: React.FC = () => {
@@ -251,6 +251,26 @@ const PostDetail: React.FC = () => {
                 <img src={post.media_url} alt={post.title} className="w-full object-cover max-h-96" />
               </div>
             )}
+            {(post.type === 'document' || post.type === 'book') && (
+              <div className="rounded-xl bg-umurage-surface border border-umurage-border p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-umurage-gold/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">📎</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-umurage-cream text-sm font-semibold truncate">{post.title}</p>
+                  <p className="text-umurage-subtle text-xs capitalize">{post.type}</p>
+                </div>
+                <a
+                  href={post.media_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline-gold text-xs px-3 py-1.5 flex-shrink-0"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Open
+                </a>
+              </div>
+            )}
           </div>
         )}
 
@@ -286,29 +306,7 @@ const PostDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Truth Detection */}
-        {(post.truth_score !== null && post.truth_score !== undefined) && (
-          <div className="px-6 pb-4">
-            <div className={`rounded-xl border p-3 ${post.cultural_relevance ? 'bg-green-900/10 border-green-800/30' : 'bg-red-900/10 border-red-800/30'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <Shield size={14} className={post.cultural_relevance ? 'text-green-400' : 'text-red-400'} />
-                <span className={`text-xs font-semibold ${post.cultural_relevance ? 'text-green-400' : 'text-red-400'}`}>
-                  {post.cultural_relevance ? 'Culturally Relevant' : 'Not Culturally Relevant'}
-                </span>
-                <span className="ml-auto text-xs text-umurage-subtle">Score: {post.truth_score}%</span>
-              </div>
-              {post.truth_analysis && (
-                <p className="text-umurage-muted text-xs leading-relaxed">{post.truth_analysis}</p>
-              )}
-              {post.flagged && (
-                <div className="flex items-center gap-1 mt-2 text-red-400 text-xs">
-                  <AlertCircle size={12} />
-                  <span>This content has been flagged for review</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Truth detector removed */}
 
         {/* Actions bar */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-umurage-border/50">

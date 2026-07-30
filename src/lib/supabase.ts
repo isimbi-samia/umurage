@@ -36,7 +36,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          type: 'video' | 'article' | 'audio' | 'book' | 'image' | 'story';
+          type: 'video' | 'article' | 'audio' | 'book' | 'image' | 'story' | 'document';
           title: string;
           description: string | null;
           thumbnail_url: string | null;

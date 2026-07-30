@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useNotifications, useUnreadCount, useMarkAllRead, useMarkOneRead, type Notification } from '@/hooks/useNotifications';
+import InstallPrompt from '@/components/features/InstallPrompt';
 
 const LANGUAGES: { code: LangCode; label: string; flag: string }[] = [
   { code: 'en', label: 'EN', flag: '🇬🇧' },
@@ -281,6 +282,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        <InstallPrompt />
         <div className="relative">
           <select value={lang} onChange={e => setLang(e.target.value as LangCode)} className="lang-select pr-6 text-sm font-semibold cursor-pointer">
             {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}

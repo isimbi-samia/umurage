@@ -17,7 +17,7 @@ export interface User {
 
 export interface ContentItem {
   id: string;
-  type: 'video' | 'article' | 'audio' | 'book' | 'image';
+  type: 'video' | 'article' | 'audio' | 'book' | 'image' | 'story' | 'document';
   title: string;
   description: string;
   author: User;
@@ -44,7 +44,7 @@ export interface Story {
   title?: string;
   description?: string;
   thumbnail?: string;
-  type?: 'video' | 'image' | 'audio' | 'book' | 'article';
+  type?: 'video' | 'image' | 'audio' | 'book' | 'article' | 'document';
   likes?: number;
   comments?: number;
   shares?: number;

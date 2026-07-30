@@ -1,6 +1,8 @@
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { subscribeToTable } from '@/lib/realtime';
 
 // Fetch posts with author info
 export function usePosts(tab: 'foryou' | 'following' | 'explore' = 'foryou', userId?: string) {
@@ -36,6 +38,26 @@ export function usePosts(tab: 'foryou' | 'following' | 'explore' = 'foryou', use
     },
     staleTime: 30000,
   });
+}
+
+// Add a background subscription to invalidate posts when changes occur
+export function usePostsRealtimeSync() {
+  const qc = useQueryClient();
+  React.useEffect(() => {
+    const unsub = subscribeToTable('posts', () => {
+      qc.invalidateQueries({ queryKey: ['posts'] });
+    });
+    return () => unsub();
+  }, [qc]);
+}
+
+export function useRealtimeSyncAll() {
+  const qc = useQueryClient();
+  React.useEffect(() => {
+    const tables = ['posts', 'likes', 'saves', 'comments', 'follows', 'messages', 'user_profiles', 'notifications'];
+    const unsubscribers = tables.map(t => subscribeToTable(t, () => qc.invalidateQueries()));
+    return () => unsubscribers.forEach(u => u());
+  }, [qc]);
 }
 
 // Fetch user's liked post IDs
@@ -144,9 +166,15 @@ export function useCreatePost() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['posts'] });
       qc.invalidateQueries({ queryKey: ['stories'] });
+      qc.invalidateQueries({ queryKey: ['trending'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-unread'] });
+      qc.invalidateQueries({ queryKey: ['user-posts', data.user_id] });
+      qc.invalidateQueries({ queryKey: ['profile', data.user_id] });
+      qc.invalidateQueries({ queryKey: ['heritage-recordings', data.user_id] });
       toast.success('Content published successfully!');
     },
     onError: (err: Error) => toast.error(err.message),
