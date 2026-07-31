@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider } from '@/contexts/LanguageContext';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
 import RightSidebar from '@/components/features/RightSidebar';
@@ -27,6 +28,8 @@ import PostDetail from '@/pages/PostDetail';
 import Verification from '@/pages/Verification';
 import Register from '@/pages/Register';
 import Login from '@/pages/Login';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
 import RealtimeInitializer from '@/components/RealtimeInitializer';
 
@@ -79,6 +82,24 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={32} className="text-umurage-gold animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -88,25 +109,27 @@ const App: React.FC = () => {
           <BrowserRouter>
             <AppLayout>
               <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/library" element={<Library />} />
-                <Route path="/stories" element={<StoriesPage />} />
-                <Route path="/oral-history" element={<OralHistory />} />
-                <Route path="/cultural-map" element={<CulturalMap />} />
-                <Route path="/discussions" element={<Discussions />} />
-                <Route path="/events" element={<Events />} />
-                <Route path="/marketplace" element={<Marketplace />} />
-                <Route path="/courses" element={<Courses />} />
-                <Route path="/my-heritage" element={<MyHeritage />} />
-                <Route path="/ai-guide" element={<AIGuide />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/upload" element={<Upload />} />
-                <Route path="/heritage-archive" element={<HeritageArchive />} />
-                <Route path="/post/:id" element={<PostDetail />} />
+                <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+                <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
+                <Route path="/stories" element={<ProtectedRoute><StoriesPage /></ProtectedRoute>} />
+                <Route path="/oral-history" element={<ProtectedRoute><OralHistory /></ProtectedRoute>} />
+                <Route path="/cultural-map" element={<ProtectedRoute><CulturalMap /></ProtectedRoute>} />
+                <Route path="/discussions" element={<ProtectedRoute><Discussions /></ProtectedRoute>} />
+                <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+                <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
+                <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+                <Route path="/my-heritage" element={<ProtectedRoute><MyHeritage /></ProtectedRoute>} />
+                <Route path="/ai-guide" element={<ProtectedRoute><AIGuide /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
+                <Route path="/heritage-archive" element={<ProtectedRoute><HeritageArchive /></ProtectedRoute>} />
+                <Route path="/post/:id" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
                 <Route path="/verification" element={<Verification />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 {/* Truth detector removed */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

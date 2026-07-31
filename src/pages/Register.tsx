@@ -116,11 +116,6 @@ const Register: React.FC = () => {
       return;
     }
 
-    if (usernameAvailable === false) {
-      setErrors(prev => ({ ...prev, username: 'This username is already taken' }));
-      return;
-    }
-
     const result = await registerUser({
       full_name: formData.full_name,
       username: formData.username,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Eye, EyeOff, Loader2, Mail, Lock,
-  ChevronRight, Sparkles, AtSign, ArrowLeft,
+  ChevronRight, Sparkles, AtSign,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
