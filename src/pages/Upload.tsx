@@ -20,6 +20,7 @@ import {
   getVideoDuration,
   formatFileSize,
   processMediaFile,
+  uploadMediaToStorage,
 } from '@/lib/uploadMedia';
 
 const CONTENT_TYPES = [
@@ -167,7 +168,7 @@ const Upload: React.FC = () => {
       setMediaFile(file);
       if (processingResult.thumbnailUrl) {
         setMediaPreviewUrl(processingResult.thumbnailUrl);
-      } else if (category === 'video' || category === 'audio') {
+      } else if (category === 'video' || category === 'audio' || category === 'document' || category === 'book') {
         setMediaPreviewUrl(URL.createObjectURL(file));
       }
     }
@@ -203,18 +204,9 @@ const Upload: React.FC = () => {
     await processAndSetMedia(file, autoCategory?.category || type);
   }, [processAndSetMedia, type]);
 
-  const uploadFile = useCallback(async (file: File, folder: string, onProgress?: (pct: number) => void): Promise<string> => {
-    const ext = getFileExtension(file.name) || 'bin';
-    const path = `${user!.id}/${folder}/${Date.now()}.${ext}`;
-
-    const { error } = await supabase.storage.from('umurage-media').upload(path, file, {
-      upsert: false,
-      contentType: file.type || 'application/octet-stream',
-    });
-    if (error) throw error;
-    onProgress?.(100);
-    const { data } = supabase.storage.from('umurage-media').getPublicUrl(path);
-    return data.publicUrl;
+  const uploadFile = useCallback(async (file: File, folder: string, category: FileCategory, onProgress?: (pct: number) => void): Promise<string> => {
+    const { url } = await uploadMediaToStorage(file, category, user!.id, folder, onProgress);
+    return url;
   }, [user]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -234,13 +226,13 @@ const Upload: React.FC = () => {
 
       if (thumbnailFile) {
         setUploadProgress(10);
-        thumbnailUrl = await uploadFile(thumbnailFile, 'thumbnails', (p) => setUploadProgress(10 + p * 0.3));
+        thumbnailUrl = await uploadFile(thumbnailFile, 'thumbnails', 'image', (p) => setUploadProgress(10 + p * 0.3));
         setUploadProgress(40);
       }
 
       if (mediaFile) {
         setUploadProgress(50);
-        mediaUrl = await uploadFile(mediaFile, 'media', (p) => setUploadProgress(50 + p * 0.4));
+        mediaUrl = await uploadFile(mediaFile, 'media', type as FileCategory, (p) => setUploadProgress(50 + p * 0.4));
         setUploadProgress(90);
       }
 
@@ -265,6 +257,7 @@ const Upload: React.FC = () => {
       });
 
       setUploadProgress(100);
+      setUploading(false);
       setSuccess(true);
     } catch (err) {
       const error = err as Error;
@@ -404,6 +397,21 @@ const Upload: React.FC = () => {
                   </div>
                 </div>
               )}
+              {mediaPreviewUrl && (type === 'document' || type === 'book') && (
+                <div className="rounded-xl border border-umurage-gold/20 bg-umurage-surface/50 p-3">
+                  {mediaFile.name.toLowerCase().endsWith('.pdf') ? (
+                    <iframe src={mediaPreviewUrl} title="PDF preview" className="h-56 w-full rounded-lg border border-umurage-border" />
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-lg border border-umurage-border bg-umurage-surface px-3 py-4">
+                      <FileText size={20} className="text-umurage-gold" />
+                      <div>
+                        <p className="text-sm font-medium text-umurage-cream">Document ready for upload</p>
+                        <p className="text-xs text-umurage-subtle">Preview will appear after upload in the post detail view.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center gap-3 p-3 bg-umurage-surface border border-umurage-gold/30 rounded-xl">
                 <selectedType.icon size={18} className="text-umurage-gold flex-shrink-0" />
@@ -431,6 +439,9 @@ const Upload: React.FC = () => {
                 </p>
                 <p className="text-umurage-subtle text-xs mt-1">
                   Drag & drop here or <span className="text-umurage-gold underline cursor-pointer">browse</span>
+                </p>
+                <p className="text-umurage-subtle text-[11px] mt-1.5 touch-manipulation">
+                  Mobile-friendly tap-to-browse support is enabled for images, videos, audio, books, and PDFs.
                 </p>
                 {selectedType.maxMB > 0 && (
                   <p className="text-umurage-subtle text-[10px] mt-1">Max {selectedType.maxMB}MB</p>

@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
-import { Search, BookOpen, Headphones, Video, FileText, Image, Filter } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, BookOpen, Headphones, Video, FileText, Image, Filter, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { LIBRARY_CATEGORIES, CONTENT_FEED } from '@/data/mockData';
+import { supabase } from '@/lib/supabase';
 import ContentCard from '@/components/features/ContentCard';
 
 type FilterType = 'all' | 'video' | 'article' | 'audio' | 'book' | 'image';
+
+const LIBRARY_CATEGORIES = [
+  { id: 'all', label: 'All Categories', icon: '🏛️', count: 0 },
+  { id: 'history', label: 'History', icon: '📜', count: 0 },
+  { id: 'language', label: 'Language', icon: '🗣️', count: 0 },
+  { id: 'music', label: 'Music', icon: '🎵', count: 0 },
+  { id: 'arts', label: 'Arts', icon: '🎨', count: 0 },
+  { id: 'heritage', label: 'Heritage', icon: '🏺', count: 0 },
+];
 
 const TYPE_FILTERS: { key: FilterType; label: string; icon: React.ReactNode }[] = [
   { key: 'all', label: 'All', icon: <Filter size={14} /> },
@@ -21,13 +31,66 @@ const Library: React.FC = () => {
   const [activeType, setActiveType] = useState<FilterType>('all');
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
-  const filtered = CONTENT_FEED.filter(item => {
+  const { data: posts = [], isLoading, isError } = useQuery({
+    queryKey: ['library-posts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          type,
+          title,
+          description,
+          thumbnail_url,
+          media_url,
+          duration,
+          category,
+          region,
+          tags,
+          created_at,
+          views_count,
+          likes_count,
+          comments_count,
+          shares_count,
+          published,
+          author:profiles!posts_user_id_fkey(id, username, email, avatar_url, verified, verification_type, role)
+        `)
+        .eq('published', true)
+        .order('created_at', { ascending: false })
+        .limit(24);
+      if (error) throw error;
+      return (data || []).map((post: any) => ({
+        id: post.id,
+        type: post.type || 'article',
+        title: post.title || 'Untitled item',
+        description: post.description || '',
+        thumbnail_url: post.thumbnail_url || post.media_url || null,
+        media_url: post.media_url || null,
+        duration: post.duration || null,
+        category: post.category || 'Heritage',
+        region: post.region || null,
+        tags: Array.isArray(post.tags) ? post.tags : [],
+        views: post.views_count ?? 0,
+        views_count: post.views_count ?? 0,
+        likes_count: post.likes_count ?? 0,
+        comments_count: post.comments_count ?? 0,
+        shares_count: post.shares_count ?? 0,
+        created_at: post.created_at,
+        author: post.author || { id: post.user_id, username: null, email: null, avatar_url: null, verified: false },
+        liked: false,
+        saved: false,
+      }));
+    },
+    staleTime: 30000,
+  });
+
+  const filtered = useMemo(() => posts.filter((item: any) => {
     const matchType = activeType === 'all' || item.type === activeType;
     const matchSearch = !search || item.title.toLowerCase().includes(search.toLowerCase()) ||
       item.description.toLowerCase().includes(search.toLowerCase());
-    const matchCat = activeCategory === 'all' || item.category.toLowerCase() === activeCategory.toLowerCase();
+    const matchCat = activeCategory === 'all' || item.category?.toLowerCase() === activeCategory.toLowerCase();
     return matchType && matchSearch && matchCat;
-  });
+  }), [activeCategory, activeType, posts, search]);
 
   return (
     <div className="animate-fade-in">
@@ -96,7 +159,18 @@ const Library: React.FC = () => {
         <p className="text-umurage-muted text-sm">{filtered.length} items found</p>
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-umurage-muted">
+          <Loader2 size={20} className="mr-2 animate-spin" />
+          Loading cultural materials…
+        </div>
+      ) : isError ? (
+        <div className="text-center py-16">
+          <span className="text-5xl block mb-4">📚</span>
+          <h3 className="text-umurage-cream font-semibold mb-2">Library temporarily unavailable</h3>
+          <p className="text-umurage-muted text-sm">Please try again shortly.</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <span className="text-5xl block mb-4">📚</span>
           <h3 className="text-umurage-cream font-semibold mb-2">No results found</h3>
@@ -104,7 +178,7 @@ const Library: React.FC = () => {
         </div>
       ) : (
         <div>
-          {filtered.map(item => (
+          {filtered.map((item: any) => (
             <ContentCard key={item.id} item={item} />
           ))}
         </div>

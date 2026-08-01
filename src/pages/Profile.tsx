@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   Settings, BookOpen, Heart, Archive, Edit2, Check, X, MapPin, Loader2,
-  Camera, Star, UserCheck, UserPlus, ChevronLeft, CheckCircle
+  Camera, Star, UserCheck, UserPlus, ChevronLeft, CheckCircle, Image,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';

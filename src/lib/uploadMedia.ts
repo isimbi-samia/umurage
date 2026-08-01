@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import { FileCategory, getFileExtension } from './fileValidation';
 
 export interface MediaProcessingResult {
@@ -120,6 +121,61 @@ export function getFileCategoryFromType(type: string): FileCategory | null {
     return 'document';
   }
   return null;
+}
+
+export function getStorageBucketForCategory(category: FileCategory | string | null | undefined): string {
+  switch (category) {
+    case 'image':
+      return 'images';
+    case 'video':
+      return 'videos';
+    case 'audio':
+      return 'audio';
+    case 'book':
+      return 'books';
+    case 'document':
+    case 'article':
+    case 'story':
+      return 'documents';
+    default:
+      return 'documents';
+  }
+}
+
+export async function uploadMediaToStorage(
+  file: File,
+  category: FileCategory | string,
+  userId: string,
+  folder: string,
+  onProgress?: (pct: number) => void,
+): Promise<{ url: string; bucket: string }> {
+  const ext = getFileExtension(file.name) || 'bin';
+  const safeFolder = folder.replace(/\/+/g, '/').replace(/^\//, '').replace(/\/$/, '');
+  const path = `${userId}/${safeFolder}/${Date.now()}.${ext}`;
+  const buckets = [getStorageBucketForCategory(category), 'umurage-media'];
+
+  let lastError: Error | null = null;
+
+  for (const bucket of buckets) {
+    const { error } = await supabase.storage.from(bucket).upload(path, file, {
+      upsert: false,
+      contentType: file.type || 'application/octet-stream',
+    });
+
+    if (!error) {
+      onProgress?.(100);
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return { url: data.publicUrl, bucket };
+    }
+
+    const message = error.message || '';
+    if (!/(bucket|not found|does not exist)/i.test(message)) {
+      throw error;
+    }
+    lastError = error;
+  }
+
+  throw lastError ?? new Error('Unable to upload file to storage');
 }
 
 export async function processMediaFile(file: File, category: FileCategory): Promise<MediaProcessingResult> {

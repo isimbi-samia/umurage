@@ -1,25 +1,75 @@
 import React from 'react';
-import { ShoppingBag, Heart, Star, Tag } from 'lucide-react';
+import { Heart, Loader2, Star } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-
-const PRODUCTS = [
-  { id: 1, name: 'Authentic Imigongo Wall Art', creator: 'Imigongo Masters', price: 'RWF 45,000', category: 'Art', rating: 4.9, reviews: 34, image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=250&fit=crop', badge: 'Bestseller' },
-  { id: 2, name: 'Traditional Agaseke Basket', creator: 'Women Weavers Coop', price: 'RWF 28,000', category: 'Crafts', rating: 5.0, reviews: 67, image: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=300&h=250&fit=crop', badge: 'Top Rated' },
-  { id: 3, name: 'Rwanda Cultural History Book', creator: 'RCHA Press', price: 'RWF 15,000', category: 'Books', rating: 4.8, reviews: 89, image: 'https://images.unsplash.com/photo-1516307365426-bea591f05011?w=300&h=250&fit=crop', badge: null },
-  { id: 4, name: 'Intore Dancer Performance Booking', creator: 'Massamba Cultural Group', price: 'RWF 250,000', category: 'Performances', rating: 4.9, reviews: 21, image: 'https://images.unsplash.com/photo-1547153760-18fc86324498?w=300&h=250&fit=crop', badge: 'Premium' },
-  { id: 5, name: 'Traditional Umushanana Fabric', creator: 'Kigali Textiles', price: 'RWF 35,000', category: 'Clothing', rating: 4.7, reviews: 45, image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=300&h=250&fit=crop', badge: null },
-  { id: 6, name: 'Rwandan Cultural Music Album', creator: 'Traditional Sounds RW', price: 'RWF 8,000', category: 'Music', rating: 4.6, reviews: 112, image: 'https://images.unsplash.com/photo-1551632436-cbf8dd35adfa?w=300&h=250&fit=crop', badge: null },
-];
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 const Marketplace: React.FC = () => {
   const { t } = useLanguage();
   const { isAuthenticated, openAuth } = useAuth();
-  const [wishlist, setWishlist] = React.useState<Set<number>>(new Set());
+  const [wishlist, setWishlist] = React.useState<Set<string>>(new Set());
 
-  const toggleWishlist = (id: number) => {
+  const { data: products = [], isLoading, isError } = useQuery({
+    queryKey: ['marketplace-products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marketplace_products')
+        .select(`
+          id,
+          title,
+          name,
+          description,
+          price,
+          currency,
+          category,
+          image_url,
+          is_featured,
+          seller:user_profiles!marketplace_products_seller_fkey(id, username, avatar_url, verified),
+          created_at,
+          rating,
+          review_count,
+          stock_count
+        `)
+        .order('created_at', { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      return (data || []).map((product: any) => ({
+        id: product.id,
+        name: product.title || product.name || 'Untitled product',
+        description: product.description || '',
+        price: product.price ?? 0,
+        currency: product.currency || 'RWF',
+        category: product.category || 'Craft',
+        image: product.image_url || 'https://images.unsplash.com/photo-1516307365426-bea591f05011?w=300&h=250&fit=crop',
+        badge: product.is_featured ? 'Featured' : null,
+        rating: product.rating ?? 4.8,
+        reviews: product.review_count ?? 0,
+        creator: product.seller?.username || 'Umurage Creator',
+        seller: product.seller || null,
+      }));
+    },
+    staleTime: 30000,
+  });
+
+  const toggleWishlist = (id: string) => {
     if (!isAuthenticated) { openAuth('login'); return; }
-    setWishlist(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+    setWishlist(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
+  const formatPrice = (value: number, currency: string) => {
+    if (!Number.isFinite(value)) return `${currency} 0`;
+    return `${currency} ${value.toLocaleString()}`;
+  };
+
+  const handleBuy = () => {
+    if (!isAuthenticated) { openAuth('login'); return; }
+    toast.success('Checkout is ready. Please contact the seller to complete your order.');
   };
 
   return (
@@ -29,47 +79,58 @@ const Marketplace: React.FC = () => {
         <p className="text-umurage-muted text-base">Support Rwandan cultural creators — authentic crafts, art, books, and performances.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {PRODUCTS.map(product => (
-          <div key={product.id} className="umurage-card rounded-2xl overflow-hidden group cursor-pointer">
-            <div className="relative h-44 overflow-hidden">
-              <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              {product.badge && (
-                <span className="absolute top-3 left-3 bg-umurage-gold text-umurage-bg text-[10px] font-bold px-2 py-1 rounded-lg">{product.badge}</span>
-              )}
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-umurage-bg/70 flex items-center justify-center hover:bg-umurage-bg transition-colors"
-              >
-                <Heart size={14} className={wishlist.has(product.id) ? 'text-red-400 fill-current' : 'text-umurage-muted'} />
-              </button>
-              <div className="absolute bottom-0 inset-x-0 h-12 bg-dark-gradient" />
-            </div>
-            <div className="p-4">
-              <span className="text-umurage-subtle text-[10px] font-semibold uppercase tracking-wider">{product.category}</span>
-              <h3 className="text-umurage-cream font-semibold text-sm leading-snug mt-1 mb-1 group-hover:text-umurage-gold transition-colors">{product.name}</h3>
-              <p className="text-umurage-muted text-xs mb-3">By {product.creator}</p>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={10} className={i < Math.floor(product.rating) ? 'text-umurage-gold fill-current' : 'text-umurage-border'} />
-                    ))}
-                    <span className="text-umurage-subtle text-[10px] ml-0.5">({product.reviews})</span>
-                  </div>
-                  <p className="text-umurage-gold font-bold text-base">{product.price}</p>
-                </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-umurage-muted">
+          <Loader2 size={20} className="mr-2 animate-spin" />
+          Loading marketplace listings…
+        </div>
+      ) : isError ? (
+        <div className="rounded-2xl border border-umurage-border bg-umurage-card/70 p-8 text-center text-umurage-muted">
+          Marketplace listings are temporarily unavailable. Please try again shortly.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {products.map((product: any) => (
+            <div key={product.id} className="umurage-card rounded-2xl overflow-hidden group cursor-pointer">
+              <div className="relative h-44 overflow-hidden">
+                <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                {product.badge && (
+                  <span className="absolute top-3 left-3 bg-umurage-gold text-umurage-bg text-[10px] font-bold px-2 py-1 rounded-lg">{product.badge}</span>
+                )}
                 <button
-                  onClick={() => !isAuthenticated && openAuth('login')}
-                  className="btn-gold text-xs py-2 px-4"
+                  onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-umurage-bg/70 flex items-center justify-center hover:bg-umurage-bg transition-colors"
                 >
-                  Buy Now
+                  <Heart size={14} className={wishlist.has(product.id) ? 'text-red-400 fill-current' : 'text-umurage-muted'} />
                 </button>
+                <div className="absolute bottom-0 inset-x-0 h-12 bg-dark-gradient" />
+              </div>
+              <div className="p-4">
+                <span className="text-umurage-subtle text-[10px] font-semibold uppercase tracking-wider">{product.category}</span>
+                <h3 className="text-umurage-cream font-semibold text-sm leading-snug mt-1 mb-1 group-hover:text-umurage-gold transition-colors">{product.name}</h3>
+                <p className="text-umurage-muted text-xs mb-3">By {product.creator}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={10} className={i < Math.floor(product.rating) ? 'text-umurage-gold fill-current' : 'text-umurage-border'} />
+                      ))}
+                      <span className="text-umurage-subtle text-[10px] ml-0.5">({product.reviews})</span>
+                    </div>
+                    <p className="text-umurage-gold font-bold text-base">{formatPrice(product.price, product.currency)}</p>
+                  </div>
+                  <button
+                    onClick={handleBuy}
+                    className="btn-gold text-xs py-2 px-4"
+                  >
+                    Buy Now
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

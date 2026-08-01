@@ -22,6 +22,7 @@ export type Database = {
            email: string;
            bio: string | null;
            avatar_url: string | null;
+           cover_url: string | null;
            role: 'user' | 'creator' | 'elder' | 'organization' | 'student' | 'museum' | 'cultural_institution' | 'researcher' | 'tourist_guide' | 'community_member';
            verified: boolean;
            verified_type: string | null;

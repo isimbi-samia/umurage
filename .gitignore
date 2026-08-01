@@ -14,6 +14,21 @@ dist-ssr
 
 data/
 
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Vite / build artifacts
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Supabase local temp files
+supabase/.temp/
+supabase/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

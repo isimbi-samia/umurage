@@ -23,13 +23,18 @@ import AIGuide from '@/pages/AIGuide';
 import Settings from '@/pages/Settings';
 import Profile from '@/pages/Profile';
 import Upload from '@/pages/Upload';
+import Messages from '@/pages/Messages';
 import HeritageArchive from '@/pages/HeritageArchive';
 import PostDetail from '@/pages/PostDetail';
 import Verification from '@/pages/Verification';
+import Notifications from '@/pages/Notifications';
 import Register from '@/pages/Register';
 import Login from '@/pages/Login';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import EditProfile from '@/pages/EditProfile';
+import FollowersList from '@/pages/FollowersList';
+import FollowingList from '@/pages/FollowingList';
 import NotFound from '@/pages/NotFound';
 import RealtimeInitializer from '@/components/RealtimeInitializer';
 
@@ -123,13 +128,18 @@ const App: React.FC = () => {
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
+                <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
                 <Route path="/heritage-archive" element={<ProtectedRoute><HeritageArchive /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                 <Route path="/post/:id" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
                 <Route path="/verification" element={<Verification />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/profile/edit" element={<EditProfile />} />
+                <Route path="/profile/followers" element={<FollowersList />} />
+                <Route path="/profile/following" element={<FollowingList />} />
                 {/* Truth detector removed */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

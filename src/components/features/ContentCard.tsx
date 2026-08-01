@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToggleLike, useToggleSave, useComments, useAddComment } from '@/hooks/usePosts';
+import { useToggleLike, useToggleSave, useComments, useAddComment, useTrackPostView } from '@/hooks/usePosts';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -27,6 +27,7 @@ interface Post {
   region: string | null;
   tags?: string[];
   views: number;
+  views_count?: number | null;
   likes_count: number;
   comments_count: number;
   shares_count: number;
@@ -61,8 +62,10 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   const navigate = useNavigate();
   const toggleLike = useToggleLike();
   const toggleSave = useToggleSave();
+  const trackPostView = useTrackPostView();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [hasTrackedView, setHasTrackedView] = useState(false);
   const addComment = useAddComment();
   const { data: comments = [] } = useComments(showComments ? item.id : '');
 
@@ -71,6 +74,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   const likesCount = item.likes_count ?? item.likes ?? 0;
   const commentsCount = item.comments_count ?? item.comments ?? 0;
   const sharesCount = item.shares_count ?? item.shares ?? 0;
+  const viewsCount = (item as Post & { views_count?: number | null }).views_count ?? item.views ?? 0;
 
   const requireAuth = (action: () => void) => {
     if (!isAuthenticated) { openAuth('login'); return; }
@@ -115,6 +119,12 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
     e.stopPropagation();
     requireAuth(() => setShowComments(!showComments));
   };
+
+  useEffect(() => {
+    if (hasTrackedView || !item.id) return;
+    setHasTrackedView(true);
+    trackPostView.mutate({ postId: item.id, userId: user?.id });
+  }, [hasTrackedView, item.id, user?.id, trackPostView]);
 
   const authorName = item.author?.username || item.author?.email?.split('@')[0] || 'Unknown';
   const authorAvatar = item.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${authorName}`;
@@ -188,6 +198,15 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
             {item.title}
           </h3>
           <p className="text-sm leading-relaxed text-umurage-gold-light/70">{item.description}</p>
+          <div className="mt-3 flex items-center gap-3 text-[11px] text-umurage-gold-light/60">
+            <span className="flex items-center gap-1">
+              <Eye size={12} />
+              {viewsCount.toLocaleString()}
+            </span>
+            <span className="rounded-full border border-umurage-gold/20 bg-umurage-gold/10 px-2 py-0.5 text-[10px] text-umurage-gold-light/70">
+              {item.category || 'Culture'}
+            </span>
+          </div>
           {item.tags && item.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {item.tags.slice(0, 3).map(tag => (

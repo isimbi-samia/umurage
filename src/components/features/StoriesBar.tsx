@@ -1,19 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, Eye, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Plus, X, Eye, ChevronLeft, ChevronRight, Sparkles, Clock3 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { STORIES } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useStories } from '@/hooks/useStories';
+import { useMarkStoryViewed, useStories, useStoryAnalytics } from '@/hooks/useStories';
 
 interface StoryViewerProps {
   story: {
     id: string;
     title: string;
+    mediaUrl?: string | null;
+    thumbnailUrl?: string | null;
     user: { name: string; avatar: string; verified: boolean };
     createdAt: string;
     hasNew?: boolean;
     isAdd?: boolean;
+    expiresAt?: string | null;
   };
   onClose: () => void;
   onPrev: () => void;
@@ -25,6 +27,13 @@ interface StoryViewerProps {
 const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNext, hasPrev, hasNext }) => {
   const [progress, setProgress] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { user } = useAuth();
+  const markStoryViewed = useMarkStoryViewed();
+  const { data: analyticsCount = 0 } = useStoryAnalytics(story.id);
+
+  useEffect(() => {
+    markStoryViewed.mutate({ storyId: story.id, userId: user?.id });
+  }, [story.id, user?.id]);
 
   useEffect(() => {
     setProgress(0);
@@ -44,9 +53,12 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
 
   if (story.isAdd) return null;
 
+  const expiresIn = story.expiresAt ? Math.max(0, Math.floor((new Date(story.expiresAt).getTime() - Date.now()) / 1000 / 60 / 60)) : 24;
+  const isVideo = story.mediaUrl?.match(/\.(mp4|mov|webm|m4v|avi|mkv)$/i);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
-      <div className="relative h-[82vh] w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.45)]">
+      <div className="relative h-[88vh] w-full max-w-md overflow-hidden rounded-[28px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.45)]">
         <div className="absolute left-3 right-3 top-3 z-20 flex gap-1">
           <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/30">
             <div className="h-full rounded-full bg-white transition-none" style={{ width: `${progress}%` }} />
@@ -57,19 +69,38 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
           <X size={16} />
         </button>
 
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#2e1c10] to-[#0f0905] p-6">
-          <img
-            src={story.user.avatar || 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=300&h=400&fit=crop'}
-            alt={story.user.name}
-            className="absolute inset-0 h-full w-full object-cover opacity-30"
-          />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(212,162,76,0.26),_transparent_38%)]" />
-          <div className="relative z-10 text-center p-4">
-            <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-umurage-gold/50 bg-black/20 p-1 shadow-[0_0_20px_rgba(212,162,76,0.3)]">
-              <img src={story.user.avatar} alt={story.user.name} className="h-full w-full rounded-full object-cover" />
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#2e1c10] to-[#0f0905]">
+          {story.mediaUrl && isVideo ? (
+            <video src={story.mediaUrl} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
+          ) : story.mediaUrl ? (
+            <img src={story.mediaUrl} alt={story.title} className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <img src={story.thumbnailUrl || story.user.avatar} alt={story.title} className="absolute inset-0 h-full w-full object-cover opacity-60" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/10" />
+          <div className="absolute left-3 right-3 top-12 z-10 flex items-center justify-between rounded-full bg-black/30 px-3 py-2 text-xs text-white backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <img src={story.user.avatar} alt={story.user.name} className="h-8 w-8 rounded-full border border-white/20 object-cover" />
+              <div>
+                <p className="font-semibold">{story.user.name}</p>
+                <p className="text-[10px] text-white/70">{story.title}</p>
+              </div>
             </div>
-            <p className="text-lg font-semibold text-white">{story.user.name}</p>
-            {story.user.verified && <p className="mt-1 text-xs text-umurage-gold">✓ Verified Creator</p>}
+            <div className="flex items-center gap-2 text-[10px] text-white/80">
+              <Clock3 size={12} />
+              <span>{expiresIn}h left</span>
+            </div>
+          </div>
+
+          <div className="relative z-10 w-full p-5 pt-28 text-center">
+            <div className="rounded-[20px] border border-white/10 bg-black/30 p-4 backdrop-blur-sm">
+              <div className="mb-2 flex items-center justify-center gap-2 text-amber-100">
+                <Eye size={14} />
+                <span className="text-xs">{analyticsCount} views</span>
+              </div>
+              <p className="text-lg font-semibold text-white">{story.title}</p>
+              <p className="mt-2 text-sm text-white/75">{story.user.verified ? 'Verified creator' : 'Community story'}</p>
+            </div>
           </div>
         </div>
 
@@ -83,10 +114,6 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
             <ChevronRight size={18} />
           </button>
         )}
-
-        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-4">
-          <p className="text-center text-xs text-amber-50/70">Swipe or tap the sides to explore • Tap ✕ to close</p>
-        </div>
       </div>
     </div>
   );
@@ -114,28 +141,13 @@ const StoriesBar: React.FC = () => {
     isAdd: false,
     mediaUrl: s.media_url,
     thumbnailUrl: s.thumbnail_url,
+    expiresAt: s.story_expires_at,
   }));
 
-  const fallbackStories = STORIES.filter(s => !s.isAdd).map(s => ({
-    id: s.id,
-    title: s.title,
-    user: {
-      name: s.user.name,
-      avatar: s.user.avatar,
-      verified: s.user.verified,
-    },
-    createdAt: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString(),
-    hasNew: s.hasNew,
-    isAdd: false,
-    mediaUrl: s.mediaUrl,
-    thumbnailUrl: s.thumbnailUrl,
-  }));
-
-  const allStories = [...dbStories, ...fallbackStories, ...STORIES.filter(s => s.isAdd)];
-  const activeStories = allStories.filter(s => {
-    if (s.isAdd) return false;
+  const activeStories = dbStories.filter(s => {
     if (!s.createdAt) return true;
-    return Date.now() - new Date(s.createdAt).getTime() < 48 * 60 * 60 * 1000;
+    const expiresAt = s.expiresAt ? new Date(s.expiresAt).getTime() : new Date(new Date(s.createdAt).getTime() + 24 * 60 * 60 * 1000).getTime();
+    return Date.now() < expiresAt;
   });
 
   const handleStoryClick = (storyId: string) => {
@@ -182,6 +194,11 @@ const StoriesBar: React.FC = () => {
                 <Sparkles size={14} className="text-umurage-gold animate-spin" />
                 <span className="text-[10px] text-umurage-muted">Loading stories...</span>
               </div>
+            ) : activeStories.length === 0 ? (
+              <div className="flex items-center gap-1 px-2 text-[10px] text-umurage-muted">
+                <Clock3 size={12} />
+                <span>No active stories right now.</span>
+              </div>
             ) : (
               activeStories.map(story => (
                 <button
@@ -190,7 +207,7 @@ const StoriesBar: React.FC = () => {
                   aria-label={story.title || story.user.name}
                   className="flex flex-col items-center gap-1 px-1"
                 >
-                  <div className={`story-ring ${story.hasNew && !viewedStories.has(story.id) ? 'has-new' : ''}`}>
+                  <div className={`story-ring ${!viewedStories.has(story.id) ? 'has-new' : ''}`}>
                     <div className="story-ring-inner h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden bg-transparent">
                       <img src={story.user.avatar} alt={story.user.name} className="h-full w-full object-cover" />
                     </div>

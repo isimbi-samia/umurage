@@ -314,7 +314,11 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
               )}
             </div>
 
-            <button onClick={() => navigate('/discussions')} className="p-2 text-umurage-muted hover:text-umurage-cream rounded-lg hover:bg-umurage-card transition-colors">
+            <button onClick={() => navigate('/messages')} className="p-2 text-umurage-muted hover:text-umurage-cream rounded-lg hover:bg-umurage-card transition-colors" title="Messages">
+              <MessageSquare size={18} />
+            </button>
+
+            <button onClick={() => navigate('/discussions')} className="p-2 text-umurage-muted hover:text-umurage-cream rounded-lg hover:bg-umurage-card transition-colors" title="Discussions">
               <MessageSquare size={18} />
             </button>
 

@@ -1,41 +1,79 @@
 import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { subscribeToTable } from '@/lib/realtime';
 
-// Fetch posts with author info
-export function usePosts(tab: 'foryou' | 'following' | 'explore' = 'foryou', userId?: string) {
-  return useQuery({
-    queryKey: ['posts', tab, userId],
-    queryFn: async () => {
+type PostTab = 'foryou' | 'following' | 'explore';
+type SortOption = 'latest' | 'popular' | 'trending';
+
+const PAGE_SIZE = 8;
+
+interface PostsPage {
+  items: any[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+// Fetch posts with author info and support paginated loading
+export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortOption = 'latest') {
+  return useInfiniteQuery<PostsPage, Error>({
+    queryKey: ['posts', tab, userId, sortBy],
+    queryFn: async ({ pageParam }) => {
       let query = supabase
         .from('posts')
         .select(`
           *,
-          author:user_profiles!posts_user_id_fkey(
-            id, username, email, bio, avatar_url, role, verified, verified_type, followers_count, following_count, posts_count
+          author:profiles!posts_user_id_fkey(
+            id, username, email, bio, avatar_url, role, verified, verification_type, followers_count, following_count, posts_count
           )
         `)
         .eq('published', true)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(PAGE_SIZE + 1);
 
       if (tab === 'following' && userId) {
-        // Get following ids first
         const { data: followData } = await supabase
           .from('follows')
           .select('following_id')
           .eq('follower_id', userId);
         const ids = followData?.map(f => f.following_id) || [];
-        if (ids.length === 0) return [];
+        if (ids.length === 0) return { items: [], nextCursor: null, hasMore: false };
         query = query.in('user_id', ids);
+      }
+
+      if (sortBy === 'popular') {
+        query = query.order('likes_count', { ascending: false });
+      } else if (sortBy === 'trending') {
+        query = query.order('views_count', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      if (pageParam) {
+        const cursorValue = pageParam as string;
+        if (sortBy === 'latest') {
+          query = query.lt('created_at', cursorValue);
+        } else if (sortBy === 'popular') {
+          query = query.lt('likes_count', Number(cursorValue));
+        } else {
+          query = query.lt('views_count', Number(cursorValue));
+        }
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+
+      const items = (data || []).slice(0, PAGE_SIZE);
+      const lastItem = items[items.length - 1];
+      const nextCursor = items.length === PAGE_SIZE ? (sortBy === 'latest' ? lastItem?.created_at ?? null : (sortBy === 'popular' ? String(lastItem?.likes_count ?? 0) : String(lastItem?.views_count ?? 0))) : null;
+      return {
+        items,
+        nextCursor,
+        hasMore: (data || []).length > PAGE_SIZE,
+      };
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
     staleTime: 30000,
   });
 }
@@ -54,7 +92,7 @@ export function usePostsRealtimeSync() {
 export function useRealtimeSyncAll() {
   const qc = useQueryClient();
   React.useEffect(() => {
-    const tables = ['posts', 'likes', 'saves', 'comments', 'follows', 'messages', 'user_profiles', 'notifications'];
+    const tables = ['posts', 'likes', 'saves', 'comments', 'follows', 'messages', 'profiles', 'notifications'];
     const unsubscribers = tables.map(t => subscribeToTable(t, () => qc.invalidateQueries()));
     return () => unsubscribers.forEach(u => u());
   }, [qc]);
@@ -138,6 +176,23 @@ export function useToggleSave() {
   });
 }
 
+// Track a post view in the content_views table
+export function useTrackPostView() {
+  return useMutation({
+    mutationFn: async ({ postId, userId }: { postId: string; userId?: string }) => {
+      if (!postId) return;
+      const { error } = await supabase.from('content_views').insert({
+        content_id: postId,
+        content_type: 'post',
+        user_id: userId ?? null,
+      });
+      if (error) {
+        if (!error.message.includes('duplicate')) throw error;
+      }
+    },
+  });
+}
+
 // Create post
 export function useCreatePost() {
   const qc = useQueryClient();
@@ -188,7 +243,7 @@ export function useComments(postId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('comments')
-        .select(`*, author:user_profiles!comments_user_id_fkey(id, username, avatar_url, verified)`)
+        .select(`*, author:profiles!comments_user_id_fkey(id, username, avatar_url, verified)`)
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -226,12 +281,15 @@ export function useTrending() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('id, title, views, thumbnail_url')
+        .select('id, title, thumbnail_url, views_count, views, created_at')
         .eq('published', true)
-        .order('views', { ascending: false })
+        .order('views_count', { ascending: false })
         .limit(5);
       if (error) throw error;
-      return data || [];
+      return (data || []).map((item: any) => ({
+        ...item,
+        views: item.views_count ?? item.views ?? 0,
+      }));
     },
     staleTime: 60000,
   });

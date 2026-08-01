@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
-interface StoryPost {
+export interface StoryPost {
   id: string;
   user_id: string;
   type: string;
@@ -37,7 +37,7 @@ export function useStories() {
         .from('posts')
         .select(`
           *,
-          author:user_profiles!posts_user_id_fkey(
+          author:profiles!posts_user_id_fkey(
             id, username, avatar_url, verified
           )
         `)
@@ -47,8 +47,47 @@ export function useStories() {
         .order('created_at', { ascending: false })
         .limit(20);
       if (error) throw error;
-      return (data || []) as StoryPost[];
+      return (data || []).map(item => ({ ...item, tags: item.tags ?? [] })) as StoryPost[];
     },
     staleTime: 30000,
+  });
+}
+
+export function useStoryAnalytics(storyId?: string) {
+  return useQuery<number>({
+    queryKey: ['story-analytics', storyId],
+    queryFn: async () => {
+      if (!storyId) return 0;
+      const { count, error } = await supabase
+        .from('content_views')
+        .select('*', { count: 'exact', head: true })
+        .eq('content_id', storyId)
+        .eq('content_type', 'story');
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!storyId,
+    staleTime: 30000,
+  });
+}
+
+export function useMarkStoryViewed() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ storyId, userId }: { storyId: string; userId?: string }) => {
+      if (!storyId) return;
+      const { error } = await supabase.from('content_views').insert({
+        content_id: storyId,
+        content_type: 'story',
+        user_id: userId ?? null,
+      });
+      if (error && !error.message.includes('duplicate')) {
+        throw error;
+      }
+    },
+    onSuccess: (_data, { storyId }) => {
+      qc.invalidateQueries({ queryKey: ['story-analytics', storyId] });
+    },
   });
 }
