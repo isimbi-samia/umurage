@@ -1,43 +1,103 @@
 import React, { useState } from 'react';
 import {
-  Eye, EyeOff, Loader2, Mail, ArrowLeft, Sparkles,
+  Eye, EyeOff, Loader2, Mail, ArrowLeft, Sparkles, ShieldCheck, Lock,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
-const ForgotPassword: React.FC = () => {
-  const { sendPasswordResetEmail } = useAuth();
-  const navigate = useNavigate();
+type Step = 'identifier' | 'code' | 'new-password';
 
-  const [email, setEmail] = useState('');
+const ForgotPassword: React.FC = () => {
+  const navigate = useNavigate();
+  const {
+    sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
+  } = useAuth();
+
+  const [step, setStep] = useState<Step>('identifier');
+  const [identifier, setIdentifier] = useState('');
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!email.trim()) {
-      setError('Please enter your email address.');
+    if (!identifier.trim()) {
+      setError('Please enter your email, username, or phone number.');
       return;
     }
-
     setLoading(true);
     try {
-      const result = await sendPasswordResetEmail(email);
-      if (!result.success) {
-        setError(result.error || 'Failed to send reset email.');
-        toast.error(result.error || 'Failed to send reset email.');
-      } else {
-        setSuccess(true);
-        toast.success('Password reset email sent! Check your inbox.');
-      }
+      await sendForgotPasswordCode(identifier.trim());
+      setStep('code');
     } catch (err: unknown) {
-      const msg = (err as Error).message || 'An unexpected error occurred.';
+      const msg = (err as Error).message || 'Failed to send code.';
       setError(msg);
       toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!code || code.length < 4) {
+      setError('Please enter the 4-digit verification code.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await verifyForgotPasswordCode(code);
+      setStep('new-password');
+    } catch (err: unknown) {
+      const msg = (err as Error).message || 'Invalid code. Please try again.';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPassword(newPassword);
+      setSuccess(true);
+      toast.success('Password updated successfully!');
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err: unknown) {
+      const msg = (err as Error).message || 'Failed to update password.';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    try {
+      await sendForgotPasswordCode(identifier);
+      toast.success('New code sent!');
+    } catch {
+      toast.error('Failed to resend code');
     } finally {
       setLoading(false);
     }
@@ -59,8 +119,16 @@ const ForgotPassword: React.FC = () => {
               <Sparkles className="text-umurage-gold group-hover:scale-110 transition-transform" size={28} />
               <span className="font-cinzel text-2xl text-umurage-gold font-bold tracking-wider">UMURAGE</span>
             </Link>
-            <h1 className="font-cinzel text-3xl text-umurage-gold font-bold uppercase tracking-[0.3em] mb-2">Forgot Password</h1>
-            <p className="text-umurage-muted text-sm">Enter your email and we will send you a reset link</p>
+            <h1 className="font-cinzel text-3xl text-umurage-gold font-bold uppercase tracking-[0.3em] mb-2">
+              {step === 'identifier' && 'Forgot Password'}
+              {step === 'code' && 'Verify Code'}
+              {step === 'new-password' && 'Set New Password'}
+            </h1>
+            <p className="text-umurage-muted text-sm">
+              {step === 'identifier' && 'Enter your email, username, or phone to receive a reset code'}
+              {step === 'code' && 'Enter the 4-digit code sent to your email'}
+              {step === 'new-password' && 'Choose a strong new password for your account'}
+            </p>
           </div>
 
           {/* Form Card */}
@@ -70,54 +138,193 @@ const ForgotPassword: React.FC = () => {
             {success ? (
               <div className="text-center py-6">
                 <div className="w-16 h-16 rounded-full bg-umurage-gold/20 flex items-center justify-center mx-auto mb-4">
-                  <Mail size={32} className="text-umurage-gold" />
+                  <ShieldCheck size={32} className="text-umurage-gold" />
                 </div>
-                <h2 className="font-cinzel text-xl text-umurage-gold font-bold mb-2">Check Your Email</h2>
-                <p className="text-umurage-muted text-sm mb-2">We sent a password reset link to</p>
-                <p className="text-umurage-cream text-sm font-semibold mb-6">{email}</p>
-                <p className="text-umurage-subtle text-xs mb-4">Did not receive the email? Check your spam folder or try again.</p>
-                <button
-                  onClick={() => { setSuccess(false); setEmail(''); }}
-                  className="btn-outline-gold w-full py-3 text-sm font-semibold"
-                >
-                  Try Again
-                </button>
+                <h2 className="font-cinzel text-xl text-umurage-gold font-bold mb-2">Password Updated</h2>
+                <p className="text-umurage-muted text-sm">Redirecting to login...</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                {/* Email */}
-                <div>
-                  <label className="text-umurage-muted text-xs font-semibold uppercase tracking-[0.15em] mb-2 block">Email Address</label>
-                  <div className="relative">
-                    <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      className={`${inputBase} pl-11`}
-                      autoComplete="email"
-                    />
-                  </div>
-                </div>
+              <>
+                {/* Step 1: Identifier */}
+                {step === 'identifier' && (
+                  <form onSubmit={handleSendCode} className="space-y-5" noValidate>
+                    <div>
+                      <label className="text-umurage-muted text-xs font-semibold uppercase tracking-[0.15em] mb-2 block">Email, Username, or Phone</label>
+                      <div className="relative">
+                        <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+                        <input
+                          type="text"
+                          value={identifier}
+                          onChange={e => setIdentifier(e.target.value)}
+                          placeholder="email@example.com, @username, or +250..."
+                          className={`${inputBase} pl-11`}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
 
-                {/* Error */}
-                {error && (
-                  <div className="bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-300 text-xs text-center">
-                    {error}
-                  </div>
+                    {error && (
+                      <div className="bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-300 text-xs text-center">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
+                    >
+                      {loading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                      {loading ? 'Sending code...' : 'Send Verification Code'}
+                    </button>
+                  </form>
                 )}
 
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
-                >
-                  {loading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-                  {loading ? 'Sending...' : 'Send Reset Link'}
-                </button>
-              </form>
+                {/* Step 2: OTP */}
+                {step === 'code' && (
+                  <form onSubmit={handleVerifyCode} className="space-y-5" noValidate>
+                    <div className="bg-umurage-surface border border-umurage-border rounded-xl p-3 text-center mb-2">
+                      <p className="text-umurage-muted text-xs">Code sent to</p>
+                      <p className="text-umurage-gold text-sm font-semibold mt-0.5">{identifier}</p>
+                    </div>
+
+                    <div>
+                      <label className="text-umurage-muted text-xs font-semibold uppercase tracking-[0.15em] mb-2 block">4-Digit Verification Code</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={code}
+                        onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="0 0 0 0"
+                        maxLength={4}
+                        className={`${inputBase} text-center text-3xl font-bold tracking-[0.5em]`}
+                        autoFocus
+                      />
+                      <p className="text-umurage-subtle text-[10px] mt-1.5 text-center">Check your email inbox and spam folder</p>
+                    </div>
+
+                    {error && (
+                      <div className="bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-300 text-xs text-center">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading || code.length < 4}
+                      className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
+                    >
+                      {loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                      {loading ? 'Verifying...' : 'Verify Code'}
+                    </button>
+
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => { setStep('identifier'); setCode(''); setError(''); }}
+                        className="text-umurage-subtle text-xs hover:text-umurage-muted transition-colors py-1"
+                      >
+                        ← Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={loading}
+                        className="text-umurage-gold text-xs hover:underline transition-colors py-1"
+                      >
+                        Resend code
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Step 3: New Password */}
+                {step === 'new-password' && (
+                  <form onSubmit={handleResetPassword} className="space-y-5" noValidate>
+                    <div className="flex items-center gap-2 bg-green-900/20 border border-green-800/40 rounded-xl px-4 py-3 mb-2">
+                      <ShieldCheck size={16} className="text-green-400 flex-shrink-0" />
+                      <p className="text-green-300 text-xs">Identity verified! Set your new password below.</p>
+                    </div>
+
+                    <div>
+                      <label className="text-umurage-muted text-xs font-semibold uppercase tracking-[0.15em] mb-2 block">New Password</label>
+                      <div className="relative">
+                        <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+                        <input
+                          type={showPw ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          placeholder="At least 6 characters"
+                          className={`${inputBase} pl-11 pr-12`}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPw(!showPw)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-cream transition-colors"
+                        >
+                          {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      {newPassword && (
+                        <div className="h-1 rounded-full bg-umurage-surface overflow-hidden mt-2">
+                          <div className={`h-full rounded-full transition-all ${
+                            newPassword.length < 6 ? 'w-1/4 bg-red-500' :
+                            newPassword.length < 10 ? 'w-2/4 bg-amber-400' : 'w-full bg-green-500'
+                          }`} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-umurage-muted text-xs font-semibold uppercase tracking-[0.15em] mb-2 block">Confirm New Password</label>
+                      <div className="relative">
+                        <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+                        <input
+                          type={showConfirmPw ? 'text' : 'password'}
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          placeholder="Repeat your new password"
+                          className={`${inputBase} pl-11 pr-12`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPw(!showConfirmPw)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-cream transition-colors"
+                        >
+                          {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      {confirmPassword && newPassword !== confirmPassword && (
+                        <p className="text-red-400 text-[11px] mt-1.5 ml-1">Passwords do not match</p>
+                      )}
+                    </div>
+
+                    {error && (
+                      <div className="bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-300 text-xs text-center">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading || !newPassword || newPassword !== confirmPassword}
+                      className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
+                    >
+                      {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                      {loading ? 'Updating...' : 'Set New Password'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setStep('code'); setNewPassword(''); setConfirmPassword(''); setError(''); }}
+                      className="w-full text-center text-umurage-subtle text-xs hover:text-umurage-muted transition-colors py-1"
+                    >
+                      ← Back to code
+                    </button>
+                  </form>
+                )}
+              </>
             )}
           </div>
 

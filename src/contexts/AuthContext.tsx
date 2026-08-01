@@ -26,12 +26,6 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  // OTP signup flow
-  otpStep: 'idle' | 'otp-sent' | 'otp-verified';
-  otpEmail: string;
-  sendOtp: (email: string) => Promise<void>;
-  verifyOtp: (token: string) => Promise<void>;
-  completeSignup: (name: string, username: string, password: string, role: string, phone?: string) => Promise<void>;
   // Direct password signup
   registerUser: (data: {
     full_name: string;
@@ -53,8 +47,6 @@ interface AuthContextType {
   verifyForgotPasswordCode: (token: string) => Promise<void>;
   resetPassword: (newPassword: string) => Promise<void>;
   resetForgotPasswordFlow: () => void;
-  // Email-based password reset
-  sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   // Logout
   logout: () => Promise<void>;
   // UI auth modal
@@ -101,8 +93,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [registerLoading, setRegisterLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [otpStep, setOtpStep] = useState<'idle' | 'otp-sent' | 'otp-verified'>('idle');
-  const [otpEmail, setOtpEmail] = useState('');
   const [forgotPasswordStep, setForgotPasswordStep] = useState<'idle' | 'code-sent' | 'code-verified'>('idle');
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
 
@@ -192,79 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     throw new Error('No account found with that username. Try using your email address instead.');
   };
 
-  // ── Step 1: Send signup OTP ──────────────────────────────────────────────
-  const sendOtp = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: { shouldCreateUser: true },
-    });
-    if (error) {
-      if (error.message.includes('rate')) throw new Error('Too many requests. Please wait a minute before trying again.');
-      if (error.message.includes('invalid')) throw new Error('Please enter a valid email address.');
-      throw error;
-    }
-    setOtpEmail(email.trim().toLowerCase());
-    setOtpStep('otp-sent');
-    toast.success('A 4-digit verification code has been sent to your email!');
-  };
-
-  // ── Step 2: Verify signup OTP ────────────────────────────────────────────
-  const verifyOtp = async (token: string) => {
-    const cleanToken = token.trim().replace(/\s/g, '');
-    const { error } = await supabase.auth.verifyOtp({
-      email: otpEmail,
-      token: cleanToken,
-      type: 'email',
-    });
-    if (error) {
-      if (error.message.includes('expired')) throw new Error('Code expired. Please request a new one.');
-      if (error.message.includes('invalid') || error.message.includes('Invalid')) {
-        throw new Error('Incorrect code. Please check your email and try again.');
-      }
-      throw error;
-    }
-    setOtpStep('otp-verified');
-    toast.success('Email verified! ✓');
-  };
-
-  // ── Step 3: Complete signup ──────────────────────────────────────────────
-  const completeSignup = async (name: string, username: string, password: string, role: string, phone?: string) => {
-    // 1. Set password and store name in auth metadata
-    const { data: updateData, error: updateError } = await supabase.auth.updateUser({
-      password,
-      data: { username: name, full_name: name },
-    });
-    if (updateError) throw updateError;
-
-    if (updateData.user) {
-      // 2. Upsert the full profile record (safe even if trigger already created it)
-      const profileData: Record<string, unknown> = {
-        id: updateData.user.id,
-        email: updateData.user.email!,
-        username,      // chosen @handle
-        role,
-      };
-      if (phone) profileData.phone = phone;
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert(profileData, { onConflict: 'id' });
-
-      if (profileError) {
-        console.error('Profile upsert error (non-fatal):', profileError);
-      }
-
-      const authUser = await fetchProfile(updateData.user);
-      setUser(authUser);
-    }
-
-    setOtpStep('idle');
-    setOtpEmail('');
-    setShowAuthModal(false);
-    toast.success('Welcome to Umurage Hub! 🇷🇼');
-  };
-
-  // ── Direct Password Registration ────────────────────────────────
+  // ── Resolve identifier to email ──────────────────────────────────────────
   const registerUser = async (data: {
     full_name: string;
     username: string;
@@ -458,25 +376,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setForgotPasswordEmail('');
   };
 
-  // ── Email-based password reset ──────────────────────────
-  const sendPasswordResetEmail = async (email: string): Promise<{ success: boolean; error?: string }> => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !trimmed.includes('@')) {
-      return { success: false, error: 'Please enter a valid email address.' };
-    }
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) {
-        return { success: false, error: error.message };
-      }
-      return { success: true };
-    } catch (err: unknown) {
-      return { success: false, error: (err as Error).message || 'Failed to send reset email.' };
-    }
-  };
-
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -508,29 +407,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const openAuth = (mode: 'login' | 'signup') => {
     setAuthMode(mode);
-    setOtpStep('idle');
-    setOtpEmail('');
     resetForgotPasswordFlow();
     setShowAuthModal(true);
   };
 
   const closeAuth = () => {
     setShowAuthModal(false);
-    setOtpStep('idle');
-    setOtpEmail('');
     resetForgotPasswordFlow();
   };
 
     return (
       <AuthContext.Provider value={{
         user, isAuthenticated: !!user, loading, registerLoading,
-        otpStep, otpEmail,
-        sendOtp, verifyOtp, completeSignup,
         registerUser,
         loginWithPassword,
         forgotPasswordStep, forgotPasswordEmail,
         sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
-        sendPasswordResetEmail,
         logout,
         showAuthModal, authMode, openAuth, closeAuth,
         updateProfile,

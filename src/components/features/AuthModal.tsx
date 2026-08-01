@@ -7,22 +7,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 
-type SignupStep = 'email' | 'otp' | 'details';
 type LoginView = 'login' | 'forgot-identifier' | 'forgot-otp' | 'forgot-newpw';
 
 const AuthModal: React.FC = () => {
   const {
     showAuthModal, authMode, closeAuth, openAuth,
-    sendOtp, verifyOtp, completeSignup, loginWithPassword,
+    registerUser, loginWithPassword,
     forgotPasswordStep, sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
-    otpEmail, forgotPasswordEmail,
+    forgotPasswordEmail,
   } = useAuth();
   const { t } = useLanguage();
 
   const [showPw, setShowPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [signupStep, setSignupStep] = useState<SignupStep>('email');
   const [loginView, setLoginView] = useState<LoginView>('login');
 
   // Login form
@@ -36,13 +34,13 @@ const AuthModal: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Signup form
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [role, setRole] = useState('user');
+  const [signupName, setSignupName] = useState('');
+  const [signupUsername, setSignupUsername] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPhone, setSignupPhone] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupRole, setSignupRole] = useState('user');
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   if (!showAuthModal) return null;
 
@@ -51,9 +49,9 @@ const AuthModal: React.FC = () => {
   const resetAll = () => {
     setLoginIdentifier(''); setLoginPassword('');
     setFpIdentifier(''); setFpOtp(''); setNewPassword(''); setConfirmPassword('');
-    setEmail(''); setOtp(''); setName(''); setUsername(''); setPassword(''); setPhone('');
+    setSignupName(''); setSignupUsername(''); setSignupEmail(''); setSignupPhone(''); setSignupPassword('');
     setShowPw(false); setShowNewPw(false);
-    setLoginView('login'); setSignupStep('email');
+    setLoginView('login');
     resetForgotPasswordFlow();
   };
 
@@ -120,41 +118,36 @@ const AuthModal: React.FC = () => {
   };
 
   // ======================== SIGNUP ========================
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) { toast.error('Please enter a valid email'); return; }
-    setLoading(true);
-    try {
-      await sendOtp(email);
-      setSignupStep('otp');
-    } catch (err: unknown) {
-      toast.error((err as Error).message || 'Failed to send code');
-    } finally {
-      setLoading(false);
+    if (!signupName || !signupUsername || !signupEmail || !signupPassword || !signupRole) {
+      toast.error('Please fill in all required fields');
+      return;
     }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp || otp.length < 4) { toast.error('Please enter the verification code'); return; }
-    setLoading(true);
-    try {
-      await verifyOtp(otp);
-      setSignupStep('details');
-    } catch (err: unknown) {
-      toast.error((err as Error).message || 'Invalid code. Please try again');
-    } finally {
-      setLoading(false);
+    if (!acceptTerms) {
+      toast.error('You must accept the Terms and Privacy Policy to continue.');
+      return;
     }
-  };
-
-  const handleCompleteSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !username || !password) { toast.error('Please fill in all fields'); return; }
-    if (password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
     setLoading(true);
     try {
-      await completeSignup(name, username, password, role, phone || undefined);
+      const result = await registerUser({
+        full_name: signupName,
+        username: signupUsername,
+        email: signupEmail,
+        phone_number: signupPhone,
+        password: signupPassword,
+        confirmPassword: signupPassword,
+        role: signupRole,
+        acceptTerms,
+      });
+      if (!result.success) {
+        toast.error(result.error || 'Registration failed');
+        return;
+      }
+      toast.success('Account created! Welcome to Umurage Hub 🇷🇼');
+      resetAll();
+      setLoginView('login');
+      openAuth('login');
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Signup failed');
     } finally {
@@ -164,10 +157,7 @@ const AuthModal: React.FC = () => {
 
   // ======================== HEADER TITLES ========================
   const getTitle = () => {
-    if (authMode === 'signup') {
-      const signupTitles: Record<SignupStep, string> = { email: 'Create Account', otp: 'Verify Your Email', details: 'Complete Your Profile' };
-      return signupTitles[signupStep];
-    }
+    if (authMode === 'signup') return 'Create Account';
     const loginTitles: Record<LoginView, string> = {
       login: t('auth.loginTitle'),
       'forgot-identifier': 'Forgot Password',
@@ -178,11 +168,7 @@ const AuthModal: React.FC = () => {
   };
 
   const getSubtitle = () => {
-    if (authMode === 'signup') {
-      if (signupStep === 'email') return "Join Rwanda's cultural heritage platform";
-      if (signupStep === 'otp') return `Code sent to ${email}`;
-      return 'One last step — set up your profile';
-    }
+    if (authMode === 'signup') return "Join Rwanda's cultural heritage platform";
     if (loginView === 'forgot-identifier') return 'Enter your email, username, or phone to receive a reset code';
     if (loginView === 'forgot-otp') return `Code sent to ${forgotPasswordEmail}`;
     if (loginView === 'forgot-newpw') return 'Choose a strong new password for your account';
@@ -218,27 +204,6 @@ const AuthModal: React.FC = () => {
           <h2 className="auth-modal-title">{authMode === 'login' && loginView === 'login' ? 'WELCOME BACK' : getTitle()}</h2>
           <p className="auth-modal-subtitle">{authMode === 'login' && loginView === 'login' ? "Rwanda's Cultural Heritage Platform" : getSubtitle()}</p>
         </div>
-
-        {/* Signup progress */}
-        {authMode === 'signup' && (
-          <div className="flex items-center justify-center gap-2 mb-6">
-            {(['email', 'otp', 'details'] as SignupStep[]).map((step, i) => {
-              const stepIdx = ['email', 'otp', 'details'].indexOf(signupStep);
-              return (
-                <React.Fragment key={step}>
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                    signupStep === step ? 'bg-umurage-gold text-umurage-bg' :
-                    stepIdx > i ? 'bg-umurage-gold/30 text-umurage-gold border border-umurage-gold/40' :
-                    'bg-umurage-surface text-umurage-subtle border border-umurage-border'
-                  }`}>
-                    {stepIdx > i ? <CheckCircle size={14} /> : i + 1}
-                  </div>
-                  {i < 2 && <div className={`w-8 h-px transition-all ${stepIdx > i ? 'bg-umurage-gold/50' : 'bg-umurage-border'}`} />}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        )}
 
         {/* Forgot password progress */}
         {authMode === 'login' && loginView !== 'login' && (
@@ -454,92 +419,16 @@ const AuthModal: React.FC = () => {
           </form>
         )}
 
-        {/* ========== SIGNUP STEP 1: Email ========== */}
-        {authMode === 'signup' && signupStep === 'email' && (
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Email Address *</label>
-              <div className="relative">
-                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type="email" value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className={`${inp} pl-9`}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Account Type</label>
-              <select value={role} onChange={e => setRole(e.target.value)} className={`${inp} appearance-none cursor-pointer`}>
-                <option value="user">🌍 Cultural Learner</option>
-                <option value="creator">🎨 Cultural Creator</option>
-                <option value="elder">🌿 Elder / Knowledge Keeper</option>
-                <option value="organization">🏛️ Organization / Institution</option>
-              </select>
-            </div>
-            <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
-              {loading ? 'Sending code...' : 'Send Verification Code'}
-            </button>
-            <p className="text-umurage-subtle text-xs text-center">We will send a 4-digit code to verify your email</p>
-          </form>
-        )}
-
-        {/* ========== SIGNUP STEP 2: OTP ========== */}
-        {authMode === 'signup' && signupStep === 'otp' && (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div className="bg-umurage-surface border border-umurage-border rounded-xl p-3 text-center mb-2">
-              <p className="text-umurage-muted text-xs">Code sent to</p>
-              <p className="text-umurage-gold text-sm font-semibold mt-0.5">{email}</p>
-              <p className="text-umurage-subtle text-[10px] mt-1.5">Check your inbox and spam/junk folder. The code expires in 1 hour.</p>
-            </div>
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">4-Digit Verification Code</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={otp}
-                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="0 0 0 0"
-                maxLength={4}
-                className={`${inp} text-center text-3xl font-bold tracking-[0.5em]`}
-                autoFocus
-              />
-            </div>
-            <button type="submit" disabled={loading || otp.length < 4} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
-              {loading ? 'Verifying...' : 'Verify Email'}
-            </button>
-            <div className="flex items-center justify-between">
-              <button type="button" onClick={() => { setSignupStep('email'); setOtp(''); }} className="text-umurage-subtle text-xs hover:text-umurage-muted transition-colors py-1">
-                ← Use a different email
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={async () => {
-                  setLoading(true);
-                  try { await sendOtp(email); toast.success('New code sent!'); } catch { toast.error('Failed to resend'); } finally { setLoading(false); }
-                }}
-                className="text-umurage-gold text-xs hover:underline transition-colors py-1"
-              >
-                Resend code
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ========== SIGNUP STEP 3: Details ========== */}
-        {authMode === 'signup' && signupStep === 'details' && (
-          <form onSubmit={handleCompleteSignup} className="space-y-4">
+        {/* ========== SIGNUP FORM ========== */}
+        {authMode === 'signup' && (
+          <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label className="text-umurage-muted text-xs font-medium block mb-1.5">Full Name *</label>
               <div className="relative">
                 <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type="text" value={name}
-                  onChange={e => setName(e.target.value)}
+                  type="text" value={signupName}
+                  onChange={e => setSignupName(e.target.value)}
                   placeholder="e.g. Vestine Uwimana"
                   className={`${inp} pl-9`}
                 />
@@ -550,9 +439,21 @@ const AuthModal: React.FC = () => {
               <div className="relative">
                 <AtSign size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type="text" value={username}
-                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, '_'))}
+                  type="text" value={signupUsername}
+                  onChange={e => setSignupUsername(e.target.value.toLowerCase().replace(/\s/g, '_'))}
                   placeholder="your_username"
+                  className={`${inp} pl-9`}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Email Address *</label>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+                <input
+                  type="email" value={signupEmail}
+                  onChange={e => setSignupEmail(e.target.value)}
+                  placeholder="your@email.com"
                   className={`${inp} pl-9`}
                 />
               </div>
@@ -564,21 +465,32 @@ const AuthModal: React.FC = () => {
               <div className="relative">
                 <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type="tel" value={phone}
-                  onChange={e => setPhone(e.target.value)}
+                  type="tel" value={signupPhone}
+                  onChange={e => setSignupPhone(e.target.value)}
                   placeholder="+250 7XX XXX XXX"
                   className={`${inp} pl-9`}
                 />
               </div>
-              <p className="text-umurage-subtle text-[10px] mt-1 ml-1">Adding a phone number lets you log in and recover your account with it</p>
+            </div>
+            <div>
+              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Account Type *</label>
+              <div className="relative">
+                <select value={signupRole} onChange={e => setSignupRole(e.target.value)} className={`${inp} appearance-none cursor-pointer`}>
+                  <option value="user">🌍 Cultural Learner</option>
+                  <option value="creator">🎨 Cultural Creator</option>
+                  <option value="elder">🌿 Elder / Knowledge Keeper</option>
+                  <option value="organization">🏛️ Organization / Institution</option>
+                </select>
+                <ChevronRight size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-subtle pointer-events-none" />
+              </div>
             </div>
             <div>
               <label className="text-umurage-muted text-xs font-medium block mb-1.5">Password *</label>
               <div className="relative">
                 <KeyRound size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type={showPw ? 'text' : 'password'} value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  type={showPw ? 'text' : 'password'} value={signupPassword}
+                  onChange={e => setSignupPassword(e.target.value)}
                   placeholder="At least 6 characters"
                   className={`${inp} pl-9 pr-10`}
                 />
@@ -589,12 +501,23 @@ const AuthModal: React.FC = () => {
               {/* Password strength */}
               <div className="h-1 rounded-full bg-umurage-surface overflow-hidden mt-2">
                 <div className={`h-full rounded-full transition-all ${
-                  password.length === 0 ? 'w-0' : password.length < 6 ? 'w-1/4 bg-red-500' :
-                  password.length < 10 ? 'w-2/4 bg-amber-400' : 'w-full bg-green-500'
+                  signupPassword.length === 0 ? 'w-0' : signupPassword.length < 6 ? 'w-1/4 bg-red-500' :
+                  signupPassword.length < 10 ? 'w-2/4 bg-amber-400' : 'w-full bg-green-500'
                 }`} />
               </div>
             </div>
-            <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={e => setAcceptTerms(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-umurage-border bg-umurage-surface text-umurage-gold focus:ring-umurage-gold/50 focus:ring-offset-0 cursor-pointer"
+              />
+              <label className="text-umurage-subtle text-xs leading-relaxed cursor-pointer">
+                I agree to the <a href="#" className="text-umurage-gold hover:underline">Terms of Service</a> and <a href="#" className="text-umurage-gold hover:underline">Privacy Policy</a>
+              </label>
+            </div>
+            <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 mt-2">
               {loading ? <Loader2 size={16} className="animate-spin" /> : null}
               {loading ? 'Creating account...' : 'Join Umurage Hub 🇷🇼'}
             </button>
