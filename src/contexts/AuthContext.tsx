@@ -47,6 +47,7 @@ interface AuthContextType {
   verifyForgotPasswordCode: (token: string) => Promise<void>;
   resetPassword: (newPassword: string) => Promise<void>;
   resetForgotPasswordFlow: () => void;
+  sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   // Logout
   logout: () => Promise<void>;
   // UI auth modal
@@ -376,6 +377,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setForgotPasswordEmail('');
   };
 
+  const sendPasswordResetEmail = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@')) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message || 'Failed to send reset email.' };
+    }
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -423,6 +442,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loginWithPassword,
         forgotPasswordStep, forgotPasswordEmail,
         sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
+        sendPasswordResetEmail,
         logout,
         showAuthModal, authMode, openAuth, closeAuth,
         updateProfile,
