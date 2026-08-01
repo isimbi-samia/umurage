@@ -1,25 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
-export interface StoryPost {
+const STORIES_BUCKET = 'umurage-media'; // change this if stories have their own dedicated bucket
+
+export interface Story {
   id: string;
   user_id: string;
+  media_url: string;
   type: string;
-  title: string;
-  description: string | null;
-  thumbnail_url: string | null;
-  media_url: string | null;
-  duration: string | null;
-  category: string;
-  region: string | null;
-  tags: string[];
+  caption: string | null;
   views: number;
-  likes_count: number;
-  comments_count: number;
-  shares_count: number;
-  published: boolean;
   created_at: string;
-  story_expires_at: string | null;
+  expires_at: string;
   author: {
     id: string;
     username: string | null;
@@ -28,66 +20,103 @@ export interface StoryPost {
   };
 }
 
+// ── Load active (non-expired) stories ────────────────────────────────────
 export function useStories() {
-  return useQuery<StoryPost[]>({
+  return useQuery<Story[]>({
     queryKey: ['stories'],
     queryFn: async () => {
       const now = new Date().toISOString();
       const { data, error } = await supabase
-        .from('posts')
+        .from('stories')
         .select(`
           *,
-          author:profiles!posts_user_id_fkey(
+          author:profiles!stories_user_id_fkey(
             id, username, avatar_url, verified
           )
         `)
-        .eq('published', true)
-        .eq('type', 'story')
-        .or(`story_expires_at.is.null,story_expires_at.gt.${now}`)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .gt('expires_at', now)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map(item => ({ ...item, tags: item.tags ?? [] })) as StoryPost[];
+      return (data || []) as Story[];
     },
     staleTime: 30000,
   });
 }
 
-export function useStoryAnalytics(storyId?: string) {
-  return useQuery<number>({
-    queryKey: ['story-analytics', storyId],
-    queryFn: async () => {
-      if (!storyId) return 0;
-      const { count, error } = await supabase
-        .from('content_views')
-        .select('*', { count: 'exact', head: true })
-        .eq('content_id', storyId)
-        .eq('content_type', 'story');
-      if (error) throw error;
-      return count ?? 0;
+// ── Upload a new story ───────────────────────────────────────────────────
+export function useUploadStory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      file, userId, type, caption,
+    }: { file: File; userId: string; type: 'image' | 'video'; caption?: string }) => {
+      const ext = file.name.split('.').pop() || (type === 'video' ? 'mp4' : 'jpg');
+      const path = `${userId}/stories/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(STORIES_BUCKET)
+        .upload(path, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from(STORIES_BUCKET).getPublicUrl(path);
+      const mediaUrl = urlData.publicUrl;
+
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      const { error: insertError } = await supabase.from('stories').insert({
+        user_id: userId,
+        media_url: mediaUrl,
+        type,
+        caption: caption || null,
+        views: 0,
+        expires_at: expiresAt,
+      });
+      if (insertError) throw insertError;
     },
-    enabled: !!storyId,
-    staleTime: 30000,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stories'] });
+    },
   });
 }
 
+// ── Increment view count when a story is opened ──────────────────────────
 export function useMarkStoryViewed() {
   const qc = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ storyId, userId }: { storyId: string; userId?: string }) => {
-      if (!storyId) return;
-      const { error } = await supabase.from('content_views').insert({
-        content_id: storyId,
-        content_type: 'story',
-        user_id: userId ?? null,
-      });
-      if (error && !error.message.includes('duplicate')) {
-        throw error;
-      }
+    mutationFn: async (storyId: string) => {
+      const { data: current, error: fetchError } = await supabase
+        .from('stories')
+        .select('views')
+        .eq('id', storyId)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const { error: updateError } = await supabase
+        .from('stories')
+        .update({ views: (current?.views ?? 0) + 1 })
+        .eq('id', storyId);
+      if (updateError) throw updateError;
     },
-    onSuccess: (_data, { storyId }) => {
-      qc.invalidateQueries({ queryKey: ['story-analytics', storyId] });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stories'] });
+    },
+  });
+}
+
+// ── Delete a story (owner only) ──────────────────────────────────────────
+export function useDeleteStory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ storyId, userId }: { storyId: string; userId: string }) => {
+      const { error } = await supabase
+        .from('stories')
+        .delete()
+        .eq('id', storyId)
+        .eq('user_id', userId); // client-side guard; make sure RLS also restricts deletes to the owner
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stories'] });
     },
   });
 }
