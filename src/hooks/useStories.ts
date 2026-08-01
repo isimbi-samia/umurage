@@ -26,18 +26,33 @@ export function useStories() {
     queryKey: ['stories'],
     queryFn: async () => {
       const now = new Date().toISOString();
-      const { data, error } = await supabase
+
+      const { data: storiesData, error } = await supabase
         .from('stories')
-        .select(`
-          *,
-          author:profiles!stories_user_id_fkey(
-            id, username, avatar_url, verified
-          )
-        `)
+        .select('*')
         .gt('expires_at', now)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as Story[];
+      if (!storiesData || storiesData.length === 0) return [];
+
+      const userIds = [...new Set(storiesData.map((s) => s.user_id))];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, verified')
+        .in('id', userIds);
+      if (profilesError) throw profilesError;
+
+      const profileMap = new Map((profilesData || []).map((p) => [p.id, p]));
+
+      return storiesData.map((s) => ({
+        ...s,
+        author: profileMap.get(s.user_id) || {
+          id: s.user_id,
+          username: null,
+          avatar_url: null,
+          verified: false,
+        },
+      })) as Story[];
     },
     staleTime: 30000,
   });
