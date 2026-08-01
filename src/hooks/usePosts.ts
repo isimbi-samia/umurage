@@ -217,7 +217,7 @@ export function useCreatePost() {
       analyzed_by?: string | null;
       story_expires_at?: string | null;
     }) => {
-      const { data, error } = await supabase.from('posts').insert(post).select().single();
+      const { data, error } = await supabase.from('posts').insert({ ...post, published: true }).select().single();
       if (error) throw error;
       return data;
     },

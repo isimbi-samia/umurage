@@ -21,7 +21,7 @@ export function useNotifications(userId?: string) {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('notifications')
-        .select(`*, actor:user_profiles!notifications_actor_id_fkey(username, avatar_url)`)
+        .select(`*, actor:profiles!notifications_actor_id_fkey(username, avatar_url)`)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(30);

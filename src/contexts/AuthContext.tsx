@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = useCallback(async (supaUser: SupabaseUser): Promise<AuthUser> => {
     try {
       const { data: profile } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', supaUser.id)
         .maybeSingle();
@@ -173,7 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const looksLikePhone = /^\+?\d{7,}$/.test(trimmed.replace(/[\s\-()]/g, ''));
     if (looksLikePhone) {
       const { data } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('email')
         .eq('phone', trimmed)
         .maybeSingle();
@@ -184,7 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Try username (strip leading @)
     const username = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
     const { data } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('email')
       .eq('username', username)
       .maybeSingle();
@@ -247,7 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (phone) profileData.phone = phone;
 
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .upsert(profileData, { onConflict: 'id' });
 
       if (profileError) {
@@ -303,7 +303,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Check if username already exists
       const { data: existingProfile } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('id')
         .eq('username', username.toLowerCase().trim())
         .maybeSingle();
@@ -356,7 +356,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
 
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .insert(profileData);
 
       if (profileError) {
@@ -487,7 +487,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     bio: string; location: string; interests: string[]; phone: string; username: string;
   }>) => {
     if (!user) return;
-    const { error } = await supabase.from('user_profiles').update(updates).eq('id', user.id);
+    const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
     if (error) throw error;
     // Also update auth metadata if username changed
     if (updates.username) {

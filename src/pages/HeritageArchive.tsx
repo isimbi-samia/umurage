@@ -29,7 +29,7 @@ function useHeritageRecordings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('heritage_recordings')
-        .select(`*, author:user_profiles!heritage_recordings_user_id_fkey(id, username, avatar_url, verified)`)
+        .select(`*, author:profiles!heritage_recordings_user_id_fkey(id, username, avatar_url, verified)`)
         .order('created_at', { ascending: false })
         .limit(20);
       if (error) throw error;

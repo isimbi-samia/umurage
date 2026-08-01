@@ -111,7 +111,7 @@ const EditProfile: React.FC = () => {
       };
 
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update(updates)
         .eq('id', user!.id);
 

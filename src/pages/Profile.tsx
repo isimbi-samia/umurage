@@ -24,7 +24,7 @@ function useUserProfile(userId?: string) {
     queryFn: async () => {
       if (!userId) return null;
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
@@ -46,7 +46,7 @@ function useUserPosts(userId?: string) {
         .from('posts')
         .select(`
           *,
-          author:user_profiles!posts_user_id_fkey(
+          author:profiles!posts_user_id_fkey(
             id, username, email, avatar_url, verified, verified_type, role
           )
         `)
@@ -115,9 +115,9 @@ function useUploadAvatar() {
       const { data } = supabase.storage.from('umurage-media').getPublicUrl(path);
       // Add cache-bust so browser refreshes the image
       const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
-      // Update user_profiles
+      // Update profiles
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ avatar_url: avatarUrl })
         .eq('id', userId);
       if (profileError) throw profileError;
@@ -188,7 +188,7 @@ const Profile: React.FC = () => {
       if (!authUser?.id || !isOwnProfile) return [];
       const { data, error } = await supabase
         .from('saves')
-        .select(`post:posts(*, author:user_profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
+        .select(`post:posts(*, author:profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
       if (error) throw error;

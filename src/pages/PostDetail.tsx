@@ -65,7 +65,7 @@ function usePost(postId: string | undefined) {
       if (!postId) return null;
       const { data, error } = await supabase
         .from('posts')
-        .select(`*, author:user_profiles!posts_user_id_fkey(id, username, email, avatar_url, verified, verified_type, role, bio, followers_count)`)
+        .select(`*, author:profiles!posts_user_id_fkey(id, username, email, avatar_url, verified, verified_type, role, bio, followers_count)`)
         .eq('id', postId)
         .single();
       if (error) throw error;

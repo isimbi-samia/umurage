@@ -69,13 +69,13 @@ export function useToggleFollow() {
   });
 }
 
-// Fetch verified creators from user_profiles
+// Fetch verified creators from profiles
 export function useVerifiedCreators() {
   return useQuery({
     queryKey: ['verified-creators'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('id, username, email, avatar_url, verified, verified_type, followers_count, role, bio')
         .eq('verified', true)
         .order('followers_count', { ascending: false })
@@ -175,7 +175,7 @@ export function useSavedPosts(userId?: string) {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('saves')
-        .select(`post:posts(*, author:user_profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
+        .select(`post:posts(*, author:profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (error) throw error;

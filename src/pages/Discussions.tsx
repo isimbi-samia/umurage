@@ -40,7 +40,7 @@ function useTopics(category: string, page: number) {
     queryFn: async () => {
       let query = supabase
         .from('discussion_topics')
-        .select(`*, author:user_profiles!discussion_topics_user_id_fkey(id, username, avatar_url, verified, verified_type)`, { count: 'exact' })
+        .select(`*, author:profiles!discussion_topics_user_id_fkey(id, username, avatar_url, verified, verified_type)`, { count: 'exact' })
         .order('pinned', { ascending: false })
         .order('created_at', { ascending: false })
         .range((page - 1) * 10, page * 10 - 1);
@@ -60,7 +60,7 @@ function useReplies(topicId: string | null) {
       if (!topicId) return [];
       const { data, error } = await supabase
         .from('discussion_replies')
-        .select(`*, author:user_profiles!discussion_replies_user_id_fkey(id, username, avatar_url, verified)`)
+        .select(`*, author:profiles!discussion_replies_user_id_fkey(id, username, avatar_url, verified)`)
         .eq('topic_id', topicId)
         .order('votes', { ascending: false })
         .order('created_at', { ascending: true });

@@ -50,7 +50,7 @@ export function useMessages(userId?: string) {
   const loadAvailableProfiles = useCallback(async () => {
     if (!userId) return;
 
-    const { data, error } = await supabase
+const { data, error } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, verified')
       .neq('id', userId)
@@ -96,7 +96,7 @@ export function useMessages(userId?: string) {
 
         let participant: MessageProfile | null = null;
         if (otherUserIds.length > 0) {
-          const { data: participantData } = await supabase
+const { data: participantData } = await supabase
             .from('profiles')
             .select('id, username, full_name, avatar_url, verified')
             .in('id', otherUserIds)
@@ -105,7 +105,7 @@ export function useMessages(userId?: string) {
         }
 
         if (!participant) {
-          const { data: selfData } = await supabase
+const { data: selfData } = await supabase
             .from('profiles')
             .select('id, username, full_name, avatar_url, verified')
             .eq('id', userId)
@@ -182,7 +182,7 @@ export function useMessages(userId?: string) {
     }
 
     const senderIds = [...new Set((rows || []).map((row: { sender_id: string }) => row.sender_id))];
-    const { data: profilesData } = senderIds.length > 0
+const { data: profilesData } = senderIds.length > 0
       ? await supabase
           .from('profiles')
           .select('id, username, full_name, avatar_url, verified')
@@ -239,11 +239,11 @@ export function useMessages(userId?: string) {
 
     if (error) throw error;
 
-    const { data: senderData } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, avatar_url, verified')
-      .eq('id', userId)
-      .maybeSingle();
+const { data: senderData } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, verified')
+        .eq('id', userId)
+        .maybeSingle();
 
     const optimisticMessage = {
       ...(inserted as ChatMessage),

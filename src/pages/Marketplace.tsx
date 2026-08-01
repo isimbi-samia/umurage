@@ -26,7 +26,7 @@ const Marketplace: React.FC = () => {
           category,
           image_url,
           is_featured,
-          seller:user_profiles!marketplace_products_seller_fkey(id, username, avatar_url, verified),
+          seller:profiles!marketplace_products_seller_fkey(id, username, avatar_url, verified),
           created_at,
           rating,
           review_count,
