@@ -324,36 +324,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── Forgot password: Step 1 — send code ─────────────────────────────────
   const sendForgotPasswordCode = async (identifier: string) => {
     const email = await resolveToEmail(identifier);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
+    const { error } = await supabase.functions.invoke('send-reset-code', {
+      body: { email },
     });
     if (error) {
-      if (error.message.includes('rate')) throw new Error('Too many requests. Please wait a minute before trying again.');
-      if (error.message.includes('not found') || error.message.includes('no user')) {
-        throw new Error('No account found with that email.');
-      }
-      throw error;
+      throw new Error(error.message || 'Failed to send reset code.');
     }
     setForgotPasswordEmail(email);
     setForgotPasswordStep('code-sent');
     toast.success('A 4-digit verification code has been sent to your email!');
   };
 
-  // ── Forgot password: Step 2 — verify code ───────────────────────────────
+  // ── Forgot password: Step 2 — verify code and reset password ─────────────
   const verifyForgotPasswordCode = async (token: string) => {
     const cleanToken = token.trim().replace(/\s/g, '');
-    const { error } = await supabase.auth.verifyOtp({
-      email: forgotPasswordEmail,
-      token: cleanToken,
-      type: 'email',
+    if (!forgotPasswordEmail) {
+      throw new Error('Session expired. Please request a new code.');
+    }
+    const { error } = await supabase.functions.invoke('verify-reset-code', {
+      body: {
+        email: forgotPasswordEmail,
+        code: cleanToken,
+        newPassword: '',
+      },
     });
     if (error) {
-      if (error.message.includes('expired')) throw new Error('Code expired. Please request a new code.');
-      if (error.message.includes('invalid') || error.message.includes('Invalid')) {
-        throw new Error('Incorrect code. Please check your email and try again.');
+      const msg = error.message.toLowerCase();
+      if (msg.includes('invalid') || msg.includes('expired') || msg.includes('not found')) {
+        throw new Error('Invalid or expired code. Please try again or request a new code.');
       }
-      throw error;
+      throw new Error(error.message || 'Verification failed.');
     }
     setForgotPasswordStep('code-verified');
     toast.success('Identity verified! Set your new password.');
@@ -362,11 +362,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── Forgot password: Step 3 — set new password ──────────────────────────
   const resetPassword = async (newPassword: string) => {
     if (newPassword.length < 6) throw new Error('Password must be at least 6 characters');
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) throw error;
+    if (!forgotPasswordEmail) {
+      throw new Error('Session expired. Please start the reset process again.');
+    }
+    const { error } = await supabase.functions.invoke('verify-reset-code', {
+      body: {
+        email: forgotPasswordEmail,
+        code: '',
+        newPassword,
+      },
+    });
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes('invalid') || msg.includes('expired')) {
+        throw new Error('Invalid or expired code. Please request a new code.');
+      }
+      throw new Error(error.message || 'Failed to update password.');
+    }
     setForgotPasswordStep('idle');
     setForgotPasswordEmail('');
-    // Force re-login to sync new password across all devices
     await supabase.auth.signOut();
     toast.success('Password updated successfully! Please log in with your new password.');
   };
