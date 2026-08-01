@@ -6,6 +6,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreatePost } from '@/hooks/usePosts';
+import { useUploadStory } from '@/hooks/useStories';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import {
@@ -71,6 +72,7 @@ const Upload: React.FC = () => {
   const { user, isAuthenticated, openAuth } = useAuth();
   const navigate = useNavigate();
   const createPost = useCreatePost();
+  const uploadStory = useUploadStory();
   const fileRef = useRef<HTMLInputElement>(null);
   const thumbnailRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -220,6 +222,28 @@ const Upload: React.FC = () => {
     setValidationError(null);
 
     try {
+      // ── Stories go to the dedicated `stories` table, never `posts` ──────
+      if (type === 'story') {
+        if (!mediaFile) {
+          toast.error('Please select a file to upload');
+          setUploading(false);
+          return;
+        }
+        setUploadProgress(30);
+        const storyType: 'image' | 'video' = mediaFile.type.startsWith('video') ? 'video' : 'image';
+        await uploadStory.mutateAsync({
+          file: mediaFile,
+          userId: user.id,
+          type: storyType,
+          caption: description.trim() || title.trim() || undefined,
+        });
+        setUploadProgress(100);
+        setUploading(false);
+        setSuccess(true);
+        return;
+      }
+
+      // ── Everything else goes through the normal posts flow ─────────────
       let mediaUrl: string | undefined;
       let thumbnailUrl: string | undefined;
       let duration: string | null = null;
@@ -242,7 +266,7 @@ const Upload: React.FC = () => {
       }
 
       setUploadProgress(95);
-      const postData = await createPost.mutateAsync({
+      await createPost.mutateAsync({
         user_id: user.id,
         type,
         title: title.trim(),
@@ -253,7 +277,6 @@ const Upload: React.FC = () => {
         category,
         region,
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-        story_expires_at: type === 'story' ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null,
       });
 
       setUploadProgress(100);
@@ -265,7 +288,7 @@ const Upload: React.FC = () => {
       setUploading(false);
       setUploadProgress(0);
     }
-  }, [title, mediaFile, type, user, description, category, region, tags, thumbnailFile, uploadFile, createPost]);
+  }, [title, mediaFile, type, user, description, category, region, tags, thumbnailFile, uploadFile, createPost, uploadStory]);
 
   const inputClass = "w-full bg-umurage-surface border border-umurage-border rounded-xl px-4 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60 transition-colors";
 
@@ -515,25 +538,34 @@ const Upload: React.FC = () => {
               placeholder="Describe the cultural significance of this content..."
               rows={3} className={`${inputClass} resize-none leading-relaxed`} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Category</label>
-              <select value={category} onChange={e => setCategory(e.target.value)} className={`${inputClass} cursor-pointer`}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+          {type !== 'story' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-umurage-muted text-xs font-medium block mb-1.5">Category</label>
+                <select value={category} onChange={e => setCategory(e.target.value)} className={`${inputClass} cursor-pointer`}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-umurage-muted text-xs font-medium block mb-1.5">Region</label>
+                <select value={region} onChange={e => setRegion(e.target.value)} className={`${inputClass} cursor-pointer`}>
+                  {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
             </div>
+          )}
+          {type !== 'story' && (
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Region</label>
-              <select value={region} onChange={e => setRegion(e.target.value)} className={`${inputClass} cursor-pointer`}>
-                {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Tags (comma separated)</label>
+              <input type="text" value={tags} onChange={e => setTags(e.target.value)}
+                placeholder="e.g. Intore, Dance, Traditions, Kigali" className={inputClass} />
             </div>
-          </div>
-          <div>
-            <label className="text-umurage-muted text-xs font-medium block mb-1.5">Tags (comma separated)</label>
-            <input type="text" value={tags} onChange={e => setTags(e.target.value)}
-              placeholder="e.g. Intore, Dance, Traditions, Kigali" className={inputClass} />
-          </div>
+          )}
+          {type === 'story' && (
+            <p className="text-umurage-subtle text-xs flex items-center gap-1.5">
+              <AlertCircle size={11} /> Category, region, and tags aren't used for Stories — your title/description above becomes the story caption.
+            </p>
+          )}
         </div>
 
         {uploading && (
