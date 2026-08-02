@@ -3,6 +3,36 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
+const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
+async function callEdgeFunction(name: string, body: Record<string, unknown>) {
+  const url = `${EDGE_FUNCTION_URL}/${name}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await response.text();
+  let data: Record<string, unknown> = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text };
+  }
+
+  if (!response.ok) {
+    const message = (data as { error?: string }).error || text || `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 interface AuthUser {
   id: string;
   name: string;
@@ -324,12 +354,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ── Forgot password: Step 1 — send code ─────────────────────────────────
   const sendForgotPasswordCode = async (identifier: string) => {
     const email = await resolveToEmail(identifier);
-    const { error } = await supabase.functions.invoke('send-reset-code', {
-      body: { email },
-    });
-    if (error) {
-      throw new Error(error.message || 'Failed to send reset code.');
-    }
+    await callEdgeFunction('send-reset-code', { email });
     setForgotPasswordEmail(email);
     setForgotPasswordStep('code-sent');
     toast.success('A 4-digit verification code has been sent to your email!');
@@ -341,19 +366,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!forgotPasswordEmail) {
       throw new Error('Session expired. Please request a new code.');
     }
-    const { error } = await supabase.functions.invoke('verify-reset-code', {
-      body: {
-        email: forgotPasswordEmail,
-        code: cleanToken,
-        newPassword: '',
-      },
+    const result = await callEdgeFunction('verify-reset-code', {
+      email: forgotPasswordEmail,
+      code: cleanToken,
+      newPassword: '',
     });
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes('invalid') || msg.includes('expired') || msg.includes('not found')) {
+    const msg = (result as { error?: string }).error;
+    if (msg) {
+      const lowered = msg.toLowerCase();
+      if (lowered.includes('invalid') || lowered.includes('expired') || lowered.includes('not found')) {
         throw new Error('Invalid or expired code. Please try again or request a new code.');
       }
-      throw new Error(error.message || 'Verification failed.');
+      throw new Error(msg || 'Verification failed.');
     }
     setForgotPasswordStep('code-verified');
     toast.success('Identity verified! Set your new password.');
@@ -365,19 +389,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!forgotPasswordEmail) {
       throw new Error('Session expired. Please start the reset process again.');
     }
-    const { error } = await supabase.functions.invoke('verify-reset-code', {
-      body: {
-        email: forgotPasswordEmail,
-        code: '',
-        newPassword,
-      },
+    const result = await callEdgeFunction('verify-reset-code', {
+      email: forgotPasswordEmail,
+      code: '',
+      newPassword,
     });
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes('invalid') || msg.includes('expired')) {
+    const msg = (result as { error?: string }).error;
+    if (msg) {
+      const lowered = msg.toLowerCase();
+      if (lowered.includes('invalid') || lowered.includes('expired')) {
         throw new Error('Invalid or expired code. Please request a new code.');
       }
-      throw new Error(error.message || 'Failed to update password.');
+      throw new Error(msg || 'Failed to update password.');
     }
     setForgotPasswordStep('idle');
     setForgotPasswordEmail('');

@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
             </div>
             <div style="background: #1a1208; border: 1px solid #3D2510; border-radius: 16px; padding: 30px; text-align: center;">
               <h2 style="color: #F5E6D0; margin-top: 0;">Password Reset Code</h2>
-              <p style="color: #8B7355; margin-bottom: 20px;">Use the following 4-digit code to reset your password:</p>
+              <p style="color: #8B7355; margin-bottom: 20px;">Use the following 6-digit code to reset your password:</p>
               <div style="background: #2b180d; border: 2px solid #DAA34C; border-radius: 12px; padding: 20px; display: inline-block; min-width: 200px;">
                 <span style="color: #DAA34C; font-size: 36px; font-weight: bold; letter-spacing: 8px;">${code}</span>
               </div>
