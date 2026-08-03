@@ -9,7 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useCreateEvent } from '@/hooks/useFollow';
+import { useCreateCulturalEvent } from '@/hooks/useFollow';
 
 // ──────────────────────────────────────────────
 // Types
@@ -159,7 +159,7 @@ interface CreateEventModalProps {
 }
 
 const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, userId, defaultDate }) => {
-  const createEvent = useCreateEvent();
+  const createEvent = useCreateCulturalEvent();
   const thumbnailRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState('');
