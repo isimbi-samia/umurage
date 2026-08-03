@@ -70,9 +70,9 @@ function useAllEvents(eventType?: string) {
     queryKey: ['events-all', eventType],
     queryFn: async () => {
       let query = supabase
-        .from('events')
+        .from('cultural_events')
         .select('*')
-        .order('event_date', { ascending: true });
+        .order('start_date', { ascending: true });
 
       if (eventType && eventType !== 'All') {
         query = query.eq('event_type', eventType);
