@@ -87,13 +87,13 @@ export function useVerifiedCreators() {
   });
 }
 
-// Fetch upcoming events (used in RightSidebar)
-export function useEvents() {
+// Fetch upcoming cultural events (used in RightSidebar)
+export function useCulturalEvents() {
   return useQuery({
-    queryKey: ['events'],
+    queryKey: ['cultural_events'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('events')
+        .from('cultural_events')
         .select('*')
         .gte('event_date', new Date().toISOString().split('T')[0])
         .order('event_date', { ascending: true })
@@ -105,8 +105,8 @@ export function useEvents() {
   });
 }
 
-// Create event with rsvp_count support
-export function useCreateEvent() {
+// Create cultural event with rsvp_count support
+export function useCreateCulturalEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (event: {
@@ -118,13 +118,13 @@ export function useCreateEvent() {
       event_type?: string;
       image_url?: string;
     }) => {
-      const { data, error } = await supabase.from('events').insert(event).select().single();
+      const { data, error } = await supabase.from('cultural_events').insert(event).select().single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['events'] });
-      toast.success('Event created!');
+      qc.invalidateQueries({ queryKey: ['cultural_events'] });
+      toast.success('Cultural event created!');
     },
     onError: (err: Error) => toast.error(err.message),
   });

@@ -15,7 +15,7 @@ import StoriesPage from '@/pages/StoriesPage';
 import OralHistory from '@/pages/OralHistory';
 import CulturalMap from '@/pages/CulturalMap';
 import Discussions from '@/pages/Discussions';
-import Events from '@/pages/Events';
+import CulturalEvents from '@/pages/CulturalEvents';
 import Marketplace from '@/pages/Marketplace';
 import Courses from '@/pages/Courses';
 import MyHeritage from '@/pages/MyHeritage';
@@ -120,7 +120,7 @@ const App: React.FC = () => {
                 <Route path="/oral-history" element={<ProtectedRoute><OralHistory /></ProtectedRoute>} />
                 <Route path="/cultural-map" element={<ProtectedRoute><CulturalMap /></ProtectedRoute>} />
                 <Route path="/discussions" element={<ProtectedRoute><Discussions /></ProtectedRoute>} />
-                <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+                <Route path="/cultural-events" element={<ProtectedRoute><CulturalEvents /></ProtectedRoute>} />
                 <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
                 <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
                 <Route path="/my-heritage" element={<ProtectedRoute><MyHeritage /></ProtectedRoute>} />

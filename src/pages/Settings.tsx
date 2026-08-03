@@ -14,7 +14,7 @@ const LANGUAGES: { code: LangCode; label: string; native: string }[] = [
 const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const { lang, setLang, t } = useLanguage();
-  const [notifications, setNotifications] = useState({ newContent: true, messages: true, events: false, weekly: true });
+  const [notifications, setNotifications] = useState({ newContent: true, messages: true, cultural_events: false, weekly: true });
   const [privacy, setPrivacy] = useState({ publicProfile: true, showActivity: false });
 
   // Change Password state
@@ -145,7 +145,7 @@ const Settings: React.FC = () => {
             {[
               { key: 'newContent', label: 'New cultural content', desc: 'When creators you follow post' },
               { key: 'messages', label: 'Messages & replies', desc: 'Comments and direct messages' },
-              { key: 'events', label: 'Upcoming events', desc: 'Cultural events and festivals' },
+              { key: 'cultural_events', label: 'Upcoming cultural events', desc: 'Cultural events and festivals' },
               { key: 'weekly', label: 'Weekly digest', desc: 'Top cultural content this week' },
             ].map(item => (
               <div key={item.key} className="flex items-center justify-between">

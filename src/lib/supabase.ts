@@ -77,7 +77,7 @@ export type Database = {
           created_at: string;
         };
       };
-      events: {
+       cultural_events: {
         Row: {
           id: string;
           user_id: string;

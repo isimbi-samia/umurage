@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { label: 'Messages', icon: MessageSquare, path: '/messages' },
   { label: 'Discussions', icon: MessageSquare, path: '/discussions' },
   { label: 'Notifications', icon: Bell, path: '/notifications' },
-  { label: 'Events', icon: Calendar, path: '/events' },
+  { label: 'Cultural Events', icon: Calendar, path: '/cultural-events' },
   { label: 'Marketplace', icon: ShoppingBag, path: '/marketplace' },
   { label: 'Courses', icon: GraduationCap, path: '/courses' },
   { label: 'My Heritage', icon: Heart, path: '/my-heritage' },

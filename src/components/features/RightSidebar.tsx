@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useVerifiedCreators, useFollowing, useToggleFollow } from '@/hooks/useFollow';
 import { useTrending } from '@/hooks/usePosts';
-import { useEvents } from '@/hooks/useFollow';
+import { useCulturalEvents } from '@/hooks/useFollow';
 import { TRENDING, VERIFIED_CREATORS, UPCOMING_EVENTS } from '@/data/mockData';
 
 const RightSidebar: React.FC = () => {
@@ -14,13 +14,13 @@ const RightSidebar: React.FC = () => {
   const toggleFollow = useToggleFollow();
 
   const { data: liveCreators, isLoading: creatorsLoading } = useVerifiedCreators();
-  const { data: liveEvents, isLoading: eventsLoading } = useEvents();
+  const { data: liveCulturalEvents, isLoading: culturalEventsLoading } = useCulturalEvents();
   const { data: liveTrending, isLoading: trendingLoading } = useTrending();
   const { data: followingSet } = useFollowing(user?.id);
   const navigate = useNavigate();
 
   const creators = liveCreators && liveCreators.length > 0 ? liveCreators : null;
-  const events = liveEvents && liveEvents.length > 0 ? liveEvents : null;
+  const culturalEvents = liveCulturalEvents && liveCulturalEvents.length > 0 ? liveCulturalEvents : null;
   const trending = liveTrending && liveTrending.length > 0 ? liveTrending : null;
 
   const handleFollow = (targetId: string) => {
@@ -176,14 +176,14 @@ const RightSidebar: React.FC = () => {
           <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-umurage-gold-light" /></div>
         ) : (
           <div className="space-y-3">
-            {(events || UPCOMING_EVENTS).slice(0, 4).map((ev: unknown) => {
+            {(culturalEvents || UPCOMING_EVENTS).slice(0, 4).map((ev: unknown) => {
               const e = ev as { id: string; title: string; event_date?: string; date?: string; location?: string; type?: string; image_url?: string; image?: string };
               return (
                 <div
                   key={e.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => navigate(`/events?event=${e.id}`)}
+                  onClick={() => navigate(`/cultural-events?event=${e.id}`)}
                   className="cursor-pointer flex items-start gap-3 rounded-2xl border border-umurage-gold-light/20 bg-[rgba(242,205,124,0.08)] p-3 transition-all duration-200 hover:border-umurage-gold-light/30 hover:bg-[rgba(249,225,168,0.18)]"
                 >
                   <img

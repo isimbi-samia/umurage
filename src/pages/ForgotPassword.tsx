@@ -48,8 +48,8 @@ const ForgotPassword: React.FC = () => {
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!code || code.length < 4) {
-      setError('Please enter the 4-digit verification code.');
+    if (!code || code.length < 6) {
+      setError('Please enter the 6-digit verification code.');
       return;
     }
     setLoading(true);
@@ -126,7 +126,7 @@ const ForgotPassword: React.FC = () => {
             </h1>
             <p className="text-umurage-muted text-sm">
               {step === 'identifier' && 'Enter your email, username, or phone to receive a reset code'}
-              {step === 'code' && 'Enter the 4-digit code sent to your email'}
+              {step === 'code' && 'Enter the 6-digit code sent to your email'}
               {step === 'new-password' && 'Choose a strong new password for your account'}
             </p>
           </div>
@@ -189,15 +189,15 @@ const ForgotPassword: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="text-umurage-muted text-xs font-semibold uppercase tracking-[0.15em] mb-2 block">4-Digit Verification Code</label>
+                      <label className="text-umurage-muted text-xs font-semibold uppercase tracking-[0.15em] mb-2 block">6-Digit Verification Code</label>
                       <input
                         type="text"
                         inputMode="numeric"
                         value={code}
-                        onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        placeholder="0 0 0 0"
-                        maxLength={4}
-                        className={`${inputBase} text-center text-3xl font-bold tracking-[0.5em]`}
+                        onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="0 0 0 0 0 0"
+                        maxLength={6}
+                        className={`${inputBase} text-center text-3xl font-bold tracking-[0.3em]`}
                         autoFocus
                       />
                       <p className="text-umurage-subtle text-[10px] mt-1.5 text-center">Check your email inbox and spam folder</p>
@@ -211,7 +211,7 @@ const ForgotPassword: React.FC = () => {
 
                     <button
                       type="submit"
-                      disabled={loading || code.length < 4}
+                      disabled={loading || code.length < 6}
                       className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
                     >
                       {loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
