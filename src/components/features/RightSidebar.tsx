@@ -172,7 +172,7 @@ const RightSidebar: React.FC = () => {
           </div>
           <button className="text-xs font-medium text-amber-200 transition-colors hover:text-amber-100">See all</button>
         </div>
-        {eventsLoading ? (
+        {culturalEventsLoading ? (
           <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-umurage-gold-light" /></div>
         ) : (
           <div className="space-y-3">
