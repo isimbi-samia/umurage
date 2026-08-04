@@ -125,6 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [forgotPasswordStep, setForgotPasswordStep] = useState<'idle' | 'code-sent' | 'code-verified'>('idle');
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordCode, setForgotPasswordCode] = useState('');
 
   const fetchProfile = useCallback(async (supaUser: SupabaseUser): Promise<AuthUser> => {
     try {
@@ -175,7 +176,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [fetchProfile]);
 
-  // ── Refresh user profile (call after avatar/profile updates) ────────────
+  // -- Refresh user profile (call after avatar/profile updates) --
   const refreshUser = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
@@ -184,7 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [fetchProfile]);
 
-  // ── Resolve identifier to email ──────────────────────────────────────────
+  // -- Resolve identifier to email --
   const resolveToEmail = async (identifier: string): Promise<string> => {
     const trimmed = identifier.trim();
     if (trimmed.includes('@') && trimmed.includes('.')) return trimmed.toLowerCase();
@@ -212,7 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     throw new Error('No account found with that username. Try using your email address instead.');
   };
 
-  // ── Resolve identifier to email ──────────────────────────────────────────
+  // -- Register user --
   const registerUser = async (data: {
     full_name: string;
     username: string;
@@ -309,7 +310,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
-        // Auth user was created but profile failed — this is non-fatal
+        // Auth user was created but profile failed -- this is non-fatal
         // The user can still log in but profile data may be incomplete
       }
 
@@ -323,7 +324,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // ── Login: email | username | phone + password ───────────────────────────
+  // -- Login: email | username | phone + password --
   const loginWithPassword = async (identifier: string, password: string) => {
     // Resolve to email first (handles username/phone lookup)
     const email = await resolveToEmail(identifier);
@@ -351,16 +352,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // ── Forgot password: Step 1 — send code ─────────────────────────────────
+  // -- Forgot password: Step 1 -- send code --
   const sendForgotPasswordCode = async (identifier: string) => {
     const email = await resolveToEmail(identifier);
     await callEdgeFunction('send-reset-code', { email });
     setForgotPasswordEmail(email);
     setForgotPasswordStep('code-sent');
-    toast.success('A 4-digit verification code has been sent to your email!');
+    toast.success('A 6-digit verification code has been sent to your email!');
   };
 
-  // ── Forgot password: Step 2 — verify code and reset password ─────────────
+  // -- Forgot password: Step 2 -- verify code --
   const verifyForgotPasswordCode = async (token: string) => {
     const cleanToken = token.trim().replace(/\s/g, '');
     if (!forgotPasswordEmail) {
@@ -379,19 +380,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       throw new Error(msg || 'Verification failed.');
     }
+    setForgotPasswordCode(cleanToken);
     setForgotPasswordStep('code-verified');
     toast.success('Identity verified! Set your new password.');
   };
 
-  // ── Forgot password: Step 3 — set new password ──────────────────────────
+  // -- Forgot password: Step 3 -- set new password --
   const resetPassword = async (newPassword: string) => {
     if (newPassword.length < 6) throw new Error('Password must be at least 6 characters');
     if (!forgotPasswordEmail) {
       throw new Error('Session expired. Please start the reset process again.');
     }
+    if (!forgotPasswordCode) {
+      throw new Error('Verification code missing. Please verify your code again.');
+    }
     const result = await callEdgeFunction('verify-reset-code', {
       email: forgotPasswordEmail,
-      code: '',
+      code: forgotPasswordCode,
       newPassword,
     });
     const msg = (result as { error?: string }).error;
@@ -404,6 +409,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setForgotPasswordStep('idle');
     setForgotPasswordEmail('');
+    setForgotPasswordCode('');
     await supabase.auth.signOut();
     toast.success('Password updated successfully! Please log in with your new password.');
   };
@@ -411,6 +417,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const resetForgotPasswordFlow = () => {
     setForgotPasswordStep('idle');
     setForgotPasswordEmail('');
+    setForgotPasswordCode('');
   };
 
   const logout = async () => {
@@ -453,21 +460,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     resetForgotPasswordFlow();
   };
 
-    return (
-      <AuthContext.Provider value={{
-        user, isAuthenticated: !!user, loading, registerLoading,
-        registerUser,
-        loginWithPassword,
-        forgotPasswordStep, forgotPasswordEmail,
-        sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
-        logout,
-        showAuthModal, authMode, openAuth, closeAuth,
-        updateProfile,
-        refreshUser,
-      }}>
-        {children}
-      </AuthContext.Provider>
-    );
+  return (
+    <AuthContext.Provider value={{
+      user, isAuthenticated: !!user, loading, registerLoading,
+      registerUser,
+      loginWithPassword,
+      forgotPasswordStep, forgotPasswordEmail,
+      sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
+      logout,
+      showAuthModal, authMode, openAuth, closeAuth,
+      updateProfile,
+      refreshUser,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
