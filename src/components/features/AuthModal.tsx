@@ -7,19 +7,29 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 
-type LoginView = 'login' | 'forgot-identifier' | 'forgot-otp' | 'forgot-newpw';
+type LoginView = 'login' | 'forgot';
+
+const ACCOUNT_TYPES = [
+  { value: 'student', label: 'Student', icon: GraduationCap },
+  { value: 'creator', label: 'Creator', icon: Camera },
+  { value: 'elder', label: 'Elder', icon: HandMetal },
+  { value: 'organization', label: 'Organization', icon: Building2 },
+  { value: 'museum', label: 'Museum', icon: MapPin },
+  { value: 'cultural_institution', label: 'Cultural Institution', icon: BookOpen },
+  { value: 'researcher', label: 'Researcher', icon: Microscope },
+  { value: 'tourist_guide', label: 'Tourist Guide', icon: Compass },
+  { value: 'community_member', label: 'Community Member', icon: Users },
+];
 
 const AuthModal: React.FC = () => {
   const {
     showAuthModal, authMode, closeAuth, openAuth,
-    registerUser, loginWithPassword,
-    forgotPasswordStep, sendForgotPasswordCode, verifyForgotPasswordCode, resetPassword, resetForgotPasswordFlow,
-    forgotPasswordEmail,
+    registerUser, registerLoading, loginWithPassword, sendPasswordResetEmail,
   } = useAuth();
   const { t } = useLanguage();
 
   const [showPw, setShowPw] = useState(false);
-  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginView, setLoginView] = useState<LoginView>('login');
 
@@ -28,19 +38,19 @@ const AuthModal: React.FC = () => {
   const [loginPassword, setLoginPassword] = useState('');
 
   // Forgot password
-  const [fpIdentifier, setFpIdentifier] = useState('');
-  const [fpOtp, setFpOtp] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fpEmail, setFpEmail] = useState('');
+  const [fpSent, setFpSent] = useState(false);
 
   // Signup form
-  const [signupName, setSignupName] = useState('');
-  const [signupUsername, setSignupUsername] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPhone, setSignupPhone] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupRole, setSignupRole] = useState('user');
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [signupError, setSignupError] = useState('');
 
   if (!showAuthModal) return null;
 
@@ -48,11 +58,12 @@ const AuthModal: React.FC = () => {
 
   const resetAll = () => {
     setLoginIdentifier(''); setLoginPassword('');
-    setFpIdentifier(''); setFpOtp(''); setNewPassword(''); setConfirmPassword('');
-    setSignupName(''); setSignupUsername(''); setSignupEmail(''); setSignupPhone(''); setSignupPassword('');
-    setShowPw(false); setShowNewPw(false);
+    setFpEmail(''); setFpSent(false);
+    setFullName(''); setUsername(''); setEmail(''); setPhone('');
+    setPassword(''); setConfirmPassword(''); setRole(''); setAcceptTerms(false);
+    setSignupError('');
+    setShowPw(false); setShowConfirmPw(false);
     setLoginView('login');
-    resetForgotPasswordFlow();
   };
 
   const switchToLogin = () => { openAuth('login'); resetAll(); };
@@ -73,45 +84,18 @@ const AuthModal: React.FC = () => {
   };
 
   // ======================== FORGOT PASSWORD ========================
-  const handleSendFpCode = async (e: React.FormEvent) => {
+  const handleSendResetEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fpIdentifier.trim()) { toast.error('Please enter your email, username, or phone'); return; }
+    if (!fpEmail.trim()) { toast.error('Please enter your email'); return; }
     setLoading(true);
     try {
-      await sendForgotPasswordCode(fpIdentifier);
-      setLoginView('forgot-otp');
-    } catch (err: unknown) {
-      toast.error((err as Error).message || 'Failed to send code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyFpCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fpOtp || fpOtp.length < 4) { toast.error('Enter the 4-digit code'); return; }
-    setLoading(true);
-    try {
-      await verifyForgotPasswordCode(fpOtp);
-      setLoginView('forgot-newpw');
-    } catch (err: unknown) {
-      toast.error((err as Error).message || 'Invalid code. Please try again');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
-    if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
-    setLoading(true);
-    try {
-      await resetPassword(newPassword);
-      resetAll();
-      setLoginView('login');
-    } catch (err: unknown) {
-      toast.error((err as Error).message || 'Failed to update password');
+      const result = await sendPasswordResetEmail(fpEmail);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to send reset email');
+      } else {
+        setFpSent(true);
+        toast.success('Password reset email sent! Check your inbox.');
+      }
     } finally {
       setLoading(false);
     }
@@ -120,59 +104,43 @@ const AuthModal: React.FC = () => {
   // ======================== SIGNUP ========================
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signupName || !signupUsername || !signupEmail || !signupPassword || !signupRole) {
-      toast.error('Please fill in all required fields');
+    setSignupError('');
+
+    if (!fullName.trim() || !username.trim() || !email.trim() || !password || !role) {
+      setSignupError('Please fill in all required fields');
       return;
     }
-    if (!acceptTerms) {
-      toast.error('You must accept the Terms and Privacy Policy to continue.');
+    if (password.length < 6) { setSignupError('Password must be at least 6 characters'); return; }
+    if (password !== confirmPassword) { setSignupError('Passwords do not match'); return; }
+    if (!acceptTerms) { setSignupError('You must accept the Terms and Privacy Policy'); return; }
+
+    const result = await registerUser({
+      full_name: fullName,
+      username,
+      email,
+      phone_number: phone || undefined,
+      password,
+      role,
+    });
+
+    if (!result.success) {
+      setSignupError(result.error || 'Registration failed. Please try again.');
+      toast.error(result.error || 'Registration failed');
       return;
     }
-    setLoading(true);
-    try {
-      const result = await registerUser({
-        full_name: signupName,
-        username: signupUsername,
-        email: signupEmail,
-        phone_number: signupPhone,
-        password: signupPassword,
-        confirmPassword: signupPassword,
-        role: signupRole,
-        acceptTerms,
-      });
-      if (!result.success) {
-        toast.error(result.error || 'Registration failed');
-        return;
-      }
-      toast.success('Account created! Welcome to Umurage Hub 🇷🇼');
-      resetAll();
-      setLoginView('login');
-      openAuth('login');
-    } catch (err: unknown) {
-      toast.error((err as Error).message || 'Signup failed');
-    } finally {
-      setLoading(false);
-    }
+
+    toast.success('Welcome to Umurage Hub! 🇷🇼');
   };
 
   // ======================== HEADER TITLES ========================
   const getTitle = () => {
     if (authMode === 'signup') return 'Create Account';
-    const loginTitles: Record<LoginView, string> = {
-      login: t('auth.loginTitle'),
-      'forgot-identifier': 'Forgot Password',
-      'forgot-otp': 'Enter Verification Code',
-      'forgot-newpw': 'Set New Password',
-    };
-    return loginTitles[loginView];
+    return loginView === 'forgot' ? 'Reset Password' : t('auth.loginTitle');
   };
 
   const getSubtitle = () => {
     if (authMode === 'signup') return "Join Rwanda's cultural heritage platform";
-    if (loginView === 'forgot-identifier') return 'Enter your email, username, or phone to receive a reset code';
-    if (loginView === 'forgot-otp') return `Code sent to ${forgotPasswordEmail}`;
-    if (loginView === 'forgot-newpw') return 'Choose a strong new password for your account';
-    return "Rwanda's Cultural Heritage Platform";
+    return loginView === 'forgot' ? 'Enter your email and we will send you a reset link' : "Rwanda's Cultural Heritage Platform";
   };
 
   return (
@@ -185,14 +153,10 @@ const AuthModal: React.FC = () => {
           <X size={20} />
         </button>
 
-        {/* Back arrow for forgot-password steps */}
-        {authMode === 'login' && loginView !== 'login' && (
+        {/* Back arrow for forgot-password */}
+        {authMode === 'login' && loginView === 'forgot' && (
           <button
-            onClick={() => {
-              if (loginView === 'forgot-otp') setLoginView('forgot-identifier');
-              else if (loginView === 'forgot-newpw') setLoginView('forgot-otp');
-              else setLoginView('login');
-            }}
+            onClick={() => { setLoginView('login'); setFpEmail(''); setFpSent(false); }}
             className="absolute top-4 left-4 text-umurage-subtle hover:text-umurage-cream transition-colors"
           >
             <ArrowLeft size={20} />
@@ -201,30 +165,9 @@ const AuthModal: React.FC = () => {
 
         {/* Header */}
         <div className="text-center mb-7">
-          <h2 className="auth-modal-title">{authMode === 'login' && loginView === 'login' ? 'WELCOME BACK' : getTitle()}</h2>
-          <p className="auth-modal-subtitle">{authMode === 'login' && loginView === 'login' ? "Rwanda's Cultural Heritage Platform" : getSubtitle()}</p>
+          <h2 className="auth-modal-title">{getTitle()}</h2>
+          <p className="auth-modal-subtitle">{getSubtitle()}</p>
         </div>
-
-        {/* Forgot password progress */}
-        {authMode === 'login' && loginView !== 'login' && (
-          <div className="flex items-center justify-center gap-2 mb-6">
-            {(['forgot-identifier', 'forgot-otp', 'forgot-newpw'] as LoginView[]).map((step, i) => {
-              const stepIdx = ['forgot-identifier', 'forgot-otp', 'forgot-newpw'].indexOf(loginView);
-              return (
-                <React.Fragment key={step}>
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                    loginView === step ? 'bg-umurage-gold text-umurage-bg' :
-                    stepIdx > i ? 'bg-umurage-gold/30 text-umurage-gold border border-umurage-gold/40' :
-                    'bg-umurage-surface text-umurage-subtle border border-umurage-border'
-                  }`}>
-                    {stepIdx > i ? <CheckCircle size={14} /> : i + 1}
-                  </div>
-                  {i < 2 && <div className={`w-8 h-px transition-all ${stepIdx > i ? 'bg-umurage-gold/50' : 'bg-umurage-border'}`} />}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        )}
 
         {/* ========== LOGIN FORM ========== */}
         {authMode === 'login' && loginView === 'login' && (
@@ -243,14 +186,13 @@ const AuthModal: React.FC = () => {
                 />
                 <span className="auth-circle-accent" />
               </div>
-              <p className="auth-input-hint">You can sign in with your email, username, or phone number</p>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="auth-input-label">Password</label>
                 <button
                   type="button"
-                  onClick={() => { setLoginView('forgot-identifier'); setFpIdentifier(loginIdentifier); }}
+                  onClick={() => { setLoginView('forgot'); setFpEmail(loginIdentifier.includes('@') ? loginIdentifier : ''); }}
                   className="text-umurage-gold text-xs hover:underline transition-colors"
                 >
                   Forgot password?
@@ -279,144 +221,44 @@ const AuthModal: React.FC = () => {
           </form>
         )}
 
-        {/* ========== FORGOT: Step 1 — Enter identifier ========== */}
-        {authMode === 'login' && loginView === 'forgot-identifier' && (
-          <form onSubmit={handleSendFpCode} className="space-y-4">
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Email, Username, or Phone Number</label>
-              <div className="relative">
-                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type="text"
-                  value={fpIdentifier}
-                  onChange={e => setFpIdentifier(e.target.value)}
-                  placeholder="email@example.com, @username, or +250..."
-                  className={`${inp} pl-9`}
-                  autoFocus
-                />
+        {/* ========== FORGOT PASSWORD ========== */}
+        {authMode === 'login' && loginView === 'forgot' && (
+          fpSent ? (
+            <div className="text-center py-4">
+              <div className="w-16 h-16 rounded-full bg-umurage-gold/20 flex items-center justify-center mx-auto mb-4">
+                <Mail size={32} className="text-umurage-gold" />
               </div>
-              <p className="text-umurage-subtle text-[10px] mt-1.5 ml-1">We will send a 4-digit verification code to your registered email address</p>
+              <p className="text-umurage-muted text-sm mb-2">We sent a password reset link to</p>
+              <p className="text-umurage-cream text-sm font-semibold mb-6">{fpEmail}</p>
+              <button onClick={() => { setLoginView('login'); resetAll(); }} className="text-umurage-gold text-sm hover:underline">
+                Back to Sign In
+              </button>
             </div>
-            <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-              {loading ? 'Sending code...' : 'Send Verification Code'}
-            </button>
-            <button type="button" onClick={() => setLoginView('login')} className="w-full text-center text-umurage-subtle text-xs hover:text-umurage-muted transition-colors py-1">
-              ← Back to Sign In
-            </button>
-          </form>
-        )}
-
-        {/* ========== FORGOT: Step 2 — Enter OTP ========== */}
-        {authMode === 'login' && loginView === 'forgot-otp' && (
-          <form onSubmit={handleVerifyFpCode} className="space-y-4">
-            <div className="bg-umurage-surface border border-umurage-border rounded-xl p-3 text-center mb-2">
-              <p className="text-umurage-muted text-xs">Code sent to</p>
-              <p className="text-umurage-gold text-sm font-semibold mt-0.5">{forgotPasswordEmail}</p>
-            </div>
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">4-Digit Verification Code</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={fpOtp}
-                onChange={e => setFpOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="0 0 0 0"
-                maxLength={4}
-                className={`${inp} text-center text-3xl font-bold tracking-[0.5em]`}
-                autoFocus
-              />
-              <p className="text-umurage-subtle text-[10px] mt-1.5 text-center">Check your email inbox and spam folder</p>
-            </div>
-            <button type="submit" disabled={loading || fpOtp.length < 4} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-              {loading ? 'Verifying...' : 'Verify Code'}
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                setLoading(true);
-                try {
-                  await sendForgotPasswordCode(fpIdentifier);
-                  toast.success('New code sent!');
-                } catch {
-                  toast.error('Failed to resend code');
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading}
-              className="w-full text-center text-umurage-gold text-xs hover:underline transition-colors py-1"
-            >
-              Resend code
-            </button>
-          </form>
-        )}
-
-        {/* ========== FORGOT: Step 3 — New password ========== */}
-        {authMode === 'login' && loginView === 'forgot-newpw' && (
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            <div className="flex items-center gap-2 bg-green-900/20 border border-green-800/40 rounded-xl px-4 py-3 mb-2">
-              <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
-              <p className="text-green-300 text-xs">Identity verified! Set your new password below.</p>
-            </div>
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">New Password</label>
-              <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type={showNewPw ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  className={`${inp} pl-9 pr-10`}
-                  autoFocus
-                />
-                <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-muted transition-colors">
-                  {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+          ) : (
+            <form onSubmit={handleSendResetEmail} className="space-y-4">
+              <div>
+                <label className="text-umurage-muted text-xs font-medium block mb-1.5">Email Address</label>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+                  <input
+                    type="email"
+                    value={fpEmail}
+                    onChange={e => setFpEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className={`${inp} pl-9`}
+                    autoFocus
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Confirm New Password</label>
-              <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type={showNewPw ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat your new password"
-                  className={`${inp} pl-9`}
-                />
-              </div>
-              {confirmPassword && newPassword !== confirmPassword && (
-                <p className="text-red-400 text-[10px] mt-1 ml-1">Passwords do not match</p>
-              )}
-            </div>
-            {/* Password strength hint */}
-            <div className="h-1.5 rounded-full bg-umurage-surface overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  newPassword.length === 0 ? 'w-0' :
-                  newPassword.length < 6 ? 'w-1/4 bg-red-500' :
-                  newPassword.length < 10 ? 'w-2/4 bg-amber-400' :
-                  newPassword.length < 14 ? 'w-3/4 bg-green-400' :
-                  'w-full bg-green-500'
-                }`}
-              />
-            </div>
-            <p className="text-umurage-subtle text-[10px]">
-              {newPassword.length === 0 ? '' : newPassword.length < 6 ? 'Too short' : newPassword.length < 10 ? 'Fair' : newPassword.length < 14 ? 'Good' : 'Strong'}
-            </p>
-            <button
-              type="submit"
-              disabled={loading || !newPassword || newPassword !== confirmPassword}
-              className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2"
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
-              {loading ? 'Updating password...' : 'Set New Password'}
-            </button>
-          </form>
+              <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+              <button type="button" onClick={() => setLoginView('login')} className="w-full text-center text-umurage-subtle text-xs hover:text-umurage-muted transition-colors py-1">
+                ← Back to Sign In
+              </button>
+            </form>
+          )
         )}
 
         {/* ========== SIGNUP FORM ========== */}
@@ -427,8 +269,8 @@ const AuthModal: React.FC = () => {
               <div className="relative">
                 <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type="text" value={signupName}
-                  onChange={e => setSignupName(e.target.value)}
+                  type="text" value={fullName}
+                  onChange={e => setFullName(e.target.value)}
                   placeholder="e.g. Vestine Uwimana"
                   className={`${inp} pl-9`}
                 />
@@ -439,8 +281,8 @@ const AuthModal: React.FC = () => {
               <div className="relative">
                 <AtSign size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type="text" value={signupUsername}
-                  onChange={e => setSignupUsername(e.target.value.toLowerCase().replace(/\s/g, '_'))}
+                  type="text" value={username}
+                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, '_'))}
                   placeholder="your_username"
                   className={`${inp} pl-9`}
                 />
@@ -451,8 +293,8 @@ const AuthModal: React.FC = () => {
               <div className="relative">
                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type="email" value={signupEmail}
-                  onChange={e => setSignupEmail(e.target.value)}
+                  type="email" value={email}
+                  onChange={e => setEmail(e.target.value)}
                   placeholder="your@email.com"
                   className={`${inp} pl-9`}
                 />
@@ -460,13 +302,13 @@ const AuthModal: React.FC = () => {
             </div>
             <div>
               <label className="text-umurage-muted text-xs font-medium block mb-1.5">
-                Phone Number <span className="text-umurage-subtle font-normal">(optional — for account recovery)</span>
+                Phone Number <span className="text-umurage-subtle font-normal">(optional)</span>
               </label>
               <div className="relative">
                 <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type="tel" value={signupPhone}
-                  onChange={e => setSignupPhone(e.target.value)}
+                  type="tel" value={phone}
+                  onChange={e => setPhone(e.target.value)}
                   placeholder="+250 7XX XXX XXX"
                   className={`${inp} pl-9`}
                 />
@@ -474,23 +316,20 @@ const AuthModal: React.FC = () => {
             </div>
             <div>
               <label className="text-umurage-muted text-xs font-medium block mb-1.5">Account Type *</label>
-              <div className="relative">
-                <select value={signupRole} onChange={e => setSignupRole(e.target.value)} className={`${inp} appearance-none cursor-pointer`}>
-                  <option value="user">🌍 Cultural Learner</option>
-                  <option value="creator">🎨 Cultural Creator</option>
-                  <option value="elder">🌿 Elder / Knowledge Keeper</option>
-                  <option value="organization">🏛️ Organization / Institution</option>
-                </select>
-                <ChevronRight size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-subtle pointer-events-none" />
-              </div>
+              <select value={role} onChange={e => setRole(e.target.value)} className={`${inp} appearance-none cursor-pointer`}>
+                <option value="">Select your account type</option>
+                {ACCOUNT_TYPES.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-umurage-muted text-xs font-medium block mb-1.5">Password *</label>
               <div className="relative">
                 <KeyRound size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
-                  type={showPw ? 'text' : 'password'} value={signupPassword}
-                  onChange={e => setSignupPassword(e.target.value)}
+                  type={showPw ? 'text' : 'password'} value={password}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
                   className={`${inp} pl-9 pr-10`}
                 />
@@ -498,13 +337,32 @@ const AuthModal: React.FC = () => {
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              {/* Password strength */}
-              <div className="h-1 rounded-full bg-umurage-surface overflow-hidden mt-2">
-                <div className={`h-full rounded-full transition-all ${
-                  signupPassword.length === 0 ? 'w-0' : signupPassword.length < 6 ? 'w-1/4 bg-red-500' :
-                  signupPassword.length < 10 ? 'w-2/4 bg-amber-400' : 'w-full bg-green-500'
-                }`} />
+              {password && (
+                <div className="h-1 rounded-full bg-umurage-surface overflow-hidden mt-2">
+                  <div className={`h-full rounded-full transition-all ${
+                    password.length < 6 ? 'w-1/4 bg-red-500' :
+                    password.length < 10 ? 'w-2/4 bg-amber-400' : 'w-full bg-green-500'
+                  }`} />
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Confirm Password *</label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+                <input
+                  type={showConfirmPw ? 'text' : 'password'} value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat your password"
+                  className={`${inp} pl-9 pr-10`}
+                />
+                <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-muted transition-colors">
+                  {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-red-400 text-[10px] mt-1 ml-1">Passwords do not match</p>
+              )}
             </div>
             <div className="flex items-start gap-3">
               <input
@@ -517,14 +375,19 @@ const AuthModal: React.FC = () => {
                 I agree to the <a href="#" className="text-umurage-gold hover:underline">Terms of Service</a> and <a href="#" className="text-umurage-gold hover:underline">Privacy Policy</a>
               </label>
             </div>
-            <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 mt-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-              {loading ? 'Creating account...' : 'Join Umurage Hub 🇷🇼'}
+            {signupError && (
+              <div className="bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-300 text-xs text-center">
+                {signupError}
+              </div>
+            )}
+            <button type="submit" disabled={registerLoading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
+              {registerLoading ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
+              {registerLoading ? 'Creating account...' : 'Join Umurage Hub 🇷🇼'}
             </button>
           </form>
         )}
 
-        {/* Footer switch — only show on main views */}
+        {/* Footer switch */}
         {(authMode === 'login' && loginView === 'login') || authMode === 'signup' ? (
           <div className="text-center mt-6">
             <span className="text-umurage-subtle text-sm">

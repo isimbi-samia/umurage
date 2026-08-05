@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Eye, EyeOff, Loader2, User, AtSign, Mail, Phone, Lock,
   ChevronRight, ShieldCheck, Sparkles, MapPin,

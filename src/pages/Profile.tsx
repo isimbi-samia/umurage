@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import {
   Settings, BookOpen, Heart, Archive, Edit2, Check, X, MapPin, Loader2,
-  Camera, Star, UserCheck, UserPlus, ChevronLeft, CheckCircle, Image,
+  Camera, Star, UserCheck, UserPlus, ChevronLeft, CheckCircle,
 } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -17,70 +17,116 @@ const INTERESTS = [
   'Ceremonies', 'Oral Heritage', 'Literature', 'Nature',
 ];
 
-// ── Fetch any user's full profile ─────────────────────────────────────────
+interface ProfileRecord {
+  id: string;
+  full_name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  cover_image_url?: string | null;
+  cover_url?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  interests?: string[] | null;
+  role?: string | null;
+  verified?: boolean | null;
+  verification_type?: string | null;
+  followers_count?: number | null;
+  following_count?: number | null;
+  posts_count?: number | null;
+}
+
+interface ProfilePostRecord {
+  id: string;
+  title?: string | null;
+  description?: string | null;
+  type?: string | null;
+  thumbnail_url?: string | null;
+  media_url?: string | null;
+  duration?: string | null;
+  category?: string | null;
+  region?: string | null;
+  tags?: string[] | null;
+  created_at?: string;
+  author?: {
+    id: string;
+    username?: string | null;
+    email?: string | null;
+    avatar_url?: string | null;
+    verified?: boolean | null;
+    verified_type?: string | null;
+    role?: string | null;
+  } | null;
+  likes_count?: number | null;
+  comments_count?: number | null;
+  shares_count?: number | null;
+  views?: number | null;
+  likes?: number | null;
+  comments?: number | null;
+  shares?: number | null;
+  thumbnail?: string | null;
+  timeAgo?: string | null;
+  saved?: boolean | null;
+  liked?: boolean | null;
+}
+
 function useUserProfile(userId?: string) {
-  return useQuery({
+  return useQuery<ProfileRecord | null>({
     queryKey: ['profile', userId],
     queryFn: async () => {
       if (!userId) return null;
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, username, email, avatar_url, cover_image_url, cover_url, bio, location, interests, role, verified, verification_type, followers_count, following_count, posts_count')
         .eq('id', userId)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return (data as ProfileRecord | null) ?? null;
     },
     enabled: !!userId,
     staleTime: 30000,
   });
 }
 
-// ── Fetch a user's own posts ───────────────────────────────────────────────
 function useUserPosts(userId?: string) {
-  return useQuery({
+  return useQuery<ProfilePostRecord[]>({
     queryKey: ['user-posts', userId],
     queryFn: async () => {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('posts')
         .select(`
-          *,
-          author:profiles!posts_user_id_fkey(
-            id, username, email, avatar_url, verified, verified_type, role
-          )
+          id, title, description, type, thumbnail_url, media_url, duration, category, region, tags, created_at, likes_count, comments_count, shares_count, views,
+          author:profiles!posts_user_id_fkey(id, username, email, avatar_url, verified, verified_type, role, full_name)
         `)
         .eq('user_id', userId)
-        .eq('published', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as ProfilePostRecord[];
     },
     enabled: !!userId,
     staleTime: 30000,
   });
 }
 
-// ── Fetch a user's heritage recordings ────────────────────────────────────
 function useUserHeritage(userId?: string) {
-  return useQuery({
+  return useQuery<ProfilePostRecord[]>({
     queryKey: ['user-heritage', userId],
     queryFn: async () => {
       if (!userId) return [];
       const { data, error } = await supabase
-        .from('heritage_recordings')
-        .select('*')
+        .from('posts')
+        .select('id, title, description, type, thumbnail_url, media_url, duration, category, region, tags, created_at, likes_count, comments_count, shares_count, views')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []) as ProfilePostRecord[];
     },
     enabled: !!userId,
     staleTime: 30000,
   });
 }
 
-// ── Check if current user follows the target ──────────────────────────────
 function useIsFollowing(followerId?: string, followingId?: string) {
   return useQuery({
     queryKey: ['is-following', followerId, followingId],
@@ -99,29 +145,15 @@ function useIsFollowing(followerId?: string, followingId?: string) {
   });
 }
 
-// ── Upload avatar to storage ───────────────────────────────────────────────
 function useUploadAvatar() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ file, userId }: { file: File; userId: string }) => {
-      // Compress image in canvas
-      const compressed = await compressAvatar(file);
-      const ext = 'jpg';
-      const path = `${userId}/avatar/profile.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('umurage-media')
-        .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('umurage-media').getPublicUrl(path);
-      // Add cache-bust so browser refreshes the image
-      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
-      // Update profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: avatarUrl })
-        .eq('id', userId);
+      const compressed = await compressImage(file, 256, 0.88);
+      const path = `${userId}/avatar/profile.jpg`;
+      const { url: avatarUrl } = await uploadProfileAsset(compressed, path, 'image/jpeg');
+      const { error: profileError } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', userId);
       if (profileError) throw profileError;
-      // Update auth metadata
       await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
       return avatarUrl;
     },
@@ -133,26 +165,69 @@ function useUploadAvatar() {
   });
 }
 
-async function compressAvatar(file: File): Promise<Blob> {
+function useUploadCover() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ file, userId }: { file: File; userId: string }) => {
+      const compressed = await compressImage(file, 1200, 0.9);
+      const path = `${userId}/cover/cover.jpg`;
+      const { url: coverUrl } = await uploadProfileAsset(compressed, path, 'image/jpeg');
+      const { error: profileError } = await supabase.from('profiles').update({ cover_image_url: coverUrl }).eq('id', userId);
+      if (profileError) throw profileError;
+      return coverUrl;
+    },
+    onSuccess: (_url, { userId }) => {
+      qc.invalidateQueries({ queryKey: ['profile', userId] });
+      toast.success('Cover image updated!');
+    },
+    onError: (e: Error) => toast.error(e.message || 'Failed to upload cover image'),
+  });
+}
+
+async function compressImage(file: File, maxSize: number, quality: number): Promise<Blob> {
   return new Promise((resolve) => {
     const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const size = 256; // fixed square avatar
       const canvas = document.createElement('canvas');
-      canvas.width = size; canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
-      // Cover-crop to square
-      const min = Math.min(img.width, img.height);
-      const sx = (img.width - min) / 2;
-      const sy = (img.height - min) / 2;
-      ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
-      canvas.toBlob(blob => resolve(blob || new Blob()), 'image/jpeg', 0.88);
+      const ratio = Math.min(1, maxSize / Math.max(img.width, img.height));
+      canvas.width = Math.max(1, Math.floor(img.width * ratio));
+      canvas.height = Math.max(1, Math.floor(img.height * ratio));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(new Blob([file]));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => resolve(blob || new Blob()), 'image/jpeg', quality);
     };
     img.onerror = () => { URL.revokeObjectURL(url); resolve(new Blob([file])); };
     img.src = url;
   });
+}
+
+async function uploadProfileAsset(file: Blob, path: string, contentType: string) {
+  const buckets = ['avatars', 'umurage-media'];
+  let lastError: Error | null = null;
+
+  for (const bucket of buckets) {
+    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType });
+    if (!error) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return { url: `${data.publicUrl}?t=${Date.now()}`, bucket };
+    }
+
+    const message = error.message || '';
+    const isMissingBucket = /bucket|not found|does not exist/i.test(message);
+    if (!isMissingBucket) {
+      throw error;
+    }
+    lastError = error;
+  }
+
+  if (lastError) throw lastError;
+  throw new Error('Unable to upload profile media.');
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -175,9 +250,12 @@ const Profile: React.FC = () => {
   const [locField, setLocField] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const uploadAvatar = useUploadAvatar();
+  const uploadCover = useUploadCover();
 
   const { data: profile, isLoading: profileLoading } = useUserProfile(targetUserId || undefined);
   const { data: userPosts = [], isLoading: postsLoading } = useUserPosts(targetUserId || undefined);
@@ -188,7 +266,7 @@ const Profile: React.FC = () => {
       if (!authUser?.id || !isOwnProfile) return [];
       const { data, error } = await supabase
         .from('saves')
-        .select(`post:posts(*, author:profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
+        .select(`post:posts(*, author:user_profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -214,13 +292,14 @@ const Profile: React.FC = () => {
   const handleSave = async () => {
     if (!authUser) return;
     setSaving(true);
+    setProfileError(null);
     try {
       await updateProfile({ bio, location: locField, interests });
-      // Also refresh the profile query
       qc.invalidateQueries({ queryKey: ['profile', authUser.id] });
       setEditing(false);
-    } catch {
-      // Error handled in context
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Could not save profile');
+      toast.error('Could not save profile');
     } finally {
       setSaving(false);
     }
@@ -240,6 +319,15 @@ const Profile: React.FC = () => {
     if (!file || !authUser) return;
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
     uploadAvatar.mutate({ file, userId: authUser.id });
+    e.target.value = '';
+  };
+
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !authUser) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('Cover image must be under 5MB'); return; }
+    uploadCover.mutate({ file, userId: authUser.id });
+    e.target.value = '';
   };
 
   const toggleInterest = (interest: string) => {
@@ -278,8 +366,9 @@ const Profile: React.FC = () => {
     );
   }
 
-  const displayName = profile.username || profile.email?.split('@')[0] || 'User';
+  const displayName = profile.full_name || profile.username || profile.email?.split('@')[0] || 'User';
   const avatarSrc = profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`;
+  const coverSrc = profile.cover_image_url || profile.cover_url || 'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1200&q=80';
 
   return (
     <div className="animate-fade-in max-w-3xl mx-auto">
@@ -294,8 +383,25 @@ const Profile: React.FC = () => {
       )}
 
       {/* ── Profile Header ── */}
-      <div className="umurage-card rounded-2xl p-6 mb-6">
-        <div className="flex items-start gap-5">
+      <div className="overflow-hidden rounded-[28px] border border-amber-400/20 bg-[rgba(27,16,8,0.74)] shadow-[0_18px_45px_rgba(0,0,0,0.22)] mb-6">
+        <div className="relative h-36 sm:h-48">
+          <img src={coverSrc} alt="Cover" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          {isOwnProfile && (
+            <div className="absolute right-4 top-4">
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploadCover.isPending}
+                className="rounded-full border border-white/20 bg-black/40 px-3 py-2 text-xs font-medium text-white backdrop-blur transition hover:bg-black/60"
+              >
+                {uploadCover.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Update cover'}
+              </button>
+              <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
+            </div>
+          )}
+        </div>
+        <div className="p-6">
+          <div className="flex items-start gap-5">
           {/* Avatar with upload */}
           <div className="relative flex-shrink-0">
             <img
@@ -400,20 +506,26 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Stats */}
-            <div className="flex gap-6 mt-3">
+            <div className="mt-3 flex flex-wrap gap-4">
               {[
-                { label: 'Posts', value: profile.posts_count ?? 0 },
-                { label: 'Followers', value: profile.followers_count ?? 0 },
-                { label: 'Following', value: profile.following_count ?? 0 },
+                { label: 'Posts', value: profile.posts_count ?? 0, to: '#' },
+                { label: 'Followers', value: profile.followers_count ?? 0, to: '/profile/followers' },
+                { label: 'Following', value: profile.following_count ?? 0, to: '/profile/following' },
               ].map(stat => (
-                <div key={stat.label} className="text-center">
-                  <p className="text-umurage-gold font-bold font-cinzel text-lg leading-none">{stat.value}</p>
-                  <p className="text-umurage-subtle text-xs mt-0.5">{stat.label}</p>
-                </div>
+                <Link
+                  key={stat.label}
+                  to={stat.to}
+                  className="rounded-xl border border-transparent px-2 py-1 text-center transition hover:border-amber-400/20 hover:bg-black/20"
+                >
+                  <p className="text-lg font-bold leading-none text-umurage-gold font-cinzel">{stat.value}</p>
+                  <p className="mt-0.5 text-xs text-umurage-subtle">{stat.label}</p>
+                </Link>
               ))}
             </div>
           </div>
         </div>
+
+        {profileError && <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{profileError}</div>}
 
         {/* Avatar upload hint */}
         {isOwnProfile && !profile.avatar_url && (
@@ -494,6 +606,8 @@ const Profile: React.FC = () => {
               )}
             </>
           )}
+        </div>
+          </div>
         </div>
       </div>
 
