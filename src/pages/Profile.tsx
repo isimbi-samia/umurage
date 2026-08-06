@@ -608,8 +608,9 @@ const Profile: React.FC = () => {
           )}
         </div>
           </div>
+        </div>
 
-      // {/* ── Tabs ── */}
+       {/* ── Tabs ── */}
       <div className="flex border-b border-umurage-border mb-6">
         {[
           { key: 'posts',   label: 'Posts',   icon: BookOpen, count: profile.posts_count ?? 0 },
