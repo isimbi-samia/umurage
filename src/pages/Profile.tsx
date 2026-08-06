@@ -608,10 +608,8 @@ const Profile: React.FC = () => {
           )}
         </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Tabs ── */}
+      // {/* ── Tabs ── */}
       <div className="flex border-b border-umurage-border mb-6">
         {[
           { key: 'posts',   label: 'Posts',   icon: BookOpen, count: profile.posts_count ?? 0 },
@@ -636,150 +634,150 @@ const Profile: React.FC = () => {
         ))}
       </div>
 
-      {/* ── Posts Tab ── */}
-      {activeTab === 'posts' && (
-        <div>
-          {postsLoading ? (
-            <div className="flex justify-center py-12"><Loader2 size={28} className="text-umurage-gold animate-spin" /></div>
-          ) : userPosts.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-14 h-14 rounded-full bg-umurage-card border border-umurage-border flex items-center justify-center mx-auto mb-4">
-                <BookOpen size={24} className="text-umurage-gold/50" />
-              </div>
-              <h3 className="text-umurage-cream font-semibold mb-2">No posts yet</h3>
-              <p className="text-umurage-muted text-sm mb-4">
-                {isOwnProfile
-                  ? 'Share your first piece of cultural content.'
-                  : `${displayName} hasn't published any posts yet.`}
-              </p>
-              {isOwnProfile && (
-                <button onClick={() => navigate('/upload')} className="btn-gold px-6 py-2.5 text-sm">
-                  Upload Content
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {userPosts.map((post: unknown) => (
-                <ContentCard
-                  key={(post as { id: string }).id}
-                  item={post as Parameters<typeof ContentCard>[0]['item']}
-                  likedSet={likedSet}
-                  savedSet={savedSet}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      // {/* ── Posts Tab ── */}
+      // {activeTab === 'posts' && (
+      //   <div>
+      //     {postsLoading ? (
+      //       <div className="flex justify-center py-12"><Loader2 size={28} className="text-umurage-gold animate-spin" /></div>
+      //     ) : userPosts.length === 0 ? (
+      //       <div className="text-center py-16">
+      //         <div className="w-14 h-14 rounded-full bg-umurage-card border border-umurage-border flex items-center justify-center mx-auto mb-4">
+      //           <BookOpen size={24} className="text-umurage-gold/50" />
+      //         </div>
+      //         <h3 className="text-umurage-cream font-semibold mb-2">No posts yet</h3>
+      //         <p className="text-umurage-muted text-sm mb-4">
+      //           {isOwnProfile
+      //             ? 'Share your first piece of cultural content.'
+      //             : `${displayName} hasn't published any posts yet.`}
+      //         </p>
+      //         {isOwnProfile && (
+      //           <button onClick={() => navigate('/upload')} className="btn-gold px-6 py-2.5 text-sm">
+      //             Upload Content
+      //           </button>
+      //         )}
+      //       </div>
+      //     ) : (
+      //       <div className="space-y-0">
+      //         {userPosts.map((post: unknown) => (
+      //           <ContentCard
+      //             key={(post as { id: string }).id}
+      //             item={post as Parameters<typeof ContentCard>[0]['item']}
+      //             likedSet={likedSet}
+      //             savedSet={savedSet}
+      //           />
+      //         ))}
+      //       </div>
+      //     )}
+      //   </div>
+      // )}
 
-      {/* ── Saved Tab ── */}
-      {activeTab === 'saved' && isOwnProfile && (
-        <div>
-          {savedLoading ? (
-            <div className="flex justify-center py-12"><Loader2 size={28} className="text-umurage-gold animate-spin" /></div>
-          ) : savedPosts.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-14 h-14 rounded-full bg-umurage-card border border-umurage-border flex items-center justify-center mx-auto mb-4">
-                <Heart size={24} className="text-umurage-gold/50" />
-              </div>
-              <h3 className="text-umurage-cream font-semibold mb-2">No saved content</h3>
-              <p className="text-umurage-muted text-sm">Bookmark posts to find them here later.</p>
-            </div>
-          ) : (
-            savedPosts.map((post: unknown) => (
-              <ContentCard
-                key={(post as { id: string }).id}
-                item={post as Parameters<typeof ContentCard>[0]['item']}
-                likedSet={likedSet}
-                savedSet={savedSet}
-              />
-            ))
-          )}
-        </div>
-      )}
+      // {/* ── Saved Tab ── */}
+      // {activeTab === 'saved' && isOwnProfile && (
+      //   <div>
+      //     {savedLoading ? (
+      //       <div className="flex justify-center py-12"><Loader2 size={28} className="text-umurage-gold animate-spin" /></div>
+      //     ) : savedPosts.length === 0 ? (
+      //       <div className="text-center py-16">
+      //         <div className="w-14 h-14 rounded-full bg-umurage-card border border-umurage-border flex items-center justify-center mx-auto mb-4">
+      //           <Heart size={24} className="text-umurage-gold/50" />
+      //         </div>
+      //         <h3 className="text-umurage-cream font-semibold mb-2">No saved content</h3>
+      //         <p className="text-umurage-muted text-sm">Bookmark posts to find them here later.</p>
+      //       </div>
+      //     ) : (
+      //       savedPosts.map((post: unknown) => (
+      //         <ContentCard
+      //           key={(post as { id: string }).id}
+      //           item={post as Parameters<typeof ContentCard>[0]['item']}
+      //           likedSet={likedSet}
+      //           savedSet={savedSet}
+      //         />
+      //       ))
+      //     )}
+      //   </div>
+      // )}
 
-      {/* ── Heritage Tab ── */}
-      {activeTab === 'heritage' && (
-        <div>
-          {heritageLoading ? (
-            <div className="flex justify-center py-12"><Loader2 size={28} className="text-umurage-gold animate-spin" /></div>
-          ) : heritageItems.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-14 h-14 rounded-full bg-umurage-card border border-umurage-border flex items-center justify-center mx-auto mb-4">
-                <Archive size={24} className="text-umurage-gold/50" />
-              </div>
-              <h3 className="text-umurage-cream font-semibold mb-2">No heritage recordings</h3>
-              <p className="text-umurage-muted text-sm mb-4">
-                {isOwnProfile
-                  ? 'Record oral stories, songs, or traditions for future generations.'
-                  : `${displayName} hasn't added any heritage recordings yet.`}
-              </p>
-              {isOwnProfile && (
-                <button onClick={() => navigate('/heritage-archive')} className="btn-gold px-6 py-2.5 text-sm">
-                  Add Heritage Recording
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {(heritageItems as Record<string, unknown>[]).map(item => (
-                <div key={item.id as string} className="umurage-card rounded-2xl p-5 animate-fade-in">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <h4 className="text-umurage-cream font-semibold">{item.title as string}</h4>
-                      {item.description && (
-                        <p className="text-umurage-muted text-sm mt-1 line-clamp-2">{item.description as string}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span className="text-[10px] px-2.5 py-1 rounded-lg border border-umurage-gold/30 bg-umurage-gold/10 text-umurage-gold font-semibold">
-                        {item.category as string}
-                      </span>
-                      {item.verified && (
-                        <span className="flex items-center gap-1 text-[10px] text-green-400">
-                          <CheckCircle size={10} /> Verified
-                        </span>
-                      )}
-                    </div>
-                  </div>
+      // {/* ── Heritage Tab ── */}
+      // {activeTab === 'heritage' && (
+      //   <div>
+      //     {heritageLoading ? (
+      //       <div className="flex justify-center py-12"><Loader2 size={28} className="text-umurage-gold animate-spin" /></div>
+      //     ) : heritageItems.length === 0 ? (
+      //       <div className="text-center py-16">
+      //         <div className="w-14 h-14 rounded-full bg-umurage-card border border-umurage-border flex items-center justify-center mx-auto mb-4">
+      //           <Archive size={24} className="text-umurage-gold/50" />
+      //         </div>
+      //         <h3 className="text-umurage-cream font-semibold mb-2">No heritage recordings</h3>
+      //         <p className="text-umurage-muted text-sm mb-4">
+      //           {isOwnProfile
+      //             ? 'Record oral stories, songs, or traditions for future generations.'
+      //             : `${displayName} hasn't added any heritage recordings yet.`}
+      //         </p>
+      //         {isOwnProfile && (
+      //           <button onClick={() => navigate('/heritage-archive')} className="btn-gold px-6 py-2.5 text-sm">
+      //             Add Heritage Recording
+      //           </button>
+      //         )}
+      //       </div>
+      //     ) : (
+      //       <div className="grid grid-cols-1 gap-4">
+      //         {(heritageItems as Record<string, unknown>[]).map(item => (
+      //           <div key={item.id as string} className="umurage-card rounded-2xl p-5 animate-fade-in">
+      //             <div className="flex items-start justify-between gap-3 mb-3">
+      //               <div>
+      //                 <h4 className="text-umurage-cream font-semibold">{item.title as string}</h4>
+      //                 {item.description && (
+      //                   <p className="text-umurage-muted text-sm mt-1 line-clamp-2">{item.description as string}</p>
+      //                 )}
+      //               </div>
+      //               <div className="flex flex-col items-end gap-1.5">
+      //                 <span className="text-[10px] px-2.5 py-1 rounded-lg border border-umurage-gold/30 bg-umurage-gold/10 text-umurage-gold font-semibold">
+      //                   {item.category as string}
+      //                 </span>
+      //                 {item.verified && (
+      //                   <span className="flex items-center gap-1 text-[10px] text-green-400">
+      //                     <CheckCircle size={10} /> Verified
+      //                   </span>
+      //                 )}
+      //               </div>
+      //             </div>
 
-                  <div className="flex flex-wrap gap-3 text-xs text-umurage-subtle mb-3">
-                    {item.language && <span>🗣️ {item.language as string}</span>}
-                    {item.region && <span>📍 {item.region as string}</span>}
-                    {item.elder_name && <span>👤 Told by {item.elder_name as string}</span>}
-                  </div>
+      //             <div className="flex flex-wrap gap-3 text-xs text-umurage-subtle mb-3">
+      //               {item.language && <span>🗣️ {item.language as string}</span>}
+      //               {item.region && <span>📍 {item.region as string}</span>}
+      //               {item.elder_name && <span>👤 Told by {item.elder_name as string}</span>}
+      //             </div>
 
-                  {/* Audio/Video player */}
-                  {item.media_url && item.media_type === 'audio' && (
-                    <audio src={item.media_url as string} controls className="w-full mt-2" />
-                  )}
-                  {item.media_url && item.media_type === 'video' && (
-                    <video src={item.media_url as string} controls className="w-full mt-2 rounded-xl max-h-48" />
-                  )}
+      //             {/* Audio/Video player */}
+      //             {item.media_url && item.media_type === 'audio' && (
+      //               <audio src={item.media_url as string} controls className="w-full mt-2" />
+      //             )}
+      //             {item.media_url && item.media_type === 'video' && (
+      //               <video src={item.media_url as string} controls className="w-full mt-2 rounded-xl max-h-48" />
+      //             )}
 
-                  {item.transcript && (
-                    <div className="mt-3 p-3 bg-umurage-surface border border-umurage-border rounded-xl">
-                      <p className="text-umurage-muted text-xs font-semibold mb-1">Transcript</p>
-                      <p className="text-umurage-muted text-xs leading-relaxed line-clamp-3">{item.transcript as string}</p>
-                    </div>
-                  )}
+      //             {item.transcript && (
+      //               <div className="mt-3 p-3 bg-umurage-surface border border-umurage-border rounded-xl">
+      //                 <p className="text-umurage-muted text-xs font-semibold mb-1">Transcript</p>
+      //                 <p className="text-umurage-muted text-xs leading-relaxed line-clamp-3">{item.transcript as string}</p>
+      //               </div>
+      //             )}
 
-                  {item.tags && (item.tags as string[]).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {(item.tags as string[]).map(tag => (
-                        <span key={tag} className="text-[10px] text-umurage-gold/70 bg-umurage-gold/8 border border-umurage-gold/15 px-2 py-0.5 rounded-full">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      //             {item.tags && (item.tags as string[]).length > 0 && (
+      //               <div className="flex flex-wrap gap-1.5 mt-3">
+      //                 {(item.tags as string[]).map(tag => (
+      //                   <span key={tag} className="text-[10px] text-umurage-gold/70 bg-umurage-gold/8 border border-umurage-gold/15 px-2 py-0.5 rounded-full">
+      //                     #{tag}
+      //                   </span>
+      //                 ))}
+      //               </div>
+      //             )}
+      //           </div>
+      //         ))}
+      //       </div>
+      //     )}
+      //   </div>
+      // )}
     </div>
   );
 };
