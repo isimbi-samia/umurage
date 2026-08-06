@@ -4,7 +4,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import StoriesBar from '@/components/features/StoriesBar';
 import ContentCard from '@/components/features/ContentCard';
-import RightSidebar from '@/components/features/RightSidebar';
 import { usePosts, useUserLikes, useUserSaves } from '@/hooks/usePosts';
 import { TabType } from '@/types';
 
@@ -146,7 +145,6 @@ const Home: React.FC = () => {
         )}
       </div>
 
-      <RightSidebar />
     </div>
   );
 };
