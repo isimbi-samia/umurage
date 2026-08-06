@@ -62,8 +62,8 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         menuOpen={sidebarOpen}
       />
 
-      <main className="relative z-10 pt-16 min-h-screen overflow-auto lg:pr-80">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="relative z-10 pt-16 min-h-screen overflow-auto lg:ml-[260px] lg:mr-80">
+        <div className="w-full max-w-none px-4 py-6 lg:px-6">
           {children}
         </div>
       </main>
