@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   X, Eye, EyeOff, Loader2, Mail, KeyRound, User, AtSign,
-  ChevronRight, Phone, CheckCircle, ArrowLeft, ShieldCheck, Lock
+  ChevronRight, Phone, CheckCircle, ArrowLeft, ShieldCheck, Lock, GraduationCap
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
