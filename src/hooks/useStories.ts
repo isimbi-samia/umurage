@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
-const STORIES_BUCKET = 'umurage-media'; // change this if stories have their own dedicated bucket
+const STORIES_BUCKET = 'stories'; // change this if stories have their own dedicated bucket
 
 export interface Story {
   id: string;
