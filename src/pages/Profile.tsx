@@ -36,6 +36,16 @@ interface ProfileRecord {
   posts_count?: number | null;
 }
 
+interface ProfileAuthorRecord {
+  id: string;
+  username?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  verified?: boolean | null;
+  verified_type?: string | null;
+  role?: string | null;
+}
+
 interface ProfilePostRecord {
   id: string;
   title?: string | null;
@@ -48,15 +58,8 @@ interface ProfilePostRecord {
   region?: string | null;
   tags?: string[] | null;
   created_at?: string;
-  author?: {
-    id: string;
-    username?: string | null;
-    email?: string | null;
-    avatar_url?: string | null;
-    verified?: boolean | null;
-    verified_type?: string | null;
-    role?: string | null;
-  } | null;
+  user_id?: string;
+  author?: ProfileAuthorRecord | null;
   likes_count?: number | null;
   comments_count?: number | null;
   shares_count?: number | null;
@@ -88,21 +91,39 @@ function useUserProfile(userId?: string) {
   });
 }
 
+// ── Fetch a user's own posts, then their profile separately (no embedded join) ──
 function useUserPosts(userId?: string) {
   return useQuery<ProfilePostRecord[]>({
     queryKey: ['user-posts', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data: posts, error } = await supabase
         .from('posts')
-        .select(`
-          id, title, description, type, thumbnail_url, media_url, duration, category, region, tags, created_at, likes_count, comments_count, shares_count, views,
-          author:profiles!posts_user_id_fkey(id, username, email, avatar_url, verified, verified_type, role, full_name)
-        `)
+        .select('id, title, description, type, thumbnail_url, media_url, duration, category, region, tags, created_at, likes_count, comments_count, shares_count, views, user_id')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as ProfilePostRecord[];
+      if (!posts || posts.length === 0) return [];
+
+      const { data: authorProfile } = await supabase
+        .from('profiles')
+        .select('id, username, email, avatar_url, verified, verification_type, role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const author: ProfileAuthorRecord | null = authorProfile
+        ? {
+            id: authorProfile.id,
+            username: authorProfile.username,
+            email: authorProfile.email,
+            avatar_url: authorProfile.avatar_url,
+            verified: authorProfile.verified,
+            verified_type: authorProfile.verification_type,
+            role: authorProfile.role,
+          }
+        : null;
+
+      return (posts as ProfilePostRecord[]).map(p => ({ ...p, author }));
     },
     enabled: !!userId,
     staleTime: 30000,
@@ -260,17 +281,54 @@ const Profile: React.FC = () => {
   const { data: profile, isLoading: profileLoading } = useUserProfile(targetUserId || undefined);
   const { data: userPosts = [], isLoading: postsLoading } = useUserPosts(targetUserId || undefined);
   const { data: heritageItems = [], isLoading: heritageLoading } = useUserHeritage(targetUserId || undefined);
-  const { data: savedPosts = [], isLoading: savedLoading } = useQuery({
+
+  // ── Saved posts: fetch saves -> posts -> authors as separate queries (no embedded join on a view) ──
+  const { data: savedPosts = [], isLoading: savedLoading } = useQuery<ProfilePostRecord[]>({
     queryKey: ['saved-posts', authUser?.id],
     queryFn: async () => {
       if (!authUser?.id || !isOwnProfile) return [];
-      const { data, error } = await supabase
+
+      const { data: saves, error: savesError } = await supabase
         .from('saves')
-        .select(`post:posts(*, author:user_profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
+        .select('post_id, created_at')
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map((s: { post: unknown }) => s.post).filter(Boolean);
+      if (savesError) throw savesError;
+      if (!saves || saves.length === 0) return [];
+
+      const postIds = saves.map((s: { post_id: string }) => s.post_id);
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .in('id', postIds);
+      if (postsError) throw postsError;
+
+      const authorIds = [...new Set((posts || []).map((p: { user_id: string }) => p.user_id))];
+      const { data: authors } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, verified, verification_type, role')
+        .in('id', authorIds);
+
+      const authorMap = new Map(
+        (authors || []).map((a: Record<string, unknown>) => [
+          a.id,
+          {
+            id: a.id,
+            username: a.username,
+            avatar_url: a.avatar_url,
+            verified: a.verified,
+            verified_type: a.verification_type,
+            role: a.role,
+          } as ProfileAuthorRecord,
+        ])
+      );
+
+      const postMap = new Map((posts || []).map((p: ProfilePostRecord) => [p.id, p]));
+
+      return saves
+        .map((s: { post_id: string }) => postMap.get(s.post_id))
+        .filter((p): p is ProfilePostRecord => !!p)
+        .map(p => ({ ...p, author: authorMap.get(p.user_id as string) || null }));
     },
     enabled: !!authUser?.id && isOwnProfile,
     staleTime: 30000,
@@ -444,9 +502,9 @@ const Profile: React.FC = () => {
               <div>
                 <h1 className="font-cinzel text-umurage-gold text-xl font-bold">{displayName}</h1>
                 <p className="text-umurage-muted text-sm">@{profile.username || displayName}</p>
-                {profile.verified && profile.verified_type && (
+                {profile.verified && profile.verification_type && (
                   <span className="inline-flex items-center gap-1 text-umurage-verified text-xs font-medium mt-1">
-                    <Star size={11} fill="currentColor" /> {profile.verified_type}
+                    <Star size={11} fill="currentColor" /> {profile.verification_type}
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1 text-umurage-subtle text-xs mt-1 ml-2 capitalize">
