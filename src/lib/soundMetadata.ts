@@ -1,4 +1,5 @@
 import { CulturalSound } from '@/data/culturalSounds';
+import { RwandanCulturalMusic } from '@/data/rwandaCulturalMusic';
 
 export interface SoundMeta {
   id?: string;
@@ -8,12 +9,13 @@ export interface SoundMeta {
   muteOriginalAudio?: boolean;
 }
 
-export function formatSoundMetaTag(sound: CulturalSound | SoundMeta, muteOriginalAudio: boolean = false): string {
+export function formatSoundMetaTag(sound: CulturalSound | RwandanCulturalMusic | SoundMeta, muteOriginalAudio: boolean = false): string {
+  const audioUrl = (sound as RwandanCulturalMusic).audio_url || (sound as CulturalSound).audio_url || (sound as SoundMeta).url;
   const meta: SoundMeta = {
     id: sound.id,
     title: sound.title,
     artist: sound.artist,
-    url: (sound as CulturalSound).audio_url || (sound as SoundMeta).url,
+    url: audioUrl,
     muteOriginalAudio,
   };
   return `__sound:${JSON.stringify(meta)}`;
@@ -40,15 +42,16 @@ export function extractSoundFromTags(tags: string[] | undefined): { sound: Sound
   return { sound, cleanTags };
 }
 
-export function formatStoryCaptionWithSound(caption: string | undefined | null, sound: CulturalSound | SoundMeta | null, muteOriginalAudio: boolean = false): string {
+export function formatStoryCaptionWithSound(caption: string | undefined | null, sound: CulturalSound | RwandanCulturalMusic | SoundMeta | null, muteOriginalAudio: boolean = false): string {
   const baseCaption = (caption || '').trim();
   if (!sound) return baseCaption;
 
+  const audioUrl = (sound as RwandanCulturalMusic).audio_url || (sound as CulturalSound).audio_url || (sound as SoundMeta).url;
   const meta: SoundMeta = {
     id: sound.id,
     title: sound.title,
     artist: sound.artist,
-    url: (sound as CulturalSound).audio_url || (sound as SoundMeta).url,
+    url: audioUrl,
     muteOriginalAudio,
   };
 

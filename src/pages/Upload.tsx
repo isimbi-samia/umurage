@@ -24,7 +24,7 @@ import {
   uploadMediaToStorage,
 } from '@/lib/uploadMedia';
 import { SoundSelectorModal } from '@/components/features/SoundSelectorModal';
-import { CulturalSound } from '@/data/culturalSounds';
+import { RwandanCulturalMusic } from '@/data/rwandaCulturalMusic';
 import { formatSoundMetaTag, formatStoryCaptionWithSound } from '@/lib/soundMetadata';
 
 const CONTENT_TYPES = [
@@ -101,7 +101,7 @@ const Upload: React.FC = () => {
   const [processingStep, setProcessingStep] = useState('');
 
   // ── Music / Sound selection state ──────────────────────────────────────────
-  const [selectedSound, setSelectedSound] = useState<CulturalSound | null>(null);
+  const [selectedSound, setSelectedSound] = useState<RwandanCulturalMusic | null>(null);
   const [muteOriginalAudio, setMuteOriginalAudio] = useState(false);
   const [isSoundModalOpen, setIsSoundModalOpen] = useState(false);
 
