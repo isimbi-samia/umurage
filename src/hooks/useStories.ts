@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { uploadMediaToStorage } from '@/lib/uploadMedia';
+import { toast } from 'sonner';
 
-const STORIES_BUCKET = 'stories'; // change this if stories have their own dedicated bucket
+const STORIES_BUCKET = 'stories';
 
 export interface Story {
   id: string;
@@ -95,6 +96,48 @@ export function useUploadStory() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['stories'] });
+      toast.success('Story posted successfully! 🌟');
+    },
+  });
+}
+
+// ── Repost / Share a post to a story ────────────────────────────────────
+export function useSharePostToStory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      postId,
+      postTitle,
+      mediaUrl,
+      postType,
+    }: {
+      userId: string;
+      postId: string;
+      postTitle: string;
+      mediaUrl: string;
+      postType?: string;
+    }) => {
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const storyType = postType === 'video' ? 'video' : 'image';
+      const caption = `Shared post: "${postTitle}"`;
+
+      const { error } = await supabase.from('stories').insert({
+        user_id: userId,
+        media_url: mediaUrl,
+        type: storyType,
+        caption,
+        views: 0,
+        expires_at: expiresAt,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stories'] });
+      toast.success('Shared to your Story! 🌟');
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to share post to story');
     },
   });
 }
@@ -132,11 +175,13 @@ export function useDeleteStory() {
         .from('stories')
         .delete()
         .eq('id', storyId)
-        .eq('user_id', userId); // client-side guard; make sure RLS also restricts deletes to the owner
+        .eq('user_id', userId);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['stories'] });
+      toast.success('Story deleted');
     },
+    onError: (err: Error) => toast.error(err.message || 'Failed to delete story'),
   });
 }

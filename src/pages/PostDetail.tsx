@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Heart, MessageCircle, Share2, Bookmark,
-  Play, Pause, CheckCircle, Loader2, Send, Eye, Clock, MapPin, Tag, X, Shield, AlertCircle
+  Play, Pause, CheckCircle, Loader2, Send, Eye, Clock, MapPin, Tag, X, Shield, AlertCircle, Trash2, Radio
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { useToggleLike, useToggleSave, useComments, useAddComment, useUserLikes, useUserSaves } from '@/hooks/usePosts';
+import { useToggleLike, useToggleSave, useComments, useAddComment, useUserLikes, useUserSaves, useDeletePost } from '@/hooks/usePosts';
+import { useSharePostToStory } from '@/hooks/useStories';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -65,7 +66,7 @@ function usePost(postId: string | undefined) {
       if (!postId) return null;
       const { data, error } = await supabase
         .from('posts')
-        .select(`*, author:profiles!posts_user_id_fkey(id, username, email, avatar_url, verified, verified_type, role, bio, followers_count)`)
+        .select(`*, author:profiles(id, username, email, avatar_url, verified, verification_type, role, bio, followers_count)`)
         .eq('id', postId)
         .single();
       if (error) throw error;
@@ -79,7 +80,7 @@ function usePost(postId: string | undefined) {
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  video: '🎥', article: '📄', audio: '🎙️', book: '📚', image: '🖼️', story: '📱', document: '📎',
+  video: '🎥', article: '📄', audio: '🎙️', book: '📚', image: '🖼️', story: '📻', document: '📎',
 };
 
 const PostDetail: React.FC = () => {
@@ -92,10 +93,12 @@ const PostDetail: React.FC = () => {
   const { data: comments = [] } = useComments(id || '');
   const toggleLike = useToggleLike();
   const toggleSave = useToggleSave();
+  const deletePost = useDeletePost();
+  const sharePostToStory = useSharePostToStory();
   const addComment = useAddComment();
   const [commentText, setCommentText] = useState('');
-  const [mediaPlaying, setMediaPlaying] = useState(false);
 
+  const isOwner = !!(user?.id && post && (post.author?.id === user.id || post.user_id === user.id));
   const isLiked = post ? (likedSet?.has(post.id) ?? false) : false;
   const isSaved = post ? (savedSet?.has(post.id) ?? false) : false;
 
@@ -118,6 +121,32 @@ const PostDetail: React.FC = () => {
     const url = window.location.href;
     navigator.clipboard?.writeText(url).then(() => toast.success('Link copied!')).catch(() => {});
   };
+
+  const handleDeletePost = () => requireAuth(() => {
+    if (!user || !post) return;
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      deletePost.mutate(
+        { postId: post.id, userId: user.id },
+        { onSuccess: () => navigate('/') }
+      );
+    }
+  });
+
+  const handleShareToStory = () => requireAuth(() => {
+    if (!user || !post) return;
+    const mediaUrl = post.thumbnail_url || post.media_url;
+    if (!mediaUrl) {
+      toast.error('Post must have media or a thumbnail to share to story');
+      return;
+    }
+    sharePostToStory.mutate({
+      userId: user.id,
+      postId: post.id,
+      postTitle: post.title,
+      mediaUrl,
+      postType: post.type,
+    });
+  });
 
   const handleComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,6 +230,16 @@ const PostDetail: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isOwner && (
+              <button
+                onClick={handleDeletePost}
+                disabled={deletePost.isPending}
+                className="p-1.5 text-umurage-subtle hover:text-red-400 transition-colors rounded"
+                title="Delete Post"
+              >
+                {deletePost.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              </button>
+            )}
             <span className="type-badge">
               {TYPE_ICONS[post.type] || '📄'} {post.type}
             </span>
@@ -334,9 +373,20 @@ const PostDetail: React.FC = () => {
             <button
               onClick={handleShare}
               className="flex items-center gap-2 text-sm text-umurage-subtle hover:text-umurage-gold transition-colors"
+              title="Copy post link"
             >
               <Share2 size={18} />
               <span>{post.shares_count}</span>
+            </button>
+
+            <button
+              onClick={handleShareToStory}
+              disabled={sharePostToStory.isPending}
+              className="flex items-center gap-2 text-sm text-umurage-subtle hover:text-[#d4a24c] transition-colors"
+              title="Share this post to your 24h Story"
+            >
+              {sharePostToStory.isPending ? <Loader2 size={18} className="animate-spin" /> : <Radio size={18} />}
+              <span>Story</span>
             </button>
           </div>
 

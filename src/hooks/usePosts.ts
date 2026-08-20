@@ -29,6 +29,7 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
           )
         `)
         .eq('published', true)
+        .neq('type', 'story')
         .limit(PAGE_SIZE + 1);
 
       if (tab === 'following' && userId) {
@@ -315,5 +316,28 @@ export function useTrending() {
       }));
     },
     staleTime: 60000,
+  });
+}
+
+// Delete post
+export function useDeletePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ postId, userId }: { postId: string; userId: string }) => {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['posts'] });
+      qc.invalidateQueries({ queryKey: ['user-posts'] });
+      qc.invalidateQueries({ queryKey: ['trending'] });
+      qc.invalidateQueries({ queryKey: ['saved-posts'] });
+      toast.success('Post deleted successfully');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Failed to delete post'),
   });
 }

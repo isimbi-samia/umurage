@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Eye, ChevronLeft, ChevronRight, Sparkles, Clock3, Trash2, Loader2 } from 'lucide-react';
+import { X, Eye, ChevronLeft, ChevronRight, Clock3, Trash2, Loader2, Plus, Radio } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useMarkStoryViewed, useStories, useDeleteStory, Story } from '@/hooks/useStories';
@@ -32,19 +32,21 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
 
   const handleDelete = () => {
     if (!user) return;
-    deleteStory.mutate(
-      { storyId: story.id, userId: user.id },
-      {
-        onSuccess: () => { toast.success('Story deleted'); onClose(); },
-        onError: (err: unknown) => toast.error((err as Error).message || 'Failed to delete story'),
-      }
-    );
+    if (window.confirm('Are you sure you want to delete this story?')) {
+      deleteStory.mutate(
+        { storyId: story.id, userId: user.id },
+        {
+          onSuccess: () => { onClose(); },
+          onError: (err: unknown) => toast.error((err as Error).message || 'Failed to delete story'),
+        }
+      );
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
-      <div className="relative h-[88vh] w-full max-w-md overflow-hidden rounded-[28px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.45)]">
-        <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60">
+      <div className="relative h-[85vh] w-full max-w-md overflow-hidden rounded-xl border border-white/10 shadow-2xl bg-[#0f0905]">
+        <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/80">
           <X size={16} />
         </button>
 
@@ -52,56 +54,53 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
           <button
             onClick={handleDelete}
             disabled={deleteStory.isPending}
-            className="absolute left-3 top-4 z-20 flex h-8 items-center gap-1.5 rounded-full bg-black/40 px-3 text-xs text-white transition-colors hover:bg-red-900/60"
+            className="absolute left-3 top-4 z-20 flex h-8 items-center gap-1.5 rounded-full bg-black/60 px-3 text-xs text-white transition-colors hover:bg-red-900/80"
           >
             {deleteStory.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-            Delete
+            Delete Story
           </button>
         )}
 
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#2e1c10] to-[#0f0905]">
+        <div className="flex h-full w-full items-center justify-center bg-[#0f0905]">
           {isVideo ? (
             <video src={story.media_url} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
           ) : (
             <img src={story.media_url} alt={story.caption || 'Story'} className="absolute inset-0 h-full w-full object-cover" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/10" />
-          <div className="absolute left-3 right-3 top-12 z-10 flex items-center justify-between rounded-full bg-black/30 px-3 py-2 text-xs text-white backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
+          <div className="absolute left-3 right-3 top-14 z-10 flex items-center justify-between rounded-full bg-black/40 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10">
             <div className="flex items-center gap-2">
               <img
                 src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
                 alt={story.author?.username || 'User'}
-                className="h-8 w-8 rounded-full border border-white/20 object-cover"
+                className="h-7 w-7 rounded-full border border-white/20 object-cover"
               />
-              <div>
-                <p className="font-semibold">{story.author?.username || 'User'}</p>
-              </div>
+              <p className="font-semibold text-xs">{story.author?.username || 'User'}</p>
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-white/80">
-              <Clock3 size={12} />
+            <div className="flex items-center gap-1.5 text-[10px] text-white/70">
+              <Clock3 size={11} />
               <span>{expiresIn}h left</span>
             </div>
           </div>
 
-          <div className="relative z-10 w-full p-5 pt-28 text-center">
-            <div className="rounded-[20px] border border-white/10 bg-black/30 p-4 backdrop-blur-sm">
-              <div className="mb-2 flex items-center justify-center gap-2 text-amber-100">
-                <Eye size={14} />
-                <span className="text-xs">{story.views} views</span>
+          {story.caption && (
+            <div className="absolute bottom-6 left-4 right-4 z-10 rounded-xl bg-black/70 p-3 backdrop-blur-sm border border-white/10 text-center">
+              <p className="text-xs text-white/90 leading-relaxed">{story.caption}</p>
+              <div className="mt-1.5 flex items-center justify-center gap-1 text-[10px] text-white/60">
+                <Eye size={11} />
+                <span>{story.views} views</span>
               </div>
-              {story.caption && <p className="mt-2 text-sm text-white/85">{story.caption}</p>}
-              <p className="mt-2 text-sm text-white/60">{story.author?.verified ? 'Verified creator' : 'Community story'}</p>
             </div>
-          </div>
+          )}
         </div>
 
         {hasPrev && (
-          <button onClick={onPrev} className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50">
+          <button onClick={onPrev} className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/70">
             <ChevronLeft size={18} />
           </button>
         )}
         {hasNext && (
-          <button onClick={onNext} className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50">
+          <button onClick={onNext} className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/70">
             <ChevronRight size={18} />
           </button>
         )}
@@ -110,102 +109,107 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
   );
 };
 
-const StoriesBar: React.FC = () => {
+const StoriesPage: React.FC = () => {
   const { isAuthenticated, openAuth } = useAuth();
   const navigate = useNavigate();
   const [viewingIdx, setViewingIdx] = useState<number | null>(null);
-  const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
-
   const { data: stories = [], isLoading } = useStories();
 
-  const handleStoryClick = (storyId: string) => {
-    const idx = stories.findIndex(s => s.id === storyId);
-    if (idx >= 0) {
-      setViewingIdx(idx);
-      setViewedStories(prev => new Set([...prev, storyId]));
-    }
+  const handleStoryClick = (idx: number) => {
+    setViewingIdx(idx);
   };
-
-  const handlePrev = () => setViewingIdx(p => (p !== null && p > 0 ? p - 1 : p));
-  const handleNext = () => {
-    setViewingIdx(p => {
-      if (p !== null && p < stories.length - 1) {
-        setViewedStories(prev => new Set([...prev, stories[p + 1].id]));
-        return p + 1;
-      }
-      return p;
-    });
-  };
-  const handleClose = () => setViewingIdx(null);
 
   return (
-    <>
-      <div className="w-full sticky top-16 z-40 backdrop-blur-sm bg-black/30 border-b border-white/5">
-        <div className="mx-auto max-w-4xl px-0 lg:px-0">
-          <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-hide">
-            <button
-              type="button"
-              onClick={() => (!isAuthenticated ? openAuth('login') : navigate('/stories'))}
-              aria-label="Add your story"
-              className="flex flex-col items-center gap-1 px-1"
-            >
-              <div className="story-ring has-new">
-                <div className="story-ring-inner h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-transparent text-umurage-gold text-lg font-bold">
-                  +
-                </div>
-              </div>
-              <span className="text-[10px] text-umurage-cream/70">Your Story</span>
-            </button>
-
-            {isLoading ? (
-              <div className="flex items-center gap-1 px-1">
-                <Sparkles size={14} className="text-umurage-gold animate-spin" />
-                <span className="text-[10px] text-umurage-muted">Loading stories...</span>
-              </div>
-            ) : stories.length === 0 ? (
-              <div className="flex items-center gap-1 px-2 text-[10px] text-umurage-muted">
-                <Clock3 size={12} />
-                <span>No active stories right now.</span>
-              </div>
-            ) : (
-              stories.map(story => (
-                <button
-                  key={story.id}
-                  onClick={() => handleStoryClick(story.id)}
-                  aria-label={story.author?.username || 'Story'}
-                  className="flex flex-col items-center gap-1 px-1"
-                >
-                  <div className={`story-ring ${!viewedStories.has(story.id) ? 'has-new' : ''}`}>
-                    <div className="story-ring-inner h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden bg-transparent">
-                      <img
-                        src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
-                        alt={story.author?.username || 'User'}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-umurage-cream/70 truncate max-w-[56px] text-center">
-                    {(story.author?.username || 'User').split(' ')[0]}
-                  </span>
-                </button>
-              ))
-            )}
+    <div className="animate-fade-in max-w-4xl mx-auto py-4">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Radio size={22} className="text-[#d4a24c]" />
+            <h1 className="font-cinzel text-2xl text-[#d4a24c] font-bold">Cultural Stories</h1>
           </div>
+          <p className="text-xs text-[#a89078]">24-hour visual & video moments shared by the Umurage community.</p>
         </div>
+
+        <button
+          onClick={() => (!isAuthenticated ? openAuth('login') : navigate('/upload'))}
+          className="btn-gold py-2 px-4 text-xs font-semibold flex items-center gap-1.5"
+        >
+          <Plus size={14} />
+          <span>Add Story</span>
+        </button>
       </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 size={24} className="text-[#d4a24c] animate-spin" />
+        </div>
+      ) : stories.length === 0 ? (
+        <div className="rounded-xl border border-[#2d1e13] bg-[#160f09] py-16 px-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-[#24170d] flex items-center justify-center mx-auto mb-3 text-[#d4a24c]">
+            <Radio size={22} />
+          </div>
+          <h3 className="text-sm font-semibold text-[#f2e6d8] mb-1">No active stories right now</h3>
+          <p className="text-xs text-[#a89078] mb-4">Be the first to share a 24-hour story with the community!</p>
+          <button
+            onClick={() => (!isAuthenticated ? openAuth('login') : navigate('/upload'))}
+            className="btn-gold py-2 px-4 text-xs"
+          >
+            Create a Story
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {stories.map((story, idx) => (
+            <div
+              key={story.id}
+              onClick={() => handleStoryClick(idx)}
+              className="relative cursor-pointer overflow-hidden rounded-xl border border-[#2d1e13] bg-[#1a110a] h-64 group hover:border-[#c8960c]/60 transition-all duration-200"
+            >
+              {story.type === 'video' ? (
+                <video src={story.media_url} className="h-full w-full object-cover" />
+              ) : (
+                <img src={story.media_url} alt={story.caption || 'Story'} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-xs rounded-full p-1 pr-2.5">
+                <img
+                  src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
+                  alt={story.author?.username || 'User'}
+                  className="w-5 h-5 rounded-full object-cover border border-white/20"
+                />
+                <span className="text-[10px] font-medium text-white truncate max-w-[80px]">
+                  {story.author?.username || 'User'}
+                </span>
+              </div>
+
+              {story.caption && (
+                <div className="absolute bottom-2 left-2 right-2">
+                  <p className="text-xs text-white line-clamp-2 leading-snug">{story.caption}</p>
+                  <div className="mt-1 flex items-center gap-1 text-[10px] text-white/70">
+                    <Eye size={10} />
+                    <span>{story.views} views</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {viewingIdx !== null && stories[viewingIdx] && (
         <StoryViewer
           story={stories[viewingIdx]}
-          onClose={handleClose}
-          onPrev={handlePrev}
-          onNext={handleNext}
+          onClose={() => setViewingIdx(null)}
+          onPrev={() => setViewingIdx(p => (p !== null && p > 0 ? p - 1 : p))}
+          onNext={() => setViewingIdx(p => (p !== null && p < stories.length - 1 ? p + 1 : p))}
           hasPrev={viewingIdx > 0}
           hasNext={viewingIdx < stories.length - 1}
         />
       )}
-    </>
+    </div>
   );
 };
 
-export default StoriesBar;
+export default StoriesPage;

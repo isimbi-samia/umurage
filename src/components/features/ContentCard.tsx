@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send, Eye } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send, Eye, Trash2, Radio } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToggleLike, useToggleSave, useComments, useAddComment, useTrackPostView } from '@/hooks/usePosts';
+import { useToggleLike, useToggleSave, useComments, useAddComment, useTrackPostView, useDeletePost } from '@/hooks/usePosts';
+import { useSharePostToStory } from '@/hooks/useStories';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -17,6 +18,7 @@ interface PostAuthor {
 
 interface Post {
   id: string;
+  user_id?: string;
   type: 'video' | 'article' | 'audio' | 'book' | 'image' | 'story' | 'document';
   title: string;
   description: string | null;
@@ -62,6 +64,8 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   const navigate = useNavigate();
   const toggleLike = useToggleLike();
   const toggleSave = useToggleSave();
+  const deletePost = useDeletePost();
+  const sharePostToStory = useSharePostToStory();
   const trackPostView = useTrackPostView();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -69,6 +73,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   const addComment = useAddComment();
   const { data: comments = [] } = useComments(showComments ? item.id : '');
 
+  const isOwner = !!(user?.id && (item.author?.id === user.id || item.user_id === user.id));
   const isLiked = likedSet ? likedSet.has(item.id) : (item.liked || false);
   const isSaved = savedSet ? savedSet.has(item.id) : (item.saved || false);
   const likesCount = item.likes_count ?? item.likes ?? 0;
@@ -101,6 +106,35 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
     e.stopPropagation();
     const url = `${window.location.origin}/post/${item.id}`;
     navigator.clipboard?.writeText(url).then(() => toast.success('Link copied!')).catch(() => toast.info('Share this post!'));
+  };
+
+  const handleDeletePost = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    requireAuth(() => {
+      if (!user) return;
+      if (window.confirm('Are you sure you want to delete this post?')) {
+        deletePost.mutate({ postId: item.id, userId: user.id });
+      }
+    });
+  };
+
+  const handleShareToStory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    requireAuth(() => {
+      if (!user) return;
+      const mediaUrl = item.thumbnail_url || item.media_url || item.thumbnail;
+      if (!mediaUrl) {
+        toast.error('Post must have media or a thumbnail to share to story');
+        return;
+      }
+      sharePostToStory.mutate({
+        userId: user.id,
+        postId: item.id,
+        postTitle: item.title,
+        mediaUrl,
+        postType: item.type,
+      });
+    });
   };
 
   const handleComment = (e: React.FormEvent) => {
@@ -167,7 +201,19 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
           </div>
         </div>
 
-        <span className={`type-badge ${typeBadgeClass}`}>{item.type || 'article'}</span>
+        <div className="flex items-center gap-2">
+          {isOwner && (
+            <button
+              onClick={handleDeletePost}
+              disabled={deletePost.isPending}
+              className="p-1.5 text-[#a89078] hover:text-red-400 transition-colors rounded"
+              title="Delete post"
+            >
+              {deletePost.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={14} />}
+            </button>
+          )}
+          <span className={`type-badge ${typeBadgeClass}`}>{item.type || 'article'}</span>
+        </div>
       </div>
 
       {/* Content Area */}
@@ -242,9 +288,19 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
             <span>{commentsCount}</span>
           </button>
 
-          <button onClick={handleShare} className="flex items-center gap-1.5 text-xs font-medium text-[#a89078] hover:text-[#f2e6d8] transition-colors">
+          <button onClick={handleShare} className="flex items-center gap-1.5 text-xs font-medium text-[#a89078] hover:text-[#f2e6d8] transition-colors" title="Copy link to post">
             <Share2 size={15} />
             <span>{sharesCount}</span>
+          </button>
+
+          <button
+            onClick={handleShareToStory}
+            disabled={sharePostToStory.isPending}
+            className="flex items-center gap-1.5 text-xs font-medium text-[#a89078] hover:text-[#d4a24c] transition-colors"
+            title="Repost this to your 24h Story"
+          >
+            {sharePostToStory.isPending ? <Loader2 size={14} className="animate-spin" /> : <Radio size={15} />}
+            <span>Story</span>
           </button>
         </div>
 
