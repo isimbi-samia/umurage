@@ -54,75 +54,74 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   return (
     <>
       {open && (
-        <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/70 z-30 lg:hidden backdrop-blur-xs" onClick={onClose} />
       )}
 
       <aside
         className={`
           fixed left-0 top-0 h-full z-40 flex flex-col
-          w-[260px] border-r border-[#4a2a12]/80 bg-[#1a100b]
-          shadow-[12px_0_40px_rgba(0,0,0,0.26)]
-          transition-transform duration-300
+          w-[250px] border-r border-[#2d1e13] bg-[#120c08]
+          transition-transform duration-200 ease-out
           ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{ paddingTop: '4rem' }}
       >
-        <div className="flex items-center gap-3 border-b border-[#5c3417]/50 px-4 py-4">
-          <div className="w-9 h-9 rounded-2xl overflow-hidden flex-shrink-0 border border-amber-400/30 shadow-[0_0_12px_rgba(212,162,76,0.18)]">
+        {/* Brand Header */}
+        <div className="flex items-center gap-3 border-b border-[#291b10] px-4 py-3.5">
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 border border-[#c8960c]/30">
             <img src={logoImg} alt="Umurage Hub" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="font-cinzel text-amber-300 font-bold text-xs leading-tight tracking-[0.25em]">
+            <h1 className="font-cinzel text-[#d4a24c] font-bold text-xs leading-tight tracking-wider">
               UMURAGE HUB
             </h1>
-            <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.25em] text-amber-200/60">
+            <p className="text-[10px] text-[#a89078] tracking-tight">
               Preserve. Connect. Celebrate.
             </p>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-1 scrollbar-thin scrollbar-thumb-amber-400/40">
-          {NAV_ITEMS.map(({ label, icon: Icon, path }) => (
-            <button
-              key={label}
-              onClick={() => handleNav(path)}
-              className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-xs font-medium transition-all duration-200 ${location.pathname === path ? 'bg-[#3f260f] text-amber-200 shadow-[0_10px_24px_rgba(0,0,0,0.18)]' : 'text-[#f5e6d0]/80 hover:bg-[#2f1b0c] hover:text-amber-100'}`}
-            >
-              <Icon size={14} className={`flex-shrink-0 ${location.pathname === path ? 'text-amber-300' : 'text-amber-200/70'}`} />
-              <span className="truncate">{label}</span>
-            </button>
-          ))}
+        {/* Navigation Items */}
+        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin">
+          {NAV_ITEMS.map(({ label, icon: Icon, path }) => {
+            const isActive = location.pathname === path;
+            return (
+              <button
+                key={label}
+                onClick={() => handleNav(path)}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors duration-150 ${
+                  isActive
+                    ? 'bg-[#24170d] text-[#d4a24c] font-semibold border-l-2 border-[#c8960c]'
+                    : 'text-[#c2b29f] hover:bg-[#1c120a] hover:text-[#f2e6d8]'
+                }`}
+              >
+                <Icon size={15} className={`flex-shrink-0 ${isActive ? 'text-[#d4a24c]' : 'text-[#8c7662]'}`} />
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
 
           <button
             type="button"
             onClick={() => (!isAuthenticated ? openAuth('login') : handleNav('/upload'))}
-            className="mt-2 flex w-full items-center gap-3 rounded-lg bg-amber-400/90 px-2 py-2 text-left text-xs font-semibold text-[#140c06] transition-all duration-200 hover:bg-amber-300"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#c8960c] px-3 py-2 text-xs font-semibold text-[#0e0906] transition-colors duration-150 hover:bg-[#d8a416]"
           >
-            <Upload size={14} className="flex-shrink-0 text-[#140c06]" />
-            <span className="truncate">Share a Story</span>
+            <Upload size={14} className="flex-shrink-0 text-[#0e0906]" />
+            <span>Share Cultural Content</span>
           </button>
-
-          {isAuthenticated && (
-            <button
-              onClick={() => handleNav('/upload')}
-              className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 ${location.pathname === '/upload' ? 'bg-[#3f260f] text-amber-200' : 'text-[#f5e6d0]/80 hover:bg-[#2f1b0c] hover:text-amber-100'}`}
-            >
-              <Upload size={16} className={`flex-shrink-0 ${location.pathname === '/upload' ? 'text-amber-300' : 'text-amber-200/70'}`} />
-              <span>Upload</span>
-            </button>
-          )}
         </nav>
 
-        <div className="mx-3 mb-4 rounded-[24px] border border-amber-400/20 bg-[linear-gradient(135deg,rgba(138,87,17,0.18),rgba(39,20,8,0.92))] p-4 shadow-[0_14px_30px_rgba(0,0,0,0.2)]">
-          <p className="mb-1 font-cinzel text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-            Share. Preserve. Inspire.
+        {/* Contribution Footer Card */}
+        <div className="m-3 rounded-xl border border-[#2d1e13] bg-[#1a110a] p-3">
+          <p className="font-cinzel text-[11px] font-semibold text-[#d4a24c] mb-1">
+            Preserve Our Heritage
           </p>
-          <p className="mb-3 text-[11px] leading-relaxed text-[#f7e7c8]/70">
-            Add your voice, story, and cultural memory to the living archive.
+          <p className="text-[11px] leading-relaxed text-[#a89078] mb-2.5">
+            Add your voice, stories, and cultural memory to the living digital archive.
           </p>
           <button
             onClick={() => (!isAuthenticated ? openAuth('signup') : handleNav('/upload'))}
-            className="w-full rounded-full border border-amber-300/40 bg-amber-400/90 px-3 py-2 text-center text-xs font-semibold text-[#140c06] transition-all duration-200 hover:bg-amber-300"
+            className="w-full rounded-lg border border-[#c8960c]/40 bg-[#c8960c]/10 py-1.5 text-center text-xs font-medium text-[#e6c885] transition-colors duration-150 hover:bg-[#c8960c]/20"
           >
             Contribute Now
           </button>

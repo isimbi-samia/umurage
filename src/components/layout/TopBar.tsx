@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Search, Bell, MessageSquare, ChevronDown, Menu, X, Upload, LogOut, User, Loader2,
-  CheckCircle, Heart, UserPlus, MessageCircle, Shield, Filter, SlidersHorizontal
+  CheckCircle, Heart, UserPlus, MessageCircle, Shield, Sparkles
 } from 'lucide-react';
 import { useLanguage, LangCode } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,11 +38,11 @@ function timeAgo(dateStr: string): string {
 }
 
 const NOTIF_ICONS: Record<string, React.ReactNode> = {
-  like: <Heart size={14} className="text-red-400" />,
-  follow: <UserPlus size={14} className="text-blue-400" />,
-  comment: <MessageCircle size={14} className="text-umurage-gold" />,
-  reply: <MessageCircle size={14} className="text-green-400" />,
-  verification: <Shield size={14} className="text-purple-400" />,
+  like: <Heart size={13} className="text-red-400" />,
+  follow: <UserPlus size={13} className="text-blue-400" />,
+  comment: <MessageCircle size={13} className="text-[#c8960c]" />,
+  reply: <MessageCircle size={13} className="text-emerald-400" />,
+  verification: <Shield size={13} className="text-purple-400" />,
 };
 
 const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ userId, onClose }) => {
@@ -61,16 +61,13 @@ const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ 
   };
 
   return (
-    <div
-      className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-umurage-border overflow-hidden z-50 animate-fade-in"
-      style={{ background: 'rgba(13,8,3,0.99)' }}
-    >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-umurage-border">
+    <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-[#2d1e13] bg-[#140d08] shadow-2xl z-[100] animate-fade-in overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#25180e]">
         <div className="flex items-center gap-2">
-          <Bell size={16} className="text-umurage-gold" />
-          <span className="text-umurage-cream font-semibold text-sm">{t('notif.title')}</span>
+          <Bell size={15} className="text-[#d4a24c]" />
+          <span className="text-[#f2e6d8] font-semibold text-xs">{t('notif.title')}</span>
           {unreadCount > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-umurage-gold text-umurage-bg font-bold">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#c8960c] text-[#0e0906] font-bold">
               {unreadCount}
             </span>
           )}
@@ -79,7 +76,7 @@ const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ 
           <button
             onClick={() => markAll.mutate(userId)}
             disabled={markAll.isPending}
-            className="text-umurage-gold text-xs hover:underline"
+            className="text-[#d4a24c] text-xs hover:underline"
           >
             {t('notif.markAllRead')}
           </button>
@@ -89,13 +86,12 @@ const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ 
       <div className="max-h-80 overflow-y-auto">
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Loader2 size={20} className="text-umurage-gold animate-spin" />
+            <Loader2 size={18} className="text-[#d4a24c] animate-spin" />
           </div>
         ) : notifications.length === 0 ? (
-          <div className="text-center py-10">
-            <Bell size={28} className="text-umurage-gold/20 mx-auto mb-2" />
-            <p className="text-umurage-muted text-sm">{t('notif.noNotifs')}</p>
-            <p className="text-umurage-subtle text-xs mt-1">Activity from likes, follows, and replies will appear here</p>
+          <div className="text-center py-8 px-4">
+            <Bell size={24} className="text-[#5c4632] mx-auto mb-2" />
+            <p className="text-[#a89078] text-xs">{t('notif.noNotifs')}</p>
           </div>
         ) : (
           notifications.map(notif => {
@@ -104,27 +100,24 @@ const NotificationPanel: React.FC<{ userId: string; onClose: () => void }> = ({ 
               <button
                 key={notif.id}
                 onClick={() => handleNotifClick(notif)}
-                className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-umurage-surface transition-colors text-left border-b border-umurage-border/40 last:border-0 ${!notif.read ? 'bg-umurage-gold/5' : ''}`}
+                className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-[#1e130a] transition-colors text-left border-b border-[#25180e]/60 last:border-0 ${!notif.read ? 'bg-[#c8960c]/5' : ''}`}
               >
                 <div className="relative flex-shrink-0">
                   <img
                     src={actor?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${actor?.username || 'U'}`}
                     alt={actor?.username || 'User'}
-                    className="w-8 h-8 rounded-full object-cover border border-umurage-border"
+                    className="w-7 h-7 rounded-full object-cover border border-[#332013]"
                   />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-umurage-bg flex items-center justify-center">
-                    {NOTIF_ICONS[notif.type] || <Bell size={10} className="text-umurage-gold" />}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#120c08] flex items-center justify-center">
+                    {NOTIF_ICONS[notif.type] || <Bell size={9} className="text-[#d4a24c]" />}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs leading-snug ${notif.read ? 'text-umurage-muted' : 'text-umurage-cream'}`}>
+                  <p className={`text-xs leading-snug ${notif.read ? 'text-[#a89078]' : 'text-[#f2e6d8]'}`}>
                     {notif.message}
                   </p>
-                  <p className="text-umurage-subtle text-[10px] mt-1">{timeAgo(notif.created_at)}</p>
+                  <p className="text-[#7a6754] text-[10px] mt-1">{timeAgo(notif.created_at)}</p>
                 </div>
-                {!notif.read && (
-                  <div className="w-2 h-2 rounded-full bg-umurage-gold flex-shrink-0 mt-1" />
-                )}
               </button>
             );
           })
@@ -211,103 +204,90 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
 
   return (
     <header
-      className="fixed top-0 left-0 lg:left-[280px] right-0 z-50 flex items-center gap-4 px-4 py-3 border-b border-umurage-border"
-      style={{ background: 'rgba(15,10,5,0.96)', backdropFilter: 'blur(14px)', height: '64px' }}
+      className="fixed top-0 left-0 lg:left-[250px] right-0 z-50 flex items-center gap-3 px-4 py-2.5 border-b border-[#2d1e13] bg-[#120c08]/95 backdrop-blur-md h-16"
     >
-      <button onClick={onMenuToggle} className="lg:hidden text-umurage-muted hover:text-umurage-cream p-2 rounded-lg transition-colors">
+      <button onClick={onMenuToggle} className="lg:hidden text-[#a89078] hover:text-[#f2e6d8] p-1.5 rounded-lg transition-colors">
         {menuOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      <div className="flex-1 max-w-2xl relative" ref={searchRef}>
+      {/* Search Bar */}
+      <div className="flex-1 max-w-lg relative" ref={searchRef}>
         <form onSubmit={handleSearchSubmit}>
           <div className="relative">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8c7662]" />
             <input
               type="text"
               value={searchVal}
               onChange={e => setSearchVal(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               placeholder={t('search.placeholder')}
-              className="w-full border border-umurage-border rounded-2xl pl-11 pr-10 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/50 transition-colors"
-              style={{ background: 'rgba(34,21,8,0.8)' }}
+              className="w-full border border-[#2d1e13] bg-[#1a110a] rounded-lg pl-10 pr-9 py-2 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60 transition-colors"
             />
-            {searchLoading && <Loader2 size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-gold animate-spin" />}
+            {searchLoading && <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#d4a24c] animate-spin" />}
             {searchVal && !searchLoading && (
-              <button type="button" onClick={() => { setSearchVal(''); setSearchResults([]); setNoResults(false); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-cream transition-colors">
-                <X size={14} />
+              <button type="button" onClick={() => { setSearchVal(''); setSearchResults([]); setNoResults(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7a6754] hover:text-[#f2e6d8]">
+                <X size={13} />
               </button>
             )}
           </div>
         </form>
 
         {searchFocused && searchVal.length >= 2 && (
-          <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-umurage-border overflow-hidden z-50 animate-fade-in" style={{ background: 'rgba(22,14,5,0.99)' }}>
+          <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-[#2d1e13] bg-[#140d08] shadow-2xl z-[100] overflow-hidden animate-fade-in">
             {searchLoading ? (
-              <div className="flex items-center justify-center py-6 gap-2">
-                <Loader2 size={16} className="text-umurage-gold animate-spin" />
-                <span className="text-umurage-muted text-sm">Searching...</span>
+              <div className="flex items-center justify-center py-4 gap-2">
+                <Loader2 size={15} className="text-[#d4a24c] animate-spin" />
+                <span className="text-[#a89078] text-xs">Searching...</span>
               </div>
             ) : noResults ? (
-              <div className="py-8 text-center">
-                <Search size={28} className="text-umurage-gold/20 mx-auto mb-2" />
-                <p className="text-umurage-muted text-sm font-medium">No content found for "{searchVal}"</p>
-                <p className="text-umurage-subtle text-xs mt-1">Try different keywords or browse the Library</p>
-                <button onClick={() => { navigate('/library'); setSearchFocused(false); }} className="mt-3 text-umurage-gold text-xs hover:underline">Browse Cultural Library →</button>
+              <div className="py-6 text-center px-4">
+                <Search size={22} className="text-[#5c4632] mx-auto mb-1.5" />
+                <p className="text-[#a89078] text-xs">No content found for "{searchVal}"</p>
+                <button onClick={() => { navigate('/library'); setSearchFocused(false); }} className="mt-2 text-[#d4a24c] text-xs hover:underline">Browse Library →</button>
               </div>
             ) : searchResults.length > 0 ? (
               <>
-                <div className="px-3 py-2 border-b border-umurage-border/50">
-                  <span className="text-umurage-subtle text-[10px] font-semibold uppercase tracking-wider">Search Results</span>
-                </div>
                 {searchResults.map(result => (
                   <button key={result.id} onClick={() => handleSearchSelect(result)}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-umurage-surface transition-colors text-left">
-                    <span className="text-lg flex-shrink-0">{TYPE_ICONS[result.type] || '📄'}</span>
+                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#1e130a] transition-colors text-left border-b border-[#25180e]/50 last:border-0">
+                    <span className="text-base flex-shrink-0">{TYPE_ICONS[result.type] || '📄'}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-umurage-cream text-sm font-medium truncate">{result.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-umurage-gold text-[10px] capitalize">{result.type}</span>
-                        <span className="text-umurage-subtle text-[10px]">· {result.category}</span>
-                      </div>
+                      <p className="text-[#f2e6d8] text-xs font-medium truncate">{result.title}</p>
+                      <span className="text-[#a89078] text-[10px] capitalize">{result.type} · {result.category}</span>
                     </div>
                   </button>
                 ))}
-                <button onClick={() => { navigate(`/library?q=${encodeURIComponent(searchVal)}`); setSearchFocused(false); }}
-                  className="w-full px-4 py-3 text-sm text-umurage-gold hover:bg-umurage-surface transition-colors text-left border-t border-umurage-border/50 flex items-center gap-2">
-                  <Search size={14} /> See all results for "{searchVal}"
-                </button>
               </>
             ) : null}
           </div>
         )}
       </div>
 
+      {/* Right Controls */}
       <div className="flex items-center gap-2 ml-auto">
         <InstallPrompt />
         <div className="relative">
-          <select value={lang} onChange={e => setLang(e.target.value as LangCode)} className="lang-select pr-6 text-sm font-semibold cursor-pointer">
+          <select value={lang} onChange={e => setLang(e.target.value as LangCode)} className="lang-select pr-5 text-xs font-medium cursor-pointer">
             {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
           </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-umurage-muted pointer-events-none" />
+          <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#8c7662] pointer-events-none" />
         </div>
 
         {isAuthenticated ? (
           <>
-            <button onClick={() => navigate('/upload')} className="hidden sm:flex items-center gap-1.5 btn-outline-gold text-xs py-2 px-3">
-              <Upload size={14} /> <span>{t('upload')}</span>
+            <button onClick={() => navigate('/upload')} className="hidden sm:flex items-center gap-1.5 btn-outline-gold text-xs py-1.5 px-3">
+              <Upload size={13} /> <span>{t('upload')}</span>
             </button>
 
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
-                className="relative p-2 text-umurage-muted hover:text-umurage-cream rounded-lg hover:bg-umurage-card transition-colors"
+                className="relative p-2 text-[#a89078] hover:text-[#f2e6d8] rounded-lg hover:bg-[#1e130a] transition-colors"
                 title={t('notif.title')}
               >
-                <Bell size={18} />
+                <Bell size={17} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-umurage-gold rounded-full flex items-center justify-center text-[9px] font-bold text-umurage-bg">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#c8960c]" />
                 )}
               </button>
               {showNotifs && user?.id && (
@@ -315,55 +295,44 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
               )}
             </div>
 
-            <button onClick={() => navigate('/messages')} className="p-2 text-umurage-muted hover:text-umurage-cream rounded-lg hover:bg-umurage-card transition-colors" title="Messages">
-              <MessageSquare size={18} />
+            <button onClick={() => navigate('/messages')} className="p-2 text-[#a89078] hover:text-[#f2e6d8] rounded-lg hover:bg-[#1e130a] transition-colors" title="Messages">
+              <MessageSquare size={17} />
             </button>
 
-            <button onClick={() => navigate('/discussions')} className="p-2 text-umurage-muted hover:text-umurage-cream rounded-lg hover:bg-umurage-card transition-colors" title="Discussions">
-              <MessageSquare size={18} />
-            </button>
-
+            {/* Profile Avatar Dropdown */}
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifs(false); }}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-umurage-card transition-colors"
+                className="flex items-center gap-2 p-1 rounded-lg hover:bg-[#1e130a] transition-colors"
               >
-                <div className="relative">
-                  <img
-                    src={user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`}
-                    alt={user?.name || 'User'}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-umurage-gold/40"
-                  />
-                  {user?.verified && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-umurage-verified border border-umurage-bg flex items-center justify-center">
-                      <span className="text-white text-[7px] font-bold">✓</span>
-                    </div>
-                  )}
-                </div>
-                <span className="text-umurage-cream text-sm font-medium hidden sm:block">{user?.name?.split(' ')[0]}</span>
-                <ChevronDown size={13} className="text-umurage-muted" />
+                <img
+                  src={user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`}
+                  alt={user?.name || 'User'}
+                  className="w-7 h-7 rounded-full object-cover border border-[#c8960c]/40"
+                />
+                <span className="text-[#f2e6d8] text-xs font-medium hidden sm:block">{user?.name?.split(' ')[0]}</span>
+                <ChevronDown size={12} className="text-[#8c7662]" />
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 top-full mt-2 w-52 umurage-card rounded-xl border border-umurage-border py-2 z-[100] shadow-2xl animate-fade-in">
-                  <div className="px-4 py-2 border-b border-umurage-border/50 mb-1">
-                    <p className="text-umurage-cream text-sm font-semibold truncate">{user?.name}</p>
-                    <p className="text-umurage-subtle text-[10px] truncate">{user?.email}</p>
+                <div className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-[#2d1e13] bg-[#140d08] py-1.5 z-[100] shadow-2xl animate-fade-in">
+                  <div className="px-3 py-2 border-b border-[#25180e]">
+                    <p className="text-[#f2e6d8] text-xs font-semibold truncate">{user?.name}</p>
+                    <p className="text-[#7a6754] text-[10px] truncate">{user?.email}</p>
                   </div>
-                  <button onMouseDown={e => { e.preventDefault(); setShowUserMenu(false); navigate('/profile'); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-umurage-muted hover:text-umurage-cream hover:bg-umurage-surface transition-colors">
-                    <User size={15} /> Profile
+                  <button onMouseDown={e => { e.preventDefault(); setShowUserMenu(false); navigate('/profile'); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#b09d89] hover:text-[#f2e6d8] hover:bg-[#1e130a] transition-colors">
+                    <User size={14} /> Profile
                   </button>
-                  <button onMouseDown={e => { e.preventDefault(); setShowUserMenu(false); navigate('/heritage-archive'); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-umurage-muted hover:text-umurage-cream hover:bg-umurage-surface transition-colors">
+                  <button onMouseDown={e => { e.preventDefault(); setShowUserMenu(false); navigate('/heritage-archive'); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#b09d89] hover:text-[#f2e6d8] hover:bg-[#1e130a] transition-colors">
                     <span>🏛️</span> Heritage Archive
                   </button>
-                  <button onMouseDown={e => { e.preventDefault(); setShowUserMenu(false); navigate('/verification'); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-umurage-muted hover:text-umurage-cream hover:bg-umurage-surface transition-colors">
-                    <Shield size={15} className="text-umurage-gold" />
+                  <button onMouseDown={e => { e.preventDefault(); setShowUserMenu(false); navigate('/verification'); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#b09d89] hover:text-[#f2e6d8] hover:bg-[#1e130a] transition-colors">
+                    <Shield size={14} className="text-[#d4a24c]" />
                     <span>Get Verified</span>
-                    {!user?.verified && <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full bg-umurage-gold/20 text-umurage-gold border border-umurage-gold/30">NEW</span>}
                   </button>
-                  <div className="border-t border-umurage-border my-1" />
-                  <button onMouseDown={async e => { e.preventDefault(); setShowUserMenu(false); await logout(); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-umurage-surface transition-colors">
-                    <LogOut size={15} /> {t('auth.logout')}
+                  <div className="border-t border-[#25180e] my-1" />
+                  <button onMouseDown={async e => { e.preventDefault(); setShowUserMenu(false); await logout(); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-[#1e130a] transition-colors">
+                    <LogOut size={14} /> {t('auth.logout')}
                   </button>
                 </div>
               )}
@@ -371,8 +340,8 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
           </>
         ) : (
           <div className="flex items-center gap-2">
-            <button onClick={() => openAuth('login')} className="btn-outline-gold text-xs py-2 px-4">{t('auth.login')}</button>
-            <button onClick={() => openAuth('signup')} className="btn-gold text-xs py-2 px-4">{t('auth.signup')}</button>
+            <button onClick={() => openAuth('login')} className="btn-outline-gold text-xs py-1.5 px-3">{t('auth.login')}</button>
+            <button onClick={() => openAuth('signup')} className="btn-gold text-xs py-1.5 px-3">{t('auth.signup')}</button>
           </div>
         )}
       </div>

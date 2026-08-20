@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Eye, ChevronLeft, ChevronRight, Sparkles, Clock3, Trash2, Loader2 } from 'lucide-react';
+import { X, Eye, ChevronLeft, ChevronRight, Clock3, Trash2, Loader2, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useMarkStoryViewed, useStories, useDeleteStory, Story } from '@/hooks/useStories';
@@ -43,8 +43,8 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
-      <div className="relative h-[88vh] w-full max-w-md overflow-hidden rounded-[28px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.45)]">
-        <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60">
+      <div className="relative h-[85vh] w-full max-w-md overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-[#0f0905]">
+        <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/80">
           <X size={16} />
         </button>
 
@@ -52,56 +52,53 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
           <button
             onClick={handleDelete}
             disabled={deleteStory.isPending}
-            className="absolute left-3 top-4 z-20 flex h-8 items-center gap-1.5 rounded-full bg-black/40 px-3 text-xs text-white transition-colors hover:bg-red-900/60"
+            className="absolute left-3 top-4 z-20 flex h-8 items-center gap-1.5 rounded-full bg-black/50 px-3 text-xs text-white transition-colors hover:bg-red-900/60"
           >
             {deleteStory.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
             Delete
           </button>
         )}
 
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#2e1c10] to-[#0f0905]">
+        <div className="flex h-full w-full items-center justify-center bg-[#0f0905]">
           {isVideo ? (
             <video src={story.media_url} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
           ) : (
             <img src={story.media_url} alt={story.caption || 'Story'} className="absolute inset-0 h-full w-full object-cover" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/10" />
-          <div className="absolute left-3 right-3 top-12 z-10 flex items-center justify-between rounded-full bg-black/30 px-3 py-2 text-xs text-white backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
+          <div className="absolute left-3 right-3 top-12 z-10 flex items-center justify-between rounded-full bg-black/40 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10">
             <div className="flex items-center gap-2">
               <img
                 src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
                 alt={story.author?.username || 'User'}
-                className="h-8 w-8 rounded-full border border-white/20 object-cover"
+                className="h-7 w-7 rounded-full border border-white/20 object-cover"
               />
-              <div>
-                <p className="font-semibold">{story.author?.username || 'User'}</p>
-              </div>
+              <p className="font-semibold text-xs">{story.author?.username || 'User'}</p>
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-white/80">
-              <Clock3 size={12} />
+            <div className="flex items-center gap-1.5 text-[10px] text-white/70">
+              <Clock3 size={11} />
               <span>{expiresIn}h left</span>
             </div>
           </div>
 
-          <div className="relative z-10 w-full p-5 pt-28 text-center">
-            <div className="rounded-[20px] border border-white/10 bg-black/30 p-4 backdrop-blur-sm">
-              <div className="mb-2 flex items-center justify-center gap-2 text-amber-100">
-                <Eye size={14} />
-                <span className="text-xs">{story.views} views</span>
+          {story.caption && (
+            <div className="absolute bottom-6 left-4 right-4 z-10 rounded-xl bg-black/60 p-3 backdrop-blur-sm border border-white/10 text-center">
+              <p className="text-xs text-white/90 leading-relaxed">{story.caption}</p>
+              <div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-white/60">
+                <Eye size={11} />
+                <span>{story.views} views</span>
               </div>
-              {story.caption && <p className="mt-2 text-sm text-white/85">{story.caption}</p>}
-              <p className="mt-2 text-sm text-white/60">{story.author?.verified ? 'Verified creator' : 'Community story'}</p>
             </div>
-          </div>
+          )}
         </div>
 
         {hasPrev && (
-          <button onClick={onPrev} className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50">
+          <button onClick={onPrev} className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/70">
             <ChevronLeft size={18} />
           </button>
         )}
         {hasNext && (
-          <button onClick={onNext} className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50">
+          <button onClick={onNext} className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/70">
             <ChevronRight size={18} />
           </button>
         )}
@@ -140,57 +137,52 @@ const StoriesBar: React.FC = () => {
 
   return (
     <>
-      <div className="w-full sticky top-16 z-40 backdrop-blur-sm bg-black/30 border-b border-white/5">
-        <div className="mx-auto max-w-4xl px-0 lg:px-0">
-          <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-hide">
-            <button
-              type="button"
-              onClick={() => (!isAuthenticated ? openAuth('login') : navigate('/stories'))}
-              aria-label="Add your story"
-              className="flex flex-col items-center gap-1 px-1"
-            >
-              <div className="story-ring has-new">
-                <div className="story-ring-inner h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-transparent text-umurage-gold text-lg font-bold">
-                  +
-                </div>
-              </div>
-              <span className="text-[10px] text-umurage-cream/70">Your Story</span>
-            </button>
+      <div className="w-full py-2 border-b border-[#291b10] bg-[#140d08]/60">
+        <div className="flex items-center gap-3 overflow-x-auto py-1 scrollbar-hide">
+          {/* Add Your Story Item */}
+          <button
+            type="button"
+            onClick={() => (!isAuthenticated ? openAuth('login') : navigate('/upload'))}
+            className="flex flex-col items-center gap-1.5 group flex-shrink-0"
+          >
+            <div className="w-12 h-12 rounded-full border border-dashed border-[#c8960c]/60 bg-[#1e130a] flex items-center justify-center text-[#d4a24c] transition-colors group-hover:border-[#c8960c] group-hover:bg-[#28180d]">
+              <Plus size={18} />
+            </div>
+            <span className="text-[11px] font-medium text-[#c2b29f] group-hover:text-[#f2e6d8] transition-colors">Your Story</span>
+          </button>
 
-            {isLoading ? (
-              <div className="flex items-center gap-1 px-1">
-                <Sparkles size={14} className="text-umurage-gold animate-spin" />
-                <span className="text-[10px] text-umurage-muted">Loading stories...</span>
-              </div>
-            ) : stories.length === 0 ? (
-              <div className="flex items-center gap-1 px-2 text-[10px] text-umurage-muted">
-                <Clock3 size={12} />
-                <span>No active stories right now.</span>
-              </div>
-            ) : (
-              stories.map(story => (
+          {isLoading ? (
+            <div className="flex items-center gap-2 px-3 py-2 text-xs text-[#a89078]">
+              <Loader2 size={13} className="text-[#d4a24c] animate-spin" />
+              <span>Loading stories...</span>
+            </div>
+          ) : stories.length === 0 ? (
+            <div className="flex items-center gap-2 px-3 py-2 text-xs text-[#a89078] italic">
+              <span>No active stories right now. Share the first cultural story!</span>
+            </div>
+          ) : (
+            stories.map(story => {
+              const isViewed = viewedStories.has(story.id);
+              return (
                 <button
                   key={story.id}
                   onClick={() => handleStoryClick(story.id)}
-                  aria-label={story.author?.username || 'Story'}
-                  className="flex flex-col items-center gap-1 px-1"
+                  className="flex flex-col items-center gap-1.5 group flex-shrink-0"
                 >
-                  <div className={`story-ring ${!viewedStories.has(story.id) ? 'has-new' : ''}`}>
-                    <div className="story-ring-inner h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden bg-transparent">
-                      <img
-                        src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
-                        alt={story.author?.username || 'User'}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+                  <div className={`p-0.5 rounded-full border ${!isViewed ? 'border-[#c8960c]' : 'border-[#382415]'}`}>
+                    <img
+                      src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
+                      alt={story.author?.username || 'User'}
+                      className="w-11 h-11 rounded-full object-cover border border-[#140d08]"
+                    />
                   </div>
-                  <span className="text-[10px] text-umurage-cream/70 truncate max-w-[56px] text-center">
+                  <span className="text-[11px] font-medium text-[#c2b29f] truncate max-w-[60px] text-center group-hover:text-[#f2e6d8]">
                     {(story.author?.username || 'User').split(' ')[0]}
                   </span>
                 </button>
-              ))
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
       </div>
 

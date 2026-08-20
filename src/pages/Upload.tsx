@@ -290,7 +290,7 @@ const Upload: React.FC = () => {
     }
   }, [title, mediaFile, type, user, description, category, region, tags, thumbnailFile, uploadFile, createPost, uploadStory]);
 
-  const inputClass = "w-full bg-umurage-surface border border-umurage-border rounded-xl px-4 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60 transition-colors";
+  const inputClass = "w-full bg-[#1a110a] border border-[#2d1e13] rounded-lg px-3.5 py-2.5 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60 transition-colors";
 
   if (!isAuthenticated) {
     return (

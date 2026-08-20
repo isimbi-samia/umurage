@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   X, Eye, EyeOff, Loader2, Mail, KeyRound, User, AtSign,
-  ChevronRight, Phone, CheckCircle, ArrowLeft, ShieldCheck, Lock, GraduationCap, Camera, HandMetal,Building2, MapPin, BookOpen, Microscope, Users,Compass
+  ChevronRight, Phone, ArrowLeft, Lock, GraduationCap, Camera, HandMetal, Building2, MapPin, BookOpen, Microscope, Users, Compass
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -54,7 +54,7 @@ const AuthModal: React.FC = () => {
 
   if (!showAuthModal) return null;
 
-  const inp = "w-full bg-umurage-surface border border-umurage-border rounded-xl px-4 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60 transition-colors";
+  const inpClass = "w-full bg-[#1a110a] border border-[#2d1e13] rounded-lg px-3.5 py-2.5 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60 transition-colors";
 
   const resetAll = () => {
     setLoginIdentifier(''); setLoginPassword('');
@@ -129,10 +129,9 @@ const AuthModal: React.FC = () => {
       return;
     }
 
-    toast.success('Welcome to Umurage Hub! 🇷🇼');
+    toast.success('Welcome to Umurage Hub!');
   };
 
-  // ======================== HEADER TITLES ========================
   const getTitle = () => {
     if (authMode === 'signup') return 'Create Account';
     return loginView === 'forgot' ? 'Reset Password' : t('auth.loginTitle');
@@ -140,262 +139,223 @@ const AuthModal: React.FC = () => {
 
   const getSubtitle = () => {
     if (authMode === 'signup') return "Join Rwanda's cultural heritage platform";
-    return loginView === 'forgot' ? 'Enter your email and we will send you a reset link' : "Rwanda's Cultural Heritage Platform";
+    return loginView === 'forgot' ? 'Enter your email to receive a password reset link' : "Preserve. Connect. Celebrate.";
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={closeAuth} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-xs" onClick={closeAuth} />
 
-      <div className="auth-modal-card animate-fade-in overflow-y-auto">
-        {/* Close */}
-        <button onClick={closeAuth} className="absolute top-4 right-4 text-umurage-subtle hover:text-umurage-cream transition-colors z-10">
-          <X size={20} />
+      <div className="relative w-full max-w-md rounded-xl border border-[#2d1e13] bg-[#140d08] p-6 shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+        <button onClick={closeAuth} className="absolute top-4 right-4 text-[#8c7662] hover:text-[#f2e6d8] transition-colors">
+          <X size={18} />
         </button>
 
-        {/* Back arrow for forgot-password */}
         {authMode === 'login' && loginView === 'forgot' && (
           <button
             onClick={() => { setLoginView('login'); setFpEmail(''); setFpSent(false); }}
-            className="absolute top-4 left-4 text-umurage-subtle hover:text-umurage-cream transition-colors"
+            className="absolute top-4 left-4 text-[#8c7662] hover:text-[#f2e6d8] transition-colors"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
         )}
 
-        {/* Header */}
-        <div className="text-center mb-7">
-          <h2 className="auth-modal-title">{getTitle()}</h2>
-          <p className="auth-modal-subtitle">{getSubtitle()}</p>
+        <div className="text-center mb-6">
+          <h2 className="font-cinzel text-lg font-bold text-[#d4a24c] mb-1">{getTitle()}</h2>
+          <p className="text-xs text-[#a89078]">{getSubtitle()}</p>
         </div>
 
-        {/* ========== LOGIN FORM ========== */}
+        {/* LOGIN FORM */}
         {authMode === 'login' && loginView === 'login' && (
-          <form onSubmit={handleLogin} className="space-y-5 auth-inner-card">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="auth-input-label">Email, Username, or Phone</label>
-              <div className="auth-input-wrapper">
-                <AtSign size={15} className="auth-input-icon" />
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Email, Username, or Phone</label>
+              <div className="relative">
+                <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c7662]" />
                 <input
                   type="text"
                   value={loginIdentifier}
                   onChange={e => setLoginIdentifier(e.target.value)}
-                  placeholder="email@example.com, @username, or +250..."
-                  className="auth-input pl-11"
+                  placeholder="email@example.com, @username, or phone..."
+                  className={`${inpClass} pl-9`}
                   autoComplete="username"
                 />
-                <span className="auth-circle-accent" />
               </div>
             </div>
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="auth-input-label">Password</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-[#a89078] font-medium">Password</label>
                 <button
                   type="button"
                   onClick={() => { setLoginView('forgot'); setFpEmail(loginIdentifier.includes('@') ? loginIdentifier : ''); }}
-                  className="text-umurage-gold text-xs hover:underline transition-colors"
+                  className="text-[#d4a24c] text-xs hover:underline"
                 >
                   Forgot password?
                 </button>
               </div>
-              <div className="auth-input-wrapper">
-                <KeyRound size={15} className="auth-input-icon" />
+              <div className="relative">
+                <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c7662]" />
                 <input
                   type={showPw ? 'text' : 'password'}
                   value={loginPassword}
                   onChange={e => setLoginPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="auth-input pl-11 pr-11"
+                  className={`${inpClass} pl-9 pr-9`}
                   autoComplete="current-password"
                 />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="auth-toggle-btn">
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8c7662] hover:text-[#f2e6d8]">
+                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
-                <span className="auth-circle-accent" />
               </div>
             </div>
-            <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold mt-2 flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            <button type="submit" disabled={loading} className="btn-gold w-full py-2.5 text-xs font-semibold mt-2">
+              {loading ? <Loader2 size={15} className="animate-spin" /> : null}
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
         )}
 
-        {/* ========== FORGOT PASSWORD ========== */}
+        {/* FORGOT PASSWORD */}
         {authMode === 'login' && loginView === 'forgot' && (
           fpSent ? (
             <div className="text-center py-4">
-              <div className="w-16 h-16 rounded-full bg-umurage-gold/20 flex items-center justify-center mx-auto mb-4">
-                <Mail size={32} className="text-umurage-gold" />
+              <div className="w-12 h-12 rounded-full bg-[#24170d] flex items-center justify-center mx-auto mb-3 text-[#d4a24c]">
+                <Mail size={24} />
               </div>
-              <p className="text-umurage-muted text-sm mb-2">We sent a password reset link to</p>
-              <p className="text-umurage-cream text-sm font-semibold mb-6">{fpEmail}</p>
-              <button onClick={() => { setLoginView('login'); resetAll(); }} className="text-umurage-gold text-sm hover:underline">
+              <p className="text-xs text-[#a89078] mb-1">Password reset link sent to</p>
+              <p className="text-xs font-semibold text-[#f2e6d8] mb-4">{fpEmail}</p>
+              <button onClick={() => { setLoginView('login'); resetAll(); }} className="text-[#d4a24c] text-xs hover:underline">
                 Back to Sign In
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSendResetEmail} className="space-y-4">
+            <form onSubmit={handleSendResetEmail} className="space-y-3.5">
               <div>
-                <label className="text-umurage-muted text-xs font-medium block mb-1.5">Email Address</label>
+                <label className="text-xs text-[#a89078] font-medium block mb-1">Email Address</label>
                 <div className="relative">
-                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c7662]" />
                   <input
                     type="email"
                     value={fpEmail}
                     onChange={e => setFpEmail(e.target.value)}
                     placeholder="your@email.com"
-                    className={`${inp} pl-9`}
+                    className={`${inpClass} pl-9`}
                     autoFocus
                   />
                 </div>
               </div>
-              <button type="submit" disabled={loading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-                {loading ? 'Sending...' : 'Send Reset Link'}
-              </button>
-              <button type="button" onClick={() => setLoginView('login')} className="w-full text-center text-umurage-subtle text-xs hover:text-umurage-muted transition-colors py-1">
-                ← Back to Sign In
+              <button type="submit" disabled={loading} className="btn-gold w-full py-2.5 text-xs font-semibold">
+                {loading ? <Loader2 size={15} className="animate-spin" /> : 'Send Reset Link'}
               </button>
             </form>
           )
         )}
 
-        {/* ========== SIGNUP FORM ========== */}
+        {/* SIGNUP FORM */}
         {authMode === 'signup' && (
-          <form onSubmit={handleSignup} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-3">
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Full Name *</label>
-              <div className="relative">
-                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type="text" value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  placeholder="e.g. Vestine Uwimana"
-                  className={`${inp} pl-9`}
-                />
-              </div>
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Full Name *</label>
+              <input
+                type="text" value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="e.g. Vestine Uwimana"
+                className={inpClass}
+              />
             </div>
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Username *</label>
-              <div className="relative">
-                <AtSign size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type="text" value={username}
-                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, '_'))}
-                  placeholder="your_username"
-                  className={`${inp} pl-9`}
-                />
-              </div>
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Username *</label>
+              <input
+                type="text" value={username}
+                onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, '_'))}
+                placeholder="username"
+                className={inpClass}
+              />
             </div>
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Email Address *</label>
-              <div className="relative">
-                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type="email" value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className={`${inp} pl-9`}
-                />
-              </div>
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Email Address *</label>
+              <input
+                type="email" value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className={inpClass}
+              />
             </div>
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">
-                Phone Number <span className="text-umurage-subtle font-normal">(optional)</span>
-              </label>
-              <div className="relative">
-                <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
-                <input
-                  type="tel" value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="+250 7XX XXX XXX"
-                  className={`${inp} pl-9`}
-                />
-              </div>
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Phone Number (optional)</label>
+              <input
+                type="tel" value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+250 7XX XXX XXX"
+                className={inpClass}
+              />
             </div>
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Account Type *</label>
-              <select value={role} onChange={e => setRole(e.target.value)} className={`${inp} appearance-none cursor-pointer`}>
-                <option value="">Select your account type</option>
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Account Type *</label>
+              <select value={role} onChange={e => setRole(e.target.value)} className={`${inpClass} appearance-none cursor-pointer`}>
+                <option value="">Select account type</option>
                 {ACCOUNT_TYPES.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Password *</label>
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Password *</label>
               <div className="relative">
-                <KeyRound size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
                   type={showPw ? 'text' : 'password'} value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
-                  className={`${inp} pl-9 pr-10`}
+                  className={`${inpClass} pr-9`}
                 />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-muted transition-colors">
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8c7662] hover:text-[#f2e6d8]">
+                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-              {password && (
-                <div className="h-1 rounded-full bg-umurage-surface overflow-hidden mt-2">
-                  <div className={`h-full rounded-full transition-all ${
-                    password.length < 6 ? 'w-1/4 bg-red-500' :
-                    password.length < 10 ? 'w-2/4 bg-amber-400' : 'w-full bg-green-500'
-                  }`} />
-                </div>
-              )}
             </div>
             <div>
-              <label className="text-umurage-muted text-xs font-medium block mb-1.5">Confirm Password *</label>
+              <label className="text-xs text-[#a89078] font-medium block mb-1">Confirm Password *</label>
               <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
                 <input
                   type={showConfirmPw ? 'text' : 'password'} value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat your password"
-                  className={`${inp} pl-9 pr-10`}
+                  placeholder="Repeat password"
+                  className={`${inpClass} pr-9`}
                 />
-                <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-muted transition-colors">
-                  {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8c7662] hover:text-[#f2e6d8]">
+                  {showConfirmPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-              {confirmPassword && password !== confirmPassword && (
-                <p className="text-red-400 text-[10px] mt-1 ml-1">Passwords do not match</p>
-              )}
             </div>
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2 pt-1">
               <input
                 type="checkbox"
                 checked={acceptTerms}
                 onChange={e => setAcceptTerms(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-umurage-border bg-umurage-surface text-umurage-gold focus:ring-umurage-gold/50 focus:ring-offset-0 cursor-pointer"
+                className="mt-0.5 w-3.5 h-3.5 rounded border-[#2d1e13] bg-[#1a110a] text-[#c8960c] cursor-pointer"
               />
-              <label className="text-umurage-subtle text-xs leading-relaxed cursor-pointer">
-                I agree to the <a href="#" className="text-umurage-gold hover:underline">Terms of Service</a> and <a href="#" className="text-umurage-gold hover:underline">Privacy Policy</a>
+              <label className="text-[#a89078] text-xs leading-tight cursor-pointer">
+                I agree to the Terms of Service and Privacy Policy
               </label>
             </div>
             {signupError && (
-              <div className="bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-300 text-xs text-center">
-                {signupError}
-              </div>
+              <p className="text-red-400 text-xs text-center">{signupError}</p>
             )}
-            <button type="submit" disabled={registerLoading} className="btn-gold w-full py-3 text-sm font-semibold flex items-center justify-center gap-2">
-              {registerLoading ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
-              {registerLoading ? 'Creating account...' : 'Join Umurage Hub 🇷🇼'}
+            <button type="submit" disabled={registerLoading} className="btn-gold w-full py-2.5 text-xs font-semibold mt-2">
+              {registerLoading ? <Loader2 size={15} className="animate-spin" /> : 'Create Account'}
             </button>
           </form>
         )}
 
         {/* Footer switch */}
         {(authMode === 'login' && loginView === 'login') || authMode === 'signup' ? (
-          <div className="text-center mt-6">
-            <span className="text-umurage-subtle text-sm">
+          <div className="text-center mt-5 pt-3 border-t border-[#25180e]">
+            <span className="text-[#a89078] text-xs">
               {authMode === 'login' ? "Don't have an account? " : 'Already have an account? '}
             </span>
             <button
               onClick={authMode === 'login' ? switchToSignup : switchToLogin}
-              className="text-umurage-gold text-sm font-medium hover:text-umurage-gold-light transition-colors"
+              className="text-[#d4a24c] text-xs font-medium hover:underline ml-1"
             >
               {authMode === 'login' ? 'Sign Up' : 'Sign In'}
             </button>

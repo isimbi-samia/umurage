@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Loader2, Compass, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { ChevronDown, Loader2, Compass, SlidersHorizontal } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import StoriesBar from '@/components/features/StoriesBar';
@@ -44,82 +44,88 @@ const Home: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <div className="flex-1 min-w-0">
-        <div className="mb-3">
+        {/* Stories Section */}
+        <div className="mb-4">
           <div className="mb-2 flex items-center justify-between">
-            <div>
-              <p className="mb-0 text-[11px] font-semibold uppercase tracking-[0.35em] text-amber-300/80">Stories</p>
-            </div>
-            <div className="text-sm text-amber-200">Featured contributors</div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[#d4a24c]">
+              Cultural Stories
+            </h2>
           </div>
-          <div className="">
-            <StoriesBar />
-          </div>
+          <StoriesBar />
         </div>
 
-        <div className="mb-5 rounded-[24px] border border-umurage-gold/20 bg-[rgba(28,16,8,0.45)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.18)]">
-          <div className="flex items-center justify-between gap-4">
-            <div className="relative flex-1">
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-umurage-gold/20 rounded-full" />
-              <div className="flex gap-1">
-                {tabs.map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`relative px-4 py-2.5 text-sm font-semibold transition-all duration-200 rounded-full ${
-                      activeTab === tab.key
-                        ? 'text-umurage-gold-light'
-                        : 'text-umurage-cream/60 hover:text-umurage-cream'
-                    }`}
-                  >
-                    {tab.label}
-                    {activeTab === tab.key && (
-                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-umurage-gold rounded-full shadow-[0_0_8px_rgba(212,162,76,0.5)]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative">
-              <SlidersHorizontal size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-muted" />
-              <select
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value as 'latest' | 'popular' | 'trending')}
-                className="appearance-none bg-umurage-bg/80 border border-umurage-border rounded-full pl-8 pr-8 py-2 text-xs text-umurage-cream cursor-pointer focus:outline-none focus:border-umurage-gold/50 hover:border-umurage-gold/30 transition-colors"
+        {/* Tab Switcher & Filters */}
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#291b10] pb-3">
+          <div className="flex items-center gap-1">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  activeTab === tab.key
+                    ? 'bg-[#2a1a0e] text-[#d4a24c] font-semibold'
+                    : 'text-[#a89078] hover:text-[#f2e6d8] hover:bg-[#1a110a]'
+                }`}
               >
-                <option value="latest">{t('feed.latest')}</option>
-                <option value="popular">Most Popular</option>
-                <option value="trending">Trending</option>
-              </select>
-              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-umurage-muted pointer-events-none" />
-            </div>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative inline-flex items-center">
+            <SlidersHorizontal size={13} className="absolute left-2.5 text-[#8c7662] pointer-events-none" />
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as 'latest' | 'popular' | 'trending')}
+              className="appearance-none bg-[#1a110a] border border-[#2d1e13] rounded-lg pl-8 pr-7 py-1.5 text-xs text-[#f2e6d8] cursor-pointer focus:outline-none focus:border-[#c8960c]/60"
+            >
+              <option value="latest">{t('feed.latest')}</option>
+              <option value="popular">Most Popular</option>
+              <option value="trending">Trending</option>
+            </select>
+            <ChevronDown size={11} className="absolute right-2 text-[#8c7662] pointer-events-none" />
           </div>
         </div>
 
+        {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-16">
-            <Loader2 size={32} className="animate-spin text-umurage-gold" />
+            <Loader2 size={24} className="animate-spin text-[#d4a24c]" />
           </div>
         )}
 
+        {/* Error State */}
         {error && !isLoading && (
-          <div className="rounded-[24px] border border-umurage-gold/20 bg-[rgba(29,19,12,0.72)] p-6 text-center shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
-            <p className="mb-3 text-sm text-umurage-gold-light/80">Failed to load posts</p>
-            <p className="text-xs text-umurage-gold-light/60">Try refreshing or check your connection.</p>
+          <div className="rounded-xl border border-[#2d1e13] bg-[#160f09] p-6 text-center">
+            <p className="text-xs text-[#d4a24c]">Failed to load posts</p>
+            <p className="text-[11px] text-[#a89078] mt-1">Please try refreshing the page or check your connection.</p>
           </div>
         )}
 
+        {/* Empty State when Following Tab has no posts */}
         {!isLoading && activeTab === 'following' && posts.length === 0 && (
-          <div className="rounded-[24px] border border-umurage-gold/20 bg-[rgba(29,19,12,0.72)] px-6 py-16 text-center shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-umurage-gold/20 bg-umurage-gold/10">
-              <Compass size={24} className="text-umurage-gold" />
+          <div className="rounded-xl border border-[#2d1e13] bg-[#160f09] px-6 py-12 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#24170d] text-[#d4a24c]">
+              <Compass size={20} />
             </div>
-            <h3 className="mb-2 font-semibold text-umurage-gold-light">{t('feed.noFollowing')}</h3>
-            <p className="text-sm text-umurage-gold-light/70">Discover historians, artists, elders, and cultural creators.</p>
+            <h3 className="mb-1 text-sm font-semibold text-[#f2e6d8]">{t('feed.noFollowing')}</h3>
+            <p className="text-xs text-[#a89078]">Discover historians, artists, elders, and cultural creators to follow.</p>
           </div>
         )}
 
-        {!isLoading && (activeTab !== 'following' || posts.length > 0) && (
+        {/* Empty State when Feed is Empty */}
+        {!isLoading && activeTab !== 'following' && posts.length === 0 && (
+          <div className="rounded-xl border border-[#2d1e13] bg-[#160f09] px-6 py-12 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#24170d] text-[#d4a24c]">
+              <Compass size={20} />
+            </div>
+            <h3 className="mb-1 text-sm font-semibold text-[#f2e6d8]">{t('feed.noPosts')}</h3>
+            <p className="text-xs text-[#a89078]">Be the first to share cultural stories, music, history, or documents!</p>
+          </div>
+        )}
+
+        {/* Feed Posts */}
+        {!isLoading && posts.length > 0 && (
           <div className="space-y-4">
             {posts.map((item: any) => (
               <ContentCard
@@ -133,18 +139,15 @@ const Home: React.FC = () => {
             {hasNextPage && (
               <div ref={loadMoreRef} className="flex items-center justify-center py-6">
                 {isFetchingNextPage ? (
-                  <Loader2 size={24} className="animate-spin text-umurage-gold" />
+                  <Loader2 size={20} className="animate-spin text-[#d4a24c]" />
                 ) : (
-                  <div className="rounded-full border border-umurage-gold/20 bg-[rgba(29,19,12,0.72)] px-4 py-2 text-xs font-medium text-umurage-gold-light/80">
-                    Scroll to load more stories
-                  </div>
+                  <span className="text-xs text-[#a89078]">Loading more stories...</span>
                 )}
               </div>
             )}
           </div>
         )}
       </div>
-
     </div>
   );
 };

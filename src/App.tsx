@@ -51,10 +51,9 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(218,163,72,0.18),_transparent_24%),linear-gradient(135deg,_#140c06_0%,_#2b180d_55%,_#130a06_100%)] text-umurage-cream relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#0e0906] text-[#f2e6d8] relative overflow-x-hidden">
       <div className="inyambo-bg" />
-      <div className="fixed inset-0 imigongo-pattern pointer-events-none z-0 opacity-70" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_100%_0%,_rgba(218,163,72,0.14),_transparent_30%)]" />
+      <div className="fixed inset-0 imigongo-pattern pointer-events-none z-0 opacity-40" />
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <TopBar
@@ -62,8 +61,8 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         menuOpen={sidebarOpen}
       />
 
-      <main className="relative z-10 pt-16 min-h-screen overflow-auto lg:ml-[260px] lg:mr-80">
-        <div className="w-full max-w-none px-4 py-6 lg:px-6">
+      <main className="relative z-10 pt-16 min-h-screen overflow-auto lg:ml-[250px] lg:mr-80">
+        <div className="w-full max-w-none px-4 py-5 lg:px-6">
           {children}
         </div>
       </main>
@@ -77,9 +76,9 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: '#221508',
-            border: '1px solid #3D2510',
-            color: '#F5E6D0',
+            background: '#1a110a',
+            border: '1px solid #2d1e13',
+            color: '#f2e6d8',
           },
         }}
       />
@@ -92,8 +91,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={32} className="text-umurage-gold animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#0e0906]">
+        <Loader2 size={28} className="text-[#d4a24c] animate-spin" />
       </div>
     );
   }
@@ -140,7 +139,6 @@ const App: React.FC = () => {
                 <Route path="/profile/edit" element={<EditProfile />} />
                 <Route path="/profile/followers" element={<FollowersList />} />
                 <Route path="/profile/following" element={<FollowingList />} />
-                {/* Truth detector removed */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AppLayout>
