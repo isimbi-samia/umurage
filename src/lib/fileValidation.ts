@@ -21,6 +21,22 @@ export interface FileTypeConfig {
 
 export const FILE_TYPE_CONFIGS: FileTypeConfig[] = [
   {
+    category: 'story',
+    mimeTypes: [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif', 'image/bmp',
+      'video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/x-msvideo', 'video/x-matroska', 'video/avi', 'video/mkv'
+    ],
+    extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif', 'bmp', 'mp4', 'mov', 'webm', 'm4v', 'avi', 'mkv', 'flv', 'wmv', 'mpeg', 'mpg'],
+    signatures: [
+      [0xFF, 0xD8, 0xFF],
+      [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+      [0x00, 0x00, 0x00],
+      [0x66, 0x74, 0x79, 0x70],
+    ],
+    maxMB: 100,
+    description: '24-hour Story (Images or Videos)',
+  },
+  {
     category: 'video',
     mimeTypes: ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/x-msvideo', 'video/x-matroska', 'video/avi', 'video/mkv'],
     extensions: ['mp4', 'mov', 'webm', 'm4v', 'avi', 'mkv', 'flv', 'wmv', 'mpeg', 'mpg'],

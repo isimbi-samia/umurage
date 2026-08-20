@@ -135,8 +135,9 @@ export function getStorageBucketForCategory(category: FileCategory | string | nu
       return 'books';
     case 'document':
     case 'article':
-    case 'story':
       return 'documents';
+    case 'story':
+      return 'stories';
     default:
       return 'documents';
   }

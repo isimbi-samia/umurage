@@ -31,7 +31,7 @@ const CONTENT_TYPES = [
   { value: 'document', label: 'Document', icon: FileText, desc: 'Research papers, historical documents, archives, certificates', accept: '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.epub,.odt', maxMB: 200 },
   { value: 'book', label: 'Book / PDF', icon: BookOpen, desc: 'History books, research papers, long-form documents', accept: '.pdf,.doc,.docx,.epub,.rtf,.txt', maxMB: 200 },
   { value: 'article', label: 'Article', icon: FileText, desc: 'Written stories, research, proverbs, lessons', accept: '', maxMB: 0 },
-  { value: 'story', label: 'Story', icon: Radio, desc: '24-hour cultural stories that appear in the Stories feed', accept: 'video/*', maxMB: 100 },
+  { value: 'story', label: 'Story', icon: Radio, desc: '24-hour cultural stories that appear in the Stories feed', accept: 'image/*,video/*', maxMB: 100 },
 ];
 
 const CATEGORIES = ['History', 'Traditions', 'Arts & Music', 'Language', 'Oral Heritage', 'Ceremonies', 'Nature & Land', 'Education', 'Dance', 'General'];
@@ -160,7 +160,7 @@ const Upload: React.FC = () => {
       setThumbnailFile(new File([thumbBlob], file.name.replace(/\.[^.]+$/, '_thumb.jpg'), { type: 'image/jpeg' }));
     }
 
-    if (category === 'image') {
+    if (category === 'image' || (category === 'story' && file.type.startsWith('image/'))) {
       setCompressing(true);
       const compressed = await compressImage(file, 1920, 0.82);
       setMediaFile(compressed);
@@ -170,7 +170,7 @@ const Upload: React.FC = () => {
       setMediaFile(file);
       if (processingResult.thumbnailUrl) {
         setMediaPreviewUrl(processingResult.thumbnailUrl);
-      } else if (category === 'video' || category === 'audio' || category === 'document' || category === 'book') {
+      } else {
         setMediaPreviewUrl(URL.createObjectURL(file));
       }
     }
