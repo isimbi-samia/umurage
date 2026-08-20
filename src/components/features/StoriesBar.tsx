@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { X, Eye, ChevronLeft, ChevronRight, Clock3, Trash2, Loader2, Plus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Eye, ChevronLeft, ChevronRight, Clock3, Trash2, Loader2, Plus, Music } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useMarkStoryViewed, useStories, useDeleteStory, Story } from '@/hooks/useStories';
+import { extractSoundFromCaption } from '@/lib/soundMetadata';
 import { toast } from 'sonner';
 
 interface StoryViewerProps {
@@ -18,14 +19,32 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
   const { user } = useAuth();
   const markStoryViewed = useMarkStoryViewed();
   const deleteStory = useDeleteStory();
-  const viewedIdRef = React.useRef<string | null>(null);
+  const viewedIdRef = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  React.useEffect(() => {
+  const { cleanCaption, sound } = extractSoundFromCaption(story.caption);
+
+  useEffect(() => {
     if (viewedIdRef.current !== story.id) {
       viewedIdRef.current = story.id;
       markStoryViewed.mutate(story.id);
     }
-  }, [story.id]);
+  }, [story.id, markStoryViewed]);
+
+  useEffect(() => {
+    if (sound?.url) {
+      const audio = new Audio(sound.url);
+      audioRef.current = audio;
+      audio.loop = true;
+      audio.play().catch(() => {});
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [story.id, sound?.url]);
 
   const expiresIn = Math.max(0, Math.floor((new Date(story.expires_at).getTime() - Date.now()) / 1000 / 60 / 60));
   const isVideo = story.type === 'video';
@@ -61,11 +80,18 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
 
         <div className="flex h-full w-full items-center justify-center bg-[#0f0905]">
           {isVideo ? (
-            <video src={story.media_url} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
+            <video
+              src={story.media_url}
+              autoPlay
+              playsInline
+              controls
+              muted={sound ? (sound.muteOriginalAudio ?? true) : false}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
           ) : (
-            <img src={story.media_url} alt={story.caption || 'Story'} className="absolute inset-0 h-full w-full object-cover" />
+            <img src={story.media_url} alt={cleanCaption || 'Story'} className="absolute inset-0 h-full w-full object-cover" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30 pointer-events-none" />
           <div className="absolute left-3 right-3 top-12 z-10 flex items-center justify-between rounded-full bg-black/40 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10">
             <div className="flex items-center gap-2">
               <img
@@ -81,10 +107,16 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
             </div>
           </div>
 
-          {story.caption && (
-            <div className="absolute bottom-6 left-4 right-4 z-10 rounded-xl bg-black/60 p-3 backdrop-blur-sm border border-white/10 text-center">
-              <p className="text-xs text-white/90 leading-relaxed">{story.caption}</p>
-              <div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-white/60">
+          {(cleanCaption || sound) && (
+            <div className="absolute bottom-6 left-4 right-4 z-10 rounded-xl bg-black/75 p-3 backdrop-blur-sm border border-white/10 text-center space-y-1.5">
+              {sound && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#c8960c]/20 border border-[#c8960c]/40 text-[#d4a24c] text-[11px] font-medium mx-auto">
+                  <Music size={12} className="animate-pulse" />
+                  <span className="truncate max-w-[200px]">{sound.title} — {sound.artist}</span>
+                </div>
+              )}
+              {cleanCaption && <p className="text-xs text-white/90 leading-relaxed">{cleanCaption}</p>}
+              <div className="flex items-center justify-center gap-1 text-[10px] text-white/60">
                 <Eye size={11} />
                 <span>{story.views} views</span>
               </div>

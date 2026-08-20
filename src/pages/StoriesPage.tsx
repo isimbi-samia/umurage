@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { X, Eye, ChevronLeft, ChevronRight, Clock3, Trash2, Loader2, Plus, Radio } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Eye, ChevronLeft, ChevronRight, Clock3, Trash2, Loader2, Plus, Radio, Music, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useMarkStoryViewed, useStories, useDeleteStory, Story } from '@/hooks/useStories';
+import { extractSoundFromCaption } from '@/lib/soundMetadata';
 import { toast } from 'sonner';
 
 interface StoryViewerProps {
@@ -18,14 +19,32 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
   const { user } = useAuth();
   const markStoryViewed = useMarkStoryViewed();
   const deleteStory = useDeleteStory();
-  const viewedIdRef = React.useRef<string | null>(null);
+  const viewedIdRef = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  React.useEffect(() => {
+  const { cleanCaption, sound } = extractSoundFromCaption(story.caption);
+
+  useEffect(() => {
     if (viewedIdRef.current !== story.id) {
       viewedIdRef.current = story.id;
       markStoryViewed.mutate(story.id);
     }
-  }, [story.id]);
+  }, [story.id, markStoryViewed]);
+
+  useEffect(() => {
+    if (sound?.url) {
+      const audio = new Audio(sound.url);
+      audioRef.current = audio;
+      audio.loop = true;
+      audio.play().catch(() => {});
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [story.id, sound?.url]);
 
   const expiresIn = Math.max(0, Math.floor((new Date(story.expires_at).getTime() - Date.now()) / 1000 / 60 / 60));
   const isVideo = story.type === 'video';
@@ -46,7 +65,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
       <div className="relative h-[85vh] w-full max-w-md overflow-hidden rounded-xl border border-white/10 shadow-2xl bg-[#0f0905]">
-        <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/80">
+        <button onClick={onClose} className="absolute right-3 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80">
           <X size={16} />
         </button>
 
@@ -63,12 +82,19 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
 
         <div className="flex h-full w-full items-center justify-center bg-[#0f0905]">
           {isVideo ? (
-            <video src={story.media_url} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
+            <video
+              src={story.media_url}
+              autoPlay
+              playsInline
+              controls
+              muted={sound ? (sound.muteOriginalAudio ?? true) : false}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
           ) : (
-            <img src={story.media_url} alt={story.caption || 'Story'} className="absolute inset-0 h-full w-full object-cover" />
+            <img src={story.media_url} alt={cleanCaption || 'Story'} className="absolute inset-0 h-full w-full object-cover" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
-          <div className="absolute left-3 right-3 top-14 z-10 flex items-center justify-between rounded-full bg-black/40 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30 pointer-events-none" />
+          <div className="absolute left-3 right-3 top-14 z-10 flex items-center justify-between rounded-full bg-black/50 px-3 py-1.5 text-xs text-white backdrop-blur-sm border border-white/10">
             <div className="flex items-center gap-2">
               <img
                 src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
@@ -83,10 +109,16 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ story, onClose, onPrev, onNex
             </div>
           </div>
 
-          {story.caption && (
-            <div className="absolute bottom-6 left-4 right-4 z-10 rounded-xl bg-black/70 p-3 backdrop-blur-sm border border-white/10 text-center">
-              <p className="text-xs text-white/90 leading-relaxed">{story.caption}</p>
-              <div className="mt-1.5 flex items-center justify-center gap-1 text-[10px] text-white/60">
+          {(cleanCaption || sound) && (
+            <div className="absolute bottom-6 left-4 right-4 z-10 rounded-xl bg-black/75 p-3 backdrop-blur-sm border border-white/10 text-center space-y-1.5">
+              {sound && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#c8960c]/20 border border-[#c8960c]/40 text-[#d4a24c] text-[11px] font-medium mx-auto">
+                  <Music size={12} className="animate-pulse" />
+                  <span className="truncate max-w-[200px]">{sound.title} — {sound.artist}</span>
+                </div>
+              )}
+              {cleanCaption && <p className="text-xs text-white/95 leading-relaxed">{cleanCaption}</p>}
+              <div className="flex items-center justify-center gap-1 text-[10px] text-white/60">
                 <Eye size={11} />
                 <span>{story.views} views</span>
               </div>
@@ -160,41 +192,48 @@ const StoriesPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {stories.map((story, idx) => (
-            <div
-              key={story.id}
-              onClick={() => handleStoryClick(idx)}
-              className="relative cursor-pointer overflow-hidden rounded-xl border border-[#2d1e13] bg-[#1a110a] h-64 group hover:border-[#c8960c]/60 transition-all duration-200"
-            >
-              {story.type === 'video' ? (
-                <video src={story.media_url} className="h-full w-full object-cover" />
-              ) : (
-                <img src={story.media_url} alt={story.caption || 'Story'} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          {stories.map((story, idx) => {
+            const { cleanCaption, sound } = extractSoundFromCaption(story.caption);
+            return (
+              <div
+                key={story.id}
+                onClick={() => handleStoryClick(idx)}
+                className="relative cursor-pointer overflow-hidden rounded-xl border border-[#2d1e13] bg-[#1a110a] h-64 group hover:border-[#c8960c]/60 transition-all duration-200"
+              >
+                {story.type === 'video' ? (
+                  <video src={story.media_url} className="h-full w-full object-cover" />
+                ) : (
+                  <img src={story.media_url} alt={cleanCaption || 'Story'} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-xs rounded-full p-1 pr-2.5">
-                <img
-                  src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
-                  alt={story.author?.username || 'User'}
-                  className="w-5 h-5 rounded-full object-cover border border-white/20"
-                />
-                <span className="text-[10px] font-medium text-white truncate max-w-[80px]">
-                  {story.author?.username || 'User'}
-                </span>
-              </div>
+                <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-xs rounded-full p-1 pr-2.5">
+                  <img
+                    src={story.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${story.author?.username}`}
+                    alt={story.author?.username || 'User'}
+                    className="w-5 h-5 rounded-full object-cover border border-white/20"
+                  />
+                  <span className="text-[10px] font-medium text-white truncate max-w-[80px]">
+                    {story.author?.username || 'User'}
+                  </span>
+                </div>
 
-              {story.caption && (
-                <div className="absolute bottom-2 left-2 right-2">
-                  <p className="text-xs text-white line-clamp-2 leading-snug">{story.caption}</p>
-                  <div className="mt-1 flex items-center gap-1 text-[10px] text-white/70">
+                <div className="absolute bottom-2 left-2 right-2 space-y-1">
+                  {sound && (
+                    <div className="inline-flex items-center gap-1 text-[9px] text-[#d4a24c] bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-xs border border-[#c8960c]/30 truncate max-w-full">
+                      <Music size={9} />
+                      <span className="truncate">{sound.title}</span>
+                    </div>
+                  )}
+                  {cleanCaption && <p className="text-xs text-white line-clamp-2 leading-snug">{cleanCaption}</p>}
+                  <div className="flex items-center gap-1 text-[10px] text-white/70">
                     <Eye size={10} />
                     <span>{story.views} views</span>
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 

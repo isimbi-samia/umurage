@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send, Eye, Trash2, Radio } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Play, CheckCircle, Loader2, Send, Eye, Trash2, Radio, Music } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToggleLike, useToggleSave, useComments, useAddComment, useTrackPostView, useDeletePost } from '@/hooks/usePosts';
 import { useSharePostToStory } from '@/hooks/useStories';
+import { extractSoundFromTags } from '@/lib/soundMetadata';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -72,6 +73,8 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
   const [hasTrackedView, setHasTrackedView] = useState(false);
   const addComment = useAddComment();
   const { data: comments = [] } = useComments(showComments ? item.id : '');
+
+  const { sound, cleanTags } = extractSoundFromTags(item.tags);
 
   const isOwner = !!(user?.id && (item.author?.id === user.id || item.user_id === user.id));
   const isLiked = likedSet ? likedSet.has(item.id) : (item.liked || false);
@@ -228,6 +231,13 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
           </p>
         )}
 
+        {sound && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg bg-[#24170d] border border-[#3d2719] px-2.5 py-1.5 text-xs text-[#d4a24c] w-fit" onClick={e => e.stopPropagation()}>
+            <Music size={13} className="animate-pulse flex-shrink-0" />
+            <span className="font-medium truncate max-w-[260px]">{sound.title} — {sound.artist}</span>
+          </div>
+        )}
+
         {/* Media Preview */}
         {thumbnail && (
           <div className="relative mb-3 overflow-hidden rounded-lg border border-[#2d1e13] bg-[#0e0906]">
@@ -258,9 +268,9 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
               {item.category}
             </span>
           )}
-          {item.tags && item.tags.length > 0 && (
+          {cleanTags.length > 0 && (
             <div className="flex items-center gap-1.5">
-              {item.tags.slice(0, 2).map(tag => (
+              {cleanTags.slice(0, 2).map(tag => (
                 <span key={tag} className="text-[10px] text-[#d4a24c]">#{tag}</span>
               ))}
             </div>

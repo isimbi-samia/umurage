@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Heart, MessageCircle, Share2, Bookmark,
-  Play, Pause, CheckCircle, Loader2, Send, Eye, Clock, MapPin, Tag, X, Shield, AlertCircle, Trash2, Radio
+  Play, Pause, CheckCircle, Loader2, Send, Eye, Clock, MapPin, Tag, X, Shield, AlertCircle, Trash2, Radio, Music
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useToggleLike, useToggleSave, useComments, useAddComment, useUserLikes, useUserSaves, useDeletePost } from '@/hooks/usePosts';
 import { useSharePostToStory } from '@/hooks/useStories';
+import { extractSoundFromTags } from '@/lib/soundMetadata';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -97,6 +98,8 @@ const PostDetail: React.FC = () => {
   const sharePostToStory = useSharePostToStory();
   const addComment = useAddComment();
   const [commentText, setCommentText] = useState('');
+
+  const { sound, cleanTags } = extractSoundFromTags(post?.tags);
 
   const isOwner = !!(user?.id && post && (post.author?.id === user.id || post.user_id === user.id));
   const isLiked = post ? (likedSet?.has(post.id) ?? false) : false;
@@ -322,6 +325,24 @@ const PostDetail: React.FC = () => {
           </div>
         )}
 
+        {/* Attached Cultural Sound */}
+        {sound && (
+          <div className="px-6 mb-4">
+            <div className="rounded-xl bg-umurage-surface border border-umurage-gold/30 p-3.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-umurage-gold/20 flex items-center justify-center text-umurage-gold flex-shrink-0">
+                  <Music size={16} className="animate-pulse" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-umurage-cream truncate">{sound.title}</p>
+                  <p className="text-xs text-umurage-subtle truncate">{sound.artist}</p>
+                </div>
+              </div>
+              <audio src={sound.url} controls className="h-8 max-w-[180px]" />
+            </div>
+          </div>
+        )}
+
         {/* Description */}
         {post.description && (
           <div className="px-6 pb-4">
@@ -330,10 +351,10 @@ const PostDetail: React.FC = () => {
         )}
 
         {/* Tags */}
-        {post.tags && post.tags.length > 0 && (
+        {cleanTags.length > 0 && (
           <div className="px-6 pb-4">
             <div className="flex flex-wrap gap-2">
-              {post.tags.map(tag => (
+              {cleanTags.map(tag => (
                 <span
                   key={tag}
                   className="flex items-center gap-1 text-xs text-umurage-gold/80 bg-umurage-gold/8 border border-umurage-gold/20 px-2.5 py-1 rounded-full"

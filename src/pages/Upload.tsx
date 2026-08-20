@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Upload as UploadIcon, X, Image, Video, Mic, BookOpen, FileText, Radio,
-  Loader2, CheckCircle, CloudUpload, ZoomIn, AlertCircle, Shield, Wand2
+  Loader2, CheckCircle, CloudUpload, ZoomIn, AlertCircle, Shield, Wand2, Music, Volume2, VolumeX
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,9 @@ import {
   processMediaFile,
   uploadMediaToStorage,
 } from '@/lib/uploadMedia';
+import { SoundSelectorModal } from '@/components/features/SoundSelectorModal';
+import { CulturalSound } from '@/data/culturalSounds';
+import { formatSoundMetaTag, formatStoryCaptionWithSound } from '@/lib/soundMetadata';
 
 const CONTENT_TYPES = [
   { value: 'video', label: 'Video', icon: Video, desc: 'Traditional dances, ceremonies, documentaries, and long-form cultural videos', accept: 'video/*', maxMB: 500 },
@@ -77,6 +80,7 @@ const Upload: React.FC = () => {
   const thumbnailRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
+  const [uploadMode, setUploadMode] = useState<'post' | 'story'>('post');
   const [type, setType] = useState('video');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -96,6 +100,11 @@ const Upload: React.FC = () => {
   const [fileInfo, setFileInfo] = useState<{ name: string; size: string; type: string } | null>(null);
   const [processingStep, setProcessingStep] = useState('');
 
+  // ── Music / Sound selection state ──────────────────────────────────────────
+  const [selectedSound, setSelectedSound] = useState<CulturalSound | null>(null);
+  const [muteOriginalAudio, setMuteOriginalAudio] = useState(false);
+  const [isSoundModalOpen, setIsSoundModalOpen] = useState(false);
+
   const selectedType = CONTENT_TYPES.find(t => t.value === type)!;
 
   useEffect(() => {
@@ -104,6 +113,21 @@ const Upload: React.FC = () => {
       if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
     };
   }, [mediaPreviewUrl, thumbnailPreview]);
+
+  const handleModeChange = (mode: 'post' | 'story') => {
+    setUploadMode(mode);
+    setMediaFile(null);
+    setMediaPreviewUrl('');
+    setThumbnailFile(null);
+    setThumbnailPreview('');
+    setValidationError(null);
+    setFileInfo(null);
+    if (mode === 'story') {
+      setType('story');
+    } else {
+      setType('video');
+    }
+  };
 
   const handleThumbnail = useCallback(async (file: File) => {
     setCompressing(true);
@@ -156,7 +180,6 @@ const Upload: React.FC = () => {
       setThumbnailPreview(processingResult.thumbnailUrl);
       const thumbResponse = await fetch(processingResult.thumbnailUrl);
       const thumbBlob = await thumbResponse.blob();
-      const ext = getFileExtension(file.name);
       setThumbnailFile(new File([thumbBlob], file.name.replace(/\.[^.]+$/, '_thumb.jpg'), { type: 'image/jpeg' }));
     }
 
@@ -198,15 +221,24 @@ const Upload: React.FC = () => {
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     
-    const autoCategory = await detectFileCategory(file);
-    if (autoCategory) {
-      setType(autoCategory.category);
+    if (type !== 'article') {
+      const autoCat = detectFileCategory(file);
+      if (autoCat && autoCat !== type && type !== 'story') {
+        setType(autoCat);
+        toast.info(`Switched to ${autoCat} format based on file`);
+        await processAndSetMedia(file, autoCat);
+        return;
+      }
     }
-    
-    await processAndSetMedia(file, autoCategory?.category || type);
-  }, [processAndSetMedia, type]);
+    await processAndSetMedia(file, type);
+  }, [type, processAndSetMedia]);
 
-  const uploadFile = useCallback(async (file: File, folder: string, category: FileCategory, onProgress?: (pct: number) => void): Promise<string> => {
+  const uploadFile = useCallback(async (
+    file: File,
+    folder: string,
+    category: FileCategory,
+    onProgress?: (pct: number) => void
+  ): Promise<string> => {
     const { url } = await uploadMediaToStorage(file, category, user!.id, folder, onProgress);
     return url;
   }, [user]);
@@ -222,7 +254,7 @@ const Upload: React.FC = () => {
     setValidationError(null);
 
     try {
-      // ── Stories go to the dedicated `stories` table, never `posts` ──────
+      // ── Stories go exclusively to the dedicated `stories` table ──────
       if (type === 'story') {
         if (!mediaFile) {
           toast.error('Please select a file to upload');
@@ -231,11 +263,16 @@ const Upload: React.FC = () => {
         }
         setUploadProgress(30);
         const storyType: 'image' | 'video' = mediaFile.type.startsWith('video') ? 'video' : 'image';
+        const formattedCaption = formatStoryCaptionWithSound(
+          description.trim() || title.trim() || undefined,
+          selectedSound,
+          muteOriginalAudio
+        );
         await uploadStory.mutateAsync({
           file: mediaFile,
           userId: user.id,
           type: storyType,
-          caption: description.trim() || title.trim() || undefined,
+          caption: formattedCaption || undefined,
         });
         setUploadProgress(100);
         setUploading(false);
@@ -243,7 +280,7 @@ const Upload: React.FC = () => {
         return;
       }
 
-      // ── Everything else goes through the normal posts flow ─────────────
+      // ── Normal post flow ─────────────
       let mediaUrl: string | undefined;
       let thumbnailUrl: string | undefined;
       let duration: string | null = null;
@@ -265,6 +302,11 @@ const Upload: React.FC = () => {
         duration = dur;
       }
 
+      const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
+      if (selectedSound) {
+        parsedTags.push(formatSoundMetaTag(selectedSound, muteOriginalAudio));
+      }
+
       setUploadProgress(95);
       await createPost.mutateAsync({
         user_id: user.id,
@@ -276,7 +318,7 @@ const Upload: React.FC = () => {
         duration,
         category,
         region,
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: parsedTags,
       });
 
       setUploadProgress(100);
@@ -288,7 +330,7 @@ const Upload: React.FC = () => {
       setUploading(false);
       setUploadProgress(0);
     }
-  }, [title, mediaFile, type, user, description, category, region, tags, thumbnailFile, uploadFile, createPost, uploadStory]);
+  }, [title, mediaFile, type, user, description, category, region, tags, thumbnailFile, uploadFile, createPost, uploadStory, selectedSound, muteOriginalAudio]);
 
   const inputClass = "w-full bg-[#1a110a] border border-[#2d1e13] rounded-lg px-3.5 py-2.5 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60 transition-colors";
 
@@ -309,11 +351,37 @@ const Upload: React.FC = () => {
         <div className="w-20 h-20 rounded-full bg-umurage-gold/20 border border-umurage-gold/40 flex items-center justify-center mb-5">
           <CheckCircle size={40} className="text-umurage-gold" />
         </div>
-        <h2 className="font-cinzel text-umurage-gold text-2xl font-bold mb-3">Content Published!</h2>
-        <p className="text-umurage-muted text-sm text-center max-w-sm mb-6">Your cultural content is now live on Umurage Hub for all to discover.</p>
+        <h2 className="font-cinzel text-umurage-gold text-2xl font-bold mb-3">
+          {type === 'story' ? 'Story Posted!' : 'Content Published!'}
+        </h2>
+        <p className="text-umurage-muted text-sm text-center max-w-sm mb-6">
+          {type === 'story'
+            ? 'Your 24-hour cultural story is now live in the Stories bar.'
+            : 'Your cultural content is now live on Umurage Hub for all to discover.'}
+        </p>
         <div className="flex gap-3">
-          <button onClick={() => navigate('/')} className="btn-gold px-6 py-2.5">View Feed</button>
-          <button onClick={() => { setSuccess(false); setTitle(''); setDescription(''); setMediaFile(null); setThumbnailFile(null); setThumbnailPreview(''); setMediaPreviewUrl(''); setUploadProgress(0); setTags(''); setValidationError(null); setFileInfo(null); }} className="btn-outline-gold px-6 py-2.5">Upload Another</button>
+          <button onClick={() => navigate(type === 'story' ? '/stories' : '/')} className="btn-gold px-6 py-2.5">
+            {type === 'story' ? 'View Stories' : 'View Feed'}
+          </button>
+          <button
+            onClick={() => {
+              setSuccess(false);
+              setTitle('');
+              setDescription('');
+              setMediaFile(null);
+              setThumbnailFile(null);
+              setThumbnailPreview('');
+              setMediaPreviewUrl('');
+              setUploadProgress(0);
+              setTags('');
+              setSelectedSound(null);
+              setValidationError(null);
+              setFileInfo(null);
+            }}
+            className="btn-outline-gold px-6 py-2.5"
+          >
+            Upload Another
+          </button>
         </div>
       </div>
     );
@@ -321,7 +389,7 @@ const Upload: React.FC = () => {
 
   return (
     <div className="animate-fade-in max-w-2xl mx-auto">
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <UploadIcon size={24} className="text-umurage-gold" />
           <h1 className="font-cinzel text-3xl text-umurage-gold font-bold">Share Cultural Content</h1>
@@ -329,41 +397,78 @@ const Upload: React.FC = () => {
         <p className="text-umurage-muted text-base">Contribute to preserving Rwanda's rich cultural heritage for future generations.</p>
       </div>
 
+      {/* Mode Switcher: Create Post vs Create Story */}
+      <div className="mb-6 bg-[#160f09] border border-[#2d1e13] p-1.5 rounded-xl flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => handleModeChange('post')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+            uploadMode === 'post'
+              ? 'bg-[#c8960c] text-[#0e0906] shadow-md'
+              : 'text-[#a89078] hover:text-[#f2e6d8] hover:bg-[#24170d]'
+          }`}
+        >
+          <UploadIcon size={15} />
+          <span>CREATE POST</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleModeChange('story')}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+            uploadMode === 'story'
+              ? 'bg-[#c8960c] text-[#0e0906] shadow-md'
+              : 'text-[#a89078] hover:text-[#f2e6d8] hover:bg-[#24170d]'
+          }`}
+        >
+          <Radio size={15} />
+          <span>CREATE 24H STORY</span>
+        </button>
+      </div>
+
       <div className="mb-5 rounded-xl border border-umurage-gold/30 bg-umurage-gold/5 p-4 flex items-start gap-3">
         <Shield size={18} className="text-umurage-gold flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-umurage-gold-light text-xs font-semibold">Cultural Content Only</p>
-          <p className="text-umurage-subtle text-[11px] mt-0.5">Please upload content related to Rwandan culture; non-cultural content may be removed.</p>
+          <p className="text-umurage-gold-light text-xs font-semibold">
+            {uploadMode === 'story' ? '24-Hour Story Upload' : 'Cultural Content Upload'}
+          </p>
+          <p className="text-umurage-subtle text-[11px] mt-0.5">
+            {uploadMode === 'story'
+              ? 'Stories appear exclusively in the Stories bar and active Stories viewer for 24 hours.'
+              : 'Please upload content related to Rwandan culture; non-cultural content may be removed.'}
+          </p>
         </div>
       </div>
 
-      <div className="umurage-card rounded-2xl p-5 mb-5">
-        <h3 className="text-umurage-cream font-semibold text-sm mb-3">Content Type</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {CONTENT_TYPES.map(ct => {
-            const Icon = ct.icon;
-            return (
-              <button
-                key={ct.value}
-                type="button"
-                onClick={() => { setType(ct.value); setMediaFile(null); setMediaPreviewUrl(''); setValidationError(null); setFileInfo(null); }}
-                className={`flex flex-col items-center gap-2 p-3 rounded-xl border text-center transition-all duration-200 ${
-                  type === ct.value
-                    ? 'border-umurage-gold bg-umurage-gold/10 text-umurage-gold'
-                    : 'border-umurage-border text-umurage-muted hover:border-umurage-gold/40 hover:text-umurage-cream'
-                }`}
-              >
-                <Icon size={18} />
-                <span className="text-[11px] font-semibold leading-tight">{ct.label}</span>
-              </button>
-            );
-          })}
+      {uploadMode === 'post' && (
+        <div className="umurage-card rounded-2xl p-5 mb-5">
+          <h3 className="text-umurage-cream font-semibold text-sm mb-3">Content Format</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {CONTENT_TYPES.filter(ct => ct.value !== 'story').map(ct => {
+              const Icon = ct.icon;
+              return (
+                <button
+                  key={ct.value}
+                  type="button"
+                  onClick={() => { setType(ct.value); setMediaFile(null); setMediaPreviewUrl(''); setValidationError(null); setFileInfo(null); }}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border text-center transition-all duration-200 ${
+                    type === ct.value
+                      ? 'border-umurage-gold bg-umurage-gold/10 text-umurage-gold'
+                      : 'border-umurage-border text-umurage-muted hover:border-umurage-gold/40 hover:text-umurage-cream'
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span className="text-[11px] font-semibold leading-tight">{ct.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-umurage-subtle text-xs mt-2.5 flex items-center gap-1.5">
+            <AlertCircle size={11} /> {selectedType.desc}
+            {selectedType.maxMB > 0 && ` · Max ${selectedType.maxMB}MB`}
+          </p>
         </div>
-        <p className="text-umurage-subtle text-xs mt-2.5 flex items-center gap-1.5">
-          <AlertCircle size={11} /> {selectedType.desc}
-          {selectedType.maxMB > 0 && ` · Max ${selectedType.maxMB}MB`}
-        </p>
-      </div>
+      )}
 
       {validationError && (
         <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3 animate-fade-in">
@@ -384,7 +489,9 @@ const Upload: React.FC = () => {
           onDrop={onDrop}
           className={`umurage-card rounded-2xl p-5 mb-5 transition-all duration-200 ${isDragOver ? 'border-umurage-gold bg-umurage-gold/5' : ''}`}
         >
-          <h3 className="text-umurage-cream font-semibold text-sm mb-3">{selectedType.label} File</h3>
+          <h3 className="text-umurage-cream font-semibold text-sm mb-3">
+            {uploadMode === 'story' ? 'Story Media (Photo or Video)' : `${selectedType.label} File`}
+          </h3>
 
           {processingStep && !compressing && (
             <div className="flex items-center justify-center gap-2 py-4">
@@ -396,14 +503,14 @@ const Upload: React.FC = () => {
           {compressing && (
             <div className="flex items-center justify-center gap-2 py-4">
               <Wand2 size={18} className="text-umurage-gold animate-pulse" />
-              <span className="text-umurage-muted text-sm">Optimizing image...</span>
+              <span className="text-umurage-muted text-sm">Optimizing media...</span>
             </div>
           )}
 
           {!compressing && !processingStep && mediaFile ? (
             <div className="space-y-3">
-              {mediaPreviewUrl && type === 'video' && (
-                <div className="rounded-xl overflow-hidden bg-black">
+              {mediaPreviewUrl && (type === 'video' || (type === 'story' && mediaFile.type.startsWith('video/'))) && (
+                <div className="rounded-xl overflow-hidden bg-black relative">
                   <video src={mediaPreviewUrl} controls className="w-full max-h-48 object-contain" />
                 </div>
               )}
@@ -412,12 +519,9 @@ const Upload: React.FC = () => {
                   <audio src={mediaPreviewUrl} controls className="w-full" />
                 </div>
               )}
-              {mediaPreviewUrl && type === 'image' && (
+              {mediaPreviewUrl && (type === 'image' || (type === 'story' && mediaFile.type.startsWith('image/'))) && (
                 <div className="rounded-xl overflow-hidden relative group">
                   <img src={mediaPreviewUrl} alt="Preview" className="w-full max-h-52 object-cover" />
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <ZoomIn size={24} className="text-white" />
-                  </div>
                 </div>
               )}
               {mediaPreviewUrl && (type === 'document' || type === 'book') && (
@@ -429,7 +533,6 @@ const Upload: React.FC = () => {
                       <FileText size={20} className="text-umurage-gold" />
                       <div>
                         <p className="text-sm font-medium text-umurage-cream">Document ready for upload</p>
-                        <p className="text-xs text-umurage-subtle">Preview will appear after upload in the post detail view.</p>
                       </div>
                     </div>
                   )}
@@ -440,7 +543,7 @@ const Upload: React.FC = () => {
                 <selectedType.icon size={18} className="text-umurage-gold flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-umurage-cream text-sm font-medium truncate">{mediaFile.name}</p>
-                  <p className="text-umurage-subtle text-xs">{formatFileSize(mediaFile.size)} · {fileInfo?.type || mediaFile.type || 'Ready to upload'}</p>
+                  <p className="text-umurage-subtle text-xs">{formatFileSize(mediaFile.size)} · {fileInfo?.type || mediaFile.type || 'Ready'}</p>
                 </div>
                 <button type="button" onClick={() => { setMediaFile(null); setMediaPreviewUrl(''); setFileInfo(null); setValidationError(null); }} className="text-umurage-subtle hover:text-red-400 transition-colors p-1">
                   <X size={16} />
@@ -448,29 +551,14 @@ const Upload: React.FC = () => {
               </div>
             </div>
           ) : !compressing && !processingStep ? (
-            <button
-              type="button"
+            <div
               onClick={() => fileRef.current?.click()}
-              className={`w-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 py-10 transition-all cursor-pointer ${
-                isDragOver ? 'border-umurage-gold bg-umurage-gold/5' : 'border-umurage-border hover:border-umurage-gold/50 hover:bg-umurage-surface/50'
-              }`}
+              className="border-2 border-dashed border-umurage-border rounded-xl p-8 text-center hover:border-umurage-gold/50 hover:bg-umurage-surface/50 transition-all cursor-pointer group"
             >
-              <CloudUpload size={32} className={isDragOver ? 'text-umurage-gold' : 'text-umurage-subtle'} />
-              <div className="text-center">
-                <p className="text-umurage-cream text-sm font-medium">
-                  {isDragOver ? 'Drop to upload' : `Upload ${selectedType.label}`}
-                </p>
-                <p className="text-umurage-subtle text-xs mt-1">
-                  Drag & drop here or <span className="text-umurage-gold underline cursor-pointer">browse</span>
-                </p>
-                <p className="text-umurage-subtle text-[11px] mt-1.5 touch-manipulation">
-                  Mobile-friendly tap-to-browse support is enabled for images, videos, audio, books, and PDFs.
-                </p>
-                {selectedType.maxMB > 0 && (
-                  <p className="text-umurage-subtle text-[10px] mt-1">Max {selectedType.maxMB}MB</p>
-                )}
-              </div>
-            </button>
+              <CloudUpload size={36} className="mx-auto text-umurage-subtle group-hover:text-umurage-gold transition-colors mb-2" />
+              <p className="text-sm font-medium text-umurage-cream mb-1">Click or drag file to upload</p>
+              <p className="text-xs text-umurage-subtle">{selectedType.desc}</p>
+            </div>
           ) : null}
 
           <input
@@ -483,62 +571,115 @@ const Upload: React.FC = () => {
         </div>
       )}
 
-      <div className="umurage-card rounded-2xl p-5 mb-5">
-        <h3 className="text-umurage-cream font-semibold text-sm mb-3">
-          Cover Thumbnail
-          <span className="text-umurage-subtle font-normal text-xs ml-2">(auto-detected or upload)</span>
-        </h3>
-        {thumbnailPreview ? (
-          <div className="relative rounded-xl overflow-hidden mb-2 group">
-            <img src={thumbnailPreview} alt="Thumbnail" className="w-full h-44 object-cover" />
-            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <button
-              type="button"
-              onClick={() => { setThumbnailFile(null); setThumbnailPreview(''); }}
-              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
-            >
-              <X size={14} />
-            </button>
-            <div className="absolute bottom-2 left-2">
-              <span className="text-white text-[10px] bg-black/60 px-2 py-0.5 rounded-full">
-                {thumbnailFile && `${(thumbnailFile.size / 1024).toFixed(0)}KB`}
-              </span>
-            </div>
+      {/* Music / Sound Selector Section */}
+      <div className="umurage-card rounded-2xl p-5 mb-5 border border-[#2d1e13]">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Music size={18} className="text-[#d4a24c]" />
+            <h3 className="text-umurage-cream font-semibold text-sm">Background Music / Cultural Sound</h3>
           </div>
-        ) : compressing ? (
-          <div className="flex items-center justify-center gap-2 h-32">
-            <Loader2 size={18} className="text-umurage-gold animate-spin" />
-            <span className="text-umurage-muted text-sm">Compressing...</span>
-          </div>
-        ) : (
           <button
             type="button"
-            onClick={() => thumbnailRef.current?.click()}
-            className="w-full h-32 border-2 border-dashed border-umurage-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-umurage-gold/40 hover:bg-umurage-surface/50 transition-all cursor-pointer"
+            onClick={() => setIsSoundModalOpen(true)}
+            className="btn-outline-gold text-xs px-3 py-1.5 flex items-center gap-1.5"
           >
-            <Image size={22} className="text-umurage-subtle" />
-            <span className="text-umurage-muted text-sm">Upload cover thumbnail</span>
-            <span className="text-umurage-subtle text-xs">JPG, PNG, WebP — auto-compressed</span>
+            <Music size={13} />
+            <span>{selectedSound ? 'Change Sound' : 'Add Sound'}</span>
           </button>
+        </div>
+
+        {selectedSound ? (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#24170d] border border-[#c8960c]/40">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-[#c8960c]/20 flex items-center justify-center text-[#d4a24c] flex-shrink-0">
+                <Music size={14} className="animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[#f2e6d8] truncate">{selectedSound.title}</p>
+                <p className="text-[11px] text-[#a89078] truncate">{selectedSound.artist} · {selectedSound.duration}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedSound(null)}
+                className="text-xs text-[#a89078] hover:text-red-400 p-1.5 transition-colors"
+                title="Remove sound"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-[#a89078] italic">No background sound selected (Original sound will play).</p>
         )}
-        <input ref={thumbnailRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbnail(f); }} />
       </div>
+
+      {uploadMode === 'post' && (
+        <div className="umurage-card rounded-2xl p-5 mb-5">
+          <h3 className="text-umurage-cream font-semibold text-sm mb-3">
+            Cover Thumbnail
+            <span className="text-umurage-subtle font-normal text-xs ml-2">(auto-detected or upload)</span>
+          </h3>
+          {thumbnailPreview ? (
+            <div className="relative rounded-xl overflow-hidden mb-2 group">
+              <img src={thumbnailPreview} alt="Thumbnail" className="w-full h-44 object-cover" />
+              <button
+                type="button"
+                onClick={() => { setThumbnailFile(null); setThumbnailPreview(''); }}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => thumbnailRef.current?.click()}
+              className="w-full h-28 border-2 border-dashed border-umurage-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-umurage-gold/40 hover:bg-umurage-surface/50 transition-all cursor-pointer"
+            >
+              <Image size={20} className="text-umurage-subtle" />
+              <span className="text-umurage-muted text-xs">Upload cover thumbnail</span>
+            </button>
+          )}
+          <input ref={thumbnailRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbnail(f); }} />
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="umurage-card rounded-2xl p-5 space-y-4 mb-5">
-          <h3 className="text-umurage-cream font-semibold text-sm">Content Details</h3>
+          <h3 className="text-umurage-cream font-semibold text-sm">
+            {uploadMode === 'story' ? 'Story Details' : 'Post Details'}
+          </h3>
           <div>
-            <label className="text-umurage-muted text-xs font-medium block mb-1.5">Title *</label>
-            <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Traditional Intore Dance Performance" className={inputClass} required />
+            <label className="text-umurage-muted text-xs font-medium block mb-1.5">
+              {uploadMode === 'story' ? 'Story Title / Caption *' : 'Title *'}
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder={uploadMode === 'story' ? "e.g. Traditional dance at today's festival!" : "e.g. Traditional Intore Dance Performance"}
+              className={inputClass}
+              required
+            />
           </div>
+
           <div>
-            <label className="text-umurage-muted text-xs font-medium block mb-1.5">Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)}
-              placeholder="Describe the cultural significance of this content..."
-              rows={3} className={`${inputClass} resize-none leading-relaxed`} />
+            <label className="text-umurage-muted text-xs font-medium block mb-1.5">
+              {uploadMode === 'story' ? 'Story Note (Optional)' : 'Description'}
+            </label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder={uploadMode === 'story' ? "Add a short note to your story..." : "Describe the cultural significance of this content..."}
+              rows={2}
+              className={`${inputClass} resize-none leading-relaxed`}
+            />
           </div>
-          {type !== 'story' && (
+
+          {uploadMode === 'post' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-umurage-muted text-xs font-medium block mb-1.5">Category</label>
@@ -554,50 +695,58 @@ const Upload: React.FC = () => {
               </div>
             </div>
           )}
-          {type !== 'story' && (
+
+          {uploadMode === 'post' && (
             <div>
               <label className="text-umurage-muted text-xs font-medium block mb-1.5">Tags (comma separated)</label>
               <input type="text" value={tags} onChange={e => setTags(e.target.value)}
                 placeholder="e.g. Intore, Dance, Traditions, Kigali" className={inputClass} />
             </div>
           )}
-          {type === 'story' && (
-            <p className="text-umurage-subtle text-xs flex items-center gap-1.5">
-              <AlertCircle size={11} /> Category, region, and tags aren't used for Stories — your title/description above becomes the story caption.
-            </p>
-          )}
         </div>
 
         {uploading && (
-          <div className="umurage-card rounded-2xl p-5 mb-5 animate-fade-in">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-umurage-cream text-sm font-medium flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin text-umurage-gold" />
-                Uploading to cultural archive...
-              </span>
-              <span className="text-umurage-gold text-sm font-bold">{uploadProgress}%</span>
+          <div className="mb-5 bg-umurage-surface border border-umurage-border rounded-xl p-4">
+            <div className="flex justify-between text-xs text-umurage-muted mb-1.5 font-medium">
+              <span>{uploadMode === 'story' ? 'Posting story...' : 'Publishing content...'}</span>
+              <span>{uploadProgress}%</span>
             </div>
-            <div className="h-2 bg-umurage-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-umurage-gold to-yellow-400 rounded-full transition-all duration-500"
-                style={{ width: `${uploadProgress}%` }}
-              />
+            <div className="w-full bg-umurage-border rounded-full h-2 overflow-hidden">
+              <div className="bg-umurage-gold h-full transition-all duration-300 rounded-full" style={{ width: `${uploadProgress}%` }} />
             </div>
-            <p className="text-umurage-subtle text-xs mt-2">
-              {uploadProgress < 40 ? 'Compressing and uploading thumbnail...' : uploadProgress < 90 ? 'Uploading main file...' : 'Saving to database...'}
-            </p>
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={uploading || !title.trim() || (!mediaFile && type !== 'article')}
-          className="btn-gold w-full py-4 text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
-        >
-          {uploading ? <Loader2 size={18} className="animate-spin" /> : <UploadIcon size={18} />}
-          {uploading ? 'Publishing...' : 'Publish to Umurage Hub'}
-        </button>
+        <div className="flex gap-4">
+          <button type="button" onClick={() => navigate(-1)} className="btn-outline-gold flex-1 py-3 text-xs font-semibold">Cancel</button>
+          <button type="submit" disabled={uploading} className="btn-gold flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-2">
+            {uploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>{uploadMode === 'story' ? 'Posting Story...' : 'Publishing...'}</span>
+              </>
+            ) : (
+              <>
+                {uploadMode === 'story' ? <Radio size={16} /> : <UploadIcon size={16} />}
+                <span>{uploadMode === 'story' ? 'Post Story Now' : 'Publish Content'}</span>
+              </>
+            )}
+          </button>
+        </div>
       </form>
+
+      {/* Sound Selector Modal */}
+      <SoundSelectorModal
+        isOpen={isSoundModalOpen}
+        onClose={() => setIsSoundModalOpen(false)}
+        selectedSound={selectedSound}
+        onSelectSound={(sound, muteOriginal) => {
+          setSelectedSound(sound);
+          setMuteOriginalAudio(muteOriginal);
+        }}
+        muteOriginalAudio={muteOriginalAudio}
+        isVideoMedia={mediaFile ? mediaFile.type.startsWith('video/') : false}
+      />
     </div>
   );
 };
