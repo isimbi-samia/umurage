@@ -3,16 +3,26 @@
 
 -- 1. Add 'document' to post_type enum
 DO $$ BEGIN
-  ALTER TYPE public.post_type ADD VALUE IF NOT EXISTS 'document';
+  CREATE TYPE public.post_type AS ENUM ('image', 'video', 'audio', 'document', 'article');
 EXCEPTION
-  WHEN duplicate_object THEN NULL;
+  WHEN duplicate_object THEN
+    BEGIN
+      ALTER TYPE public.post_type ADD VALUE IF NOT EXISTS 'document';
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END;
 END $$;
 
 -- 2. Ensure realtime is enabled for posts table
-alter publication supabase_realtime add table public.posts;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
 -- 3. Storage bucket policies for umurage-media
--- (Apply these via Supabase Dashboard > Storage > umurage-media > Policies if not already present)
+DROP POLICY IF EXISTS "Authenticated users can upload media to own folder" ON storage.objects;
+DROP POLICY IF EXISTS "Public can view media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can update own media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete own media" ON storage.objects;
 
 -- Policy: Allow authenticated uploads to own folder path
 CREATE POLICY "Authenticated users can upload media to own folder"
@@ -57,7 +67,7 @@ BEGIN
       'follow',
       NEW.user_id,
       NEW.id,
-      COALESCE((SELECT username FROM user_profiles WHERE id = NEW.user_id), 'Someone') || ' published: ' || LEFT(NEW.title, 60),
+      COALESCE((SELECT username FROM profiles WHERE id = NEW.user_id), 'Someone') || ' published: ' || LEFT(NEW.title, 60),
       false,
       now()
     FROM follows f
@@ -79,12 +89,12 @@ CREATE OR REPLACE FUNCTION public.update_user_post_count()
 RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    UPDATE public.user_profiles
-    SET posts_count = posts_count + 1
+    UPDATE public.profiles
+    SET posts_count = COALESCE(posts_count, 0) + 1
     WHERE id = NEW.user_id;
   ELSIF TG_OP = 'DELETE' THEN
-    UPDATE public.user_profiles
-    SET posts_count = GREATEST(posts_count - 1, 0)
+    UPDATE public.profiles
+    SET posts_count = GREATEST(COALESCE(posts_count, 0) - 1, 0)
     WHERE id = OLD.user_id;
   END IF;
   RETURN NULL;
@@ -97,11 +107,11 @@ CREATE TRIGGER after_post_insert
   FOR EACH ROW EXECUTE FUNCTION public.update_user_post_count();
 
 -- 6. Enable realtime on notifications and heritage_recordings tables
-alter publication supabase_realtime add table public.notifications;
-alter publication supabase_realtime add table public.heritage_recordings;
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications; EXCEPTION WHEN OTHERS THEN NULL; END $$;
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.heritage_recordings; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
--- 7. Ensure realtime for user_profiles (may already be enabled)
-alter publication supabase_realtime add table public.user_profiles;
+-- 7. Ensure realtime for profiles
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
 -- 8. Storage bucket setup note
 -- The umurage-media bucket must exist in Supabase Storage.
