@@ -211,7 +211,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
 
   return (
     <header
-      className="fixed top-0 left-0 lg:left-[280px] right-0 z-20 flex items-center gap-4 px-4 py-3 border-b border-umurage-border"
+      className="fixed top-0 left-0 lg:left-[280px] right-0 z-50 flex items-center gap-4 px-4 py-3 border-b border-umurage-border"
       style={{ background: 'rgba(15,10,5,0.96)', backdropFilter: 'blur(14px)', height: '64px' }}
     >
       <button onClick={onMenuToggle} className="lg:hidden text-umurage-muted hover:text-umurage-cream p-2 rounded-lg transition-colors">
@@ -345,7 +345,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, menuOpen }) => {
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 top-full mt-2 w-52 umurage-card rounded-xl border border-umurage-border py-2 z-50 animate-fade-in">
+                <div className="absolute right-0 top-full mt-2 w-52 umurage-card rounded-xl border border-umurage-border py-2 z-[100] shadow-2xl animate-fade-in">
                   <div className="px-4 py-2 border-b border-umurage-border/50 mb-1">
                     <p className="text-umurage-cream text-sm font-semibold truncate">{user?.name}</p>
                     <p className="text-umurage-subtle text-[10px] truncate">{user?.email}</p>

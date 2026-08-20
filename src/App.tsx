@@ -68,7 +68,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       </main>
 
-      <div className="hidden lg:block fixed right-0 top-16 h-[calc(100vh-64px)] w-80 overflow-auto p-4 z-20">
+      <div className="hidden lg:block fixed right-0 top-16 h-[calc(100vh-64px)] w-80 overflow-auto p-4 z-10">
         <RightSidebar />
       </div>
 
