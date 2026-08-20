@@ -14,6 +14,7 @@ const LANGUAGES: { code: LangCode; label: string; flag: string }[] = [
   { code: 'en', label: 'EN', flag: '🇬🇧' },
   { code: 'rw', label: 'RW', flag: '🇷🇼' },
   { code: 'fr', label: 'FR', flag: '🇫🇷' },
+  { code: 'sw', label: 'SW', flag: '🇹🇿' },
 ];
 
 interface SearchResult {

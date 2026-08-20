@@ -9,6 +9,7 @@ const LANGUAGES: { code: LangCode; label: string; native: string }[] = [
   { code: 'en', label: 'English', native: 'English' },
   { code: 'rw', label: 'Kinyarwanda', native: 'Ikinyarwanda' },
   { code: 'fr', label: 'French', native: 'Français' },
+  { code: 'sw', label: 'Swahili', native: 'Kiswahili' },
 ];
 
 const Settings: React.FC = () => {

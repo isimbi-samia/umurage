@@ -196,7 +196,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data } = await supabase
         .from('profiles')
         .select('email')
-        .eq('phone', trimmed)
+        .or(`phone.eq.${trimmed},phone_number.eq.${trimmed}`)
         .maybeSingle();
       if (data?.email) return data.email;
       throw new Error('No account found with that phone number. Try using your email instead.');

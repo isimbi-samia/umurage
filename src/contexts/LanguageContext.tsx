@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
-export type LangCode = 'en' | 'rw' | 'fr';
+export type LangCode = 'en' | 'rw' | 'fr' | 'sw';
 
 interface LanguageContextType {
   lang: LangCode;
@@ -494,6 +494,168 @@ const translations: Record<LangCode, Record<string, string>> = {
     'poweredBy': 'Propulsé par Umurage Hub',
     'joinCommunity': "Rejoignez la communauté culturelle du Rwanda",
   },
+
+  sw: {
+    // Navigation
+    'nav.home': 'Nyumbani',
+    'nav.library': 'Maktaba',
+    'nav.stories': 'Hadithi',
+    'nav.oral': 'Historia ya Oral',
+    'nav.map': 'Ramani ya Kitamaduni',
+    'nav.discussions': 'Majadiliano',
+    'nav.events': 'Matukio',
+    'nav.marketplace': 'Soko',
+    'nav.courses': 'Kozi',
+    'nav.heritage': 'Urithi Wangu',
+    'nav.archive': 'Kumbukumbu za Urithi',
+    'nav.verify': 'Thibitishwa',
+    'nav.ai': 'Mwongozo wa AI wa Utamaduni',
+    'nav.settings': 'Mipangilio',
+    // Search
+    'search.placeholder': 'Tafuta utamaduni, hadithi, vitabu, video...',
+    // Stories
+    'stories.title': 'Hadithi',
+    'stories.seeAll': 'Ona Zote',
+    'stories.yourStory': 'Hadithi Yako',
+    'stories.addStory': 'Weka Hadithi',
+    // Feed
+    'feed.forYou': 'Kwa Ajili Yako',
+    'feed.following': 'Unaowafuata',
+    'feed.explore': 'Gundua',
+    'feed.latest': 'Za Hivi Karibuni',
+    'feed.noPosts': 'Bado hakuna machapisho. Mwe wa kwanza kushiriki!',
+    'feed.noFollowing': 'Bado humfuati mtu yeyote.',
+    // Trending
+    'trending.title': 'Yanayovuma Wiki Hii',
+    'trending.seeMore': 'Ona Zaidi',
+    'trending.noContent': 'Bado hakuna maudhui yanayovuma',
+    // Verified
+    'verified.title': 'Wabunifu Waliothibitishwa',
+    'verified.seeAll': 'Ona Wote',
+    'verified.none': 'Bado hakuna wabunifu waliothibitishwa',
+    // Follow
+    'follow': 'Fuata',
+    'following.btn': 'Unamfuata',
+    'unfollow': 'Acha Kufuata',
+    // Events
+    'events.title': 'Matukio ya Kitamaduni',
+    'events.seeAll': 'Ona Yote',
+    'events.register': 'Jiandikishe',
+    'events.createEvent': 'Tengeneza TUKIO',
+    'events.noEvents': 'Hakuna matukio yajayo',
+    'events.going': 'Ntahudhuria',
+    'events.interested': 'Ninatamani',
+    // CTA
+    'cta.share': 'Shiriki. Hifadhi. Hamasisha.',
+    'cta.together': 'Pamoja, tunatunza utamaduni wa Rwanda.',
+    'cta.contribute': 'Changia Sasa',
+    // Auth
+    'auth.login': 'Ingia',
+    'auth.signup': 'Jiandikishe',
+    'auth.logout': 'Ondoka',
+    'auth.loginTitle': 'Karibu Tena',
+    'auth.signupTitle': 'Jiunge na Umurage Hub',
+    'auth.email': 'Barua Pepe',
+    'auth.password': 'Nenosiri',
+    'auth.name': 'Jina Kamili',
+    'auth.username': 'Jina la Mtumiaji',
+    'auth.phone': 'Nambari ya Simu (ya hiari)',
+    'auth.role': 'Mimi ni...',
+    'auth.role.user': 'Mwanafunzi wa Utamaduni',
+    'auth.role.creator': 'Mbuni wa Utamaduni',
+    'auth.role.elder': 'Mzee / Mlinzi wa Maarifa',
+    'auth.role.org': 'Shirika / Taasisi',
+    'auth.noAccount': 'Huna akaunti?',
+    'auth.hasAccount': 'Tayari una akaunti?',
+    'auth.forgotPassword': 'Umesahau nenosiri?',
+    'auth.sendCode': 'Tuma Nambari ya Uthibitisho',
+    'auth.verifyCode': 'Thibitisha Nambari',
+    'auth.setPassword': 'Weka Nenosiri Jipya',
+    // Actions
+    'save': 'Hifadhi',
+    'saved': 'Imehifadhiwa',
+    'like': 'Penda',
+    'comment': 'Maoni',
+    'share': 'Shiriki',
+    'upload': 'Pakia',
+    'edit': 'Hariri',
+    'delete': 'Futa',
+    'cancel': 'Ghairi',
+    'submit': 'Wasilisha',
+    'back': 'Rudi',
+    'close': 'Funga',
+    'loading': 'Inapakia...',
+    'seeMore': 'Tazama Zaidi',
+    'viewAll': 'Tazama Yote',
+    // Pages
+    'library.title': 'Maktaba ya Kitamaduni',
+    'courses.title': 'Masomo ya Utamaduni',
+    'ai.title': 'Mwongozo wa AI wa Utamaduni',
+    'ai.subtitle': 'Niulize chochote kuhusu utamaduni, historia na mila za Rwanda',
+    'ai.placeholder': 'Uliza kuhusu utamaduni wa Rwanda... mf. "Eleza Umuganura"',
+    'ai.send': 'Tuma',
+    'ai.thinking': 'Inafikiri...',
+    'heritage.title': 'Urithi Wangu',
+    'heritage.archive': 'Kumbukumbu za Urithi',
+    'marketplace.title': 'Soko la Kitamaduni',
+    'discussions.title': 'Majadiliano',
+    'discussions.newTopic': 'Mada Mpya',
+    'discussions.replyBtn': 'Jibu',
+    'discussions.voteUp': 'Piga Kura ya Ndio',
+    'discussions.voteDown': 'Piga Kura ya Hapana',
+    // Profile
+    'profile.posts': 'Machapisho',
+    'profile.saved': 'Vilivyohifadhiwa',
+    'profile.heritage': 'Urithi',
+    'profile.followers': 'Wanaokufuata',
+    'profile.following': 'Unaowafuata',
+    'profile.editProfile': 'Hariri Profaili',
+    'profile.bio': 'Maelezo',
+    'profile.location': 'Mahali',
+    'profile.interests': 'Vitu Unavyopenda',
+    'profile.noBio': 'Bado hakuna maelezo.',
+    'profile.noPosts': 'Bado hakuna machapisho',
+    'profile.noSaved': 'Bado hakuna maudhui yaliyohifadhiwa',
+    'profile.noHeritage': 'Bado hakuna rekodi za urithi',
+    'profile.uploadFirst': 'Pakia Maudhui',
+    'profile.changePhoto': 'Badilisha Picha',
+    // Settings
+    'settings.title': 'Mipangilio',
+    'settings.language': 'Lugha',
+    'settings.account': 'Akaunti',
+    'settings.privacy': 'Faragha',
+    'settings.notifications': 'Arifa',
+    // Notifications
+    'notif.title': 'Arifa',
+    'notif.markAllRead': 'Weka zote zimesomwa',
+    'notif.noNotifs': 'Bado hakuna arifa',
+    // Upload
+    'upload.title': 'Shiriki Maudhui ya Kitamaduni',
+    'upload.subtitle': 'Chagiza katika kuhifadhi urithi tajiri wa utamaduni wa Rwanda',
+    'upload.publish': 'Chapisha kwenye Umurage Hub',
+    'upload.success': 'Maudhui Yamechapishwa!',
+    // Heritage Archive
+    'archive.title': 'Kumbukumbu za Urithi',
+    'archive.record': 'Rekodi Hadithi',
+    'archive.category': 'Kipengele',
+    // Verification
+    'verify.title': 'Thibitishwa',
+    'verify.apply': 'Omba Uthibitisho',
+    'verify.status': 'Hali ya Ombi',
+    // Map
+    'map.title': 'Ramani ya Kitamaduni',
+    // Oral History
+    'oral.title': 'Historia ya Oral',
+    // Courses
+    'courses.enroll': 'Jiandikishe Sasa',
+    'courses.continue': 'Endelea Kujifunza',
+    'courses.completed': 'Imekamilika',
+    // Marketplace
+    'marketplace.browse': 'Vinjari Vitu',
+    // Footer
+    'poweredBy': 'Imewezeshwa na Umurage Hub',
+    'joinCommunity': 'Jiunge na jumuiya ya utamaduni wa Rwanda',
+  },
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -503,7 +665,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [lang, setLangState] = useState<LangCode>(() => {
     try {
       const stored = localStorage.getItem('umurage-lang');
-      if (stored && ['en', 'rw', 'fr'].includes(stored)) return stored as LangCode;
+      if (stored && ['en', 'rw', 'fr', 'sw'].includes(stored)) return stored as LangCode;
     } catch {}
     return 'en';
   });
@@ -515,7 +677,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 
   // Also update the html lang attribute for accessibility
   useEffect(() => {
-    document.documentElement.lang = lang === 'rw' ? 'rw' : lang === 'fr' ? 'fr' : 'en';
+    document.documentElement.lang = lang;
   }, [lang]);
 
   const t = (key: string): string => {
