@@ -666,13 +666,19 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     try {
       const stored = localStorage.getItem('umurage-lang');
       if (stored && ['en', 'rw', 'fr', 'sw'].includes(stored)) return stored as LangCode;
-    } catch {}
+    } catch {
+      /* ignore storage errors */
+    }
     return 'en';
   });
 
   const setLang = (newLang: LangCode) => {
     setLangState(newLang);
-    try { localStorage.setItem('umurage-lang', newLang); } catch {}
+    try {
+      localStorage.setItem('umurage-lang', newLang);
+    } catch {
+      /* ignore storage errors */
+    }
   };
 
   // Also update the html lang attribute for accessibility
