@@ -22,5 +22,10 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
+    global: {
+      headers: {
+        apikey: supabaseAnonKey,
+      },
+    },
   }
 );
