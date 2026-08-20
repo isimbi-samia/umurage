@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { uploadMediaToStorage } from '@/lib/uploadMedia';
 
 const STORIES_BUCKET = 'stories'; // change this if stories have their own dedicated bucket
 
@@ -65,16 +66,20 @@ export function useUploadStory() {
     mutationFn: async ({
       file, userId, type, caption,
     }: { file: File; userId: string; type: 'image' | 'video'; caption?: string }) => {
-      const ext = file.name.split('.').pop() || (type === 'video' ? 'mp4' : 'jpg');
-      const path = `${userId}/stories/${Date.now()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(STORIES_BUCKET)
-        .upload(path, file, { contentType: file.type });
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage.from(STORIES_BUCKET).getPublicUrl(path);
-      const mediaUrl = urlData.publicUrl;
+      let mediaUrl: string;
+      try {
+        const res = await uploadMediaToStorage(file, 'story', userId, 'stories');
+        mediaUrl = res.url;
+      } catch {
+        const ext = file.name.split('.').pop() || (type === 'video' ? 'mp4' : 'jpg');
+        const path = `${userId}/stories/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from(STORIES_BUCKET)
+          .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from(STORIES_BUCKET).getPublicUrl(path);
+        mediaUrl = urlData.publicUrl;
+      }
 
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
