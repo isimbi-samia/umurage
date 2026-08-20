@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { uploadMediaToStorage } from '@/lib/uploadMedia';
 import { toast } from 'sonner';
@@ -22,6 +23,12 @@ export interface Story {
   };
 }
 
+export interface UserStoriesGroup {
+  user_id: string;
+  author: Story['author'];
+  stories: Story[];
+}
+
 // ── Load active (non-expired) stories ────────────────────────────────────
 export function useStories() {
   return useQuery<Story[]>({
@@ -33,7 +40,7 @@ export function useStories() {
         .from('stories')
         .select('*')
         .gt('expires_at', now)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true }); // Chronological order (oldest first)
       if (error) throw error;
       if (!storiesData || storiesData.length === 0) return [];
 
@@ -58,6 +65,48 @@ export function useStories() {
     },
     staleTime: 30000,
   });
+}
+
+// ── Hook: Group stories by user_id for Instagram-style presentation ──────
+export function useStoriesGroupedByUser() {
+  const { data: stories = [], isLoading, error } = useStories();
+
+  const grouped = useMemo(() => {
+    if (!stories || stories.length === 0) return [];
+
+    const groupMap = new Map<string, Story[]>();
+    for (const story of stories) {
+      if (!groupMap.has(story.user_id)) {
+        groupMap.set(story.user_id, []);
+      }
+      groupMap.get(story.user_id)!.push(story);
+    }
+
+    const result: UserStoriesGroup[] = [];
+    groupMap.forEach((userStories, userId) => {
+      // Sort stories within each user's group chronologically (oldest first)
+      const sortedStories = [...userStories].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+      const author = sortedStories[0]?.author || {
+        id: userId,
+        username: null,
+        avatar_url: null,
+        verified: false,
+      };
+
+      result.push({
+        user_id: userId,
+        author,
+        stories: sortedStories,
+      });
+    });
+
+    return result;
+  }, [stories]);
+
+  return { data: grouped, isLoading, error, rawStories: stories };
 }
 
 // ── Upload a new story ───────────────────────────────────────────────────
