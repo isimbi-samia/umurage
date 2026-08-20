@@ -267,6 +267,8 @@ const Profile: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'heritage'>('posts');
   const [editing, setEditing] = useState(false);
+  const [fullNameField, setFullNameField] = useState('');
+  const [usernameField, setUsernameField] = useState('');
   const [bio, setBio] = useState('');
   const [locField, setLocField] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
@@ -341,6 +343,8 @@ const Profile: React.FC = () => {
 
   // Populate edit form when entering edit mode
   const startEdit = () => {
+    setFullNameField(profile?.full_name || authUser?.name || '');
+    setUsernameField(profile?.username || authUser?.username || '');
     setBio(profile?.bio || '');
     setLocField(profile?.location || '');
     setInterests(profile?.interests || []);
@@ -352,12 +356,19 @@ const Profile: React.FC = () => {
     setSaving(true);
     setProfileError(null);
     try {
-      await updateProfile({ bio, location: locField, interests });
+      await updateProfile({
+        full_name: fullNameField,
+        username: usernameField,
+        bio,
+        location: locField,
+        interests,
+      });
       qc.invalidateQueries({ queryKey: ['profile', authUser.id] });
+      qc.invalidateQueries({ queryKey: ['posts'] });
       setEditing(false);
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : 'Could not save profile');
-      toast.error('Could not save profile');
+      toast.error(error instanceof Error ? error.message : 'Could not save profile');
     } finally {
       setSaving(false);
     }
@@ -596,17 +607,38 @@ const Profile: React.FC = () => {
           </div>
         )}
 
-        {/* Bio & Location — view or edit */}
+        {/* Profile edit fields — view or edit */}
         <div className="mt-4 space-y-3">
           {editing ? (
             <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-umurage-muted text-xs font-medium block mb-1">Full Name</label>
+                  <input
+                    type="text" value={fullNameField} onChange={e => setFullNameField(e.target.value)}
+                    placeholder="Full Name"
+                    className="w-full bg-[#1a110a] border border-[#2d1e13] rounded-lg px-3 py-2 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60"
+                  />
+                </div>
+                <div>
+                  <label className="text-umurage-muted text-xs font-medium block mb-1">Username</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a6754] text-xs">@</span>
+                    <input
+                      type="text" value={usernameField} onChange={e => setUsernameField(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                      placeholder="username"
+                      className="w-full bg-[#1a110a] border border-[#2d1e13] rounded-lg pl-7 pr-3 py-2 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60"
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
                 <label className="text-umurage-muted text-xs font-medium block mb-1">Bio</label>
                 <textarea
                   value={bio} onChange={e => setBio(e.target.value)}
                   placeholder="Tell your cultural story..."
                   rows={2}
-                  className="w-full bg-umurage-surface border border-umurage-border rounded-xl px-3 py-2 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60 resize-none"
+                  className="w-full bg-[#1a110a] border border-[#2d1e13] rounded-lg px-3 py-2 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60 resize-none"
                 />
               </div>
               <div>
@@ -614,7 +646,7 @@ const Profile: React.FC = () => {
                 <input
                   type="text" value={locField} onChange={e => setLocField(e.target.value)}
                   placeholder="e.g. Kigali, Rwanda"
-                  className="w-full bg-umurage-surface border border-umurage-border rounded-xl px-3 py-2 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60"
+                  className="w-full bg-[#1a110a] border border-[#2d1e13] rounded-lg px-3 py-2 text-xs text-[#f2e6d8] placeholder-[#7a6754] focus:outline-none focus:border-[#c8960c]/60"
                 />
               </div>
               <div>

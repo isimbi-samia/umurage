@@ -143,13 +143,13 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
             src={authorAvatar}
             alt={authorName}
             className="h-9 w-9 rounded-full border border-[#382415] object-cover"
-            onClick={e => { e.stopPropagation(); navigate(`/profile?user=${item.author?.id}`); }}
+            onClick={e => { e.stopPropagation(); if (item.author?.id) navigate(`/profile?user=${item.author.id}`); }}
           />
           <div>
             <div className="flex items-center gap-1.5">
               <span
                 className="text-xs font-semibold text-[#f2e6d8] hover:text-[#d4a24c] transition-colors"
-                onClick={e => { e.stopPropagation(); navigate(`/profile?user=${item.author?.id}`); }}
+                onClick={e => { e.stopPropagation(); if (item.author?.id) navigate(`/profile?user=${item.author.id}`); }}
               >
                 {authorName}
               </span>
@@ -167,7 +167,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) =
           </div>
         </div>
 
-        <span className={`type-badge ${typeBadgeClass}`}>{item.type}</span>
+        <span className={`type-badge ${typeBadgeClass}`}>{item.type || 'article'}</span>
       </div>
 
       {/* Content Area */}

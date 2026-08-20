@@ -427,26 +427,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateProfile = async (updates: Partial<{
-    bio: string; location: string; interests: string[]; phone: string; username: string;
+    bio: string; location: string; interests: string[]; phone: string; username: string; full_name?: string; role?: string;
   }>) => {
     if (!user) return;
-    const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
-    if (error) throw error;
-    // Also update auth metadata if username changed
-    if (updates.username) {
-      await supabase.auth.updateUser({ data: { username: updates.username } });
+
+    const payload: Record<string, unknown> = {};
+    if (updates.bio !== undefined) payload.bio = updates.bio;
+    if (updates.location !== undefined) payload.location = updates.location;
+    if (updates.interests !== undefined) payload.interests = updates.interests;
+    if (updates.phone !== undefined) payload.phone_number = updates.phone;
+    if (updates.role !== undefined) payload.role = updates.role;
+    if (updates.full_name !== undefined) payload.full_name = updates.full_name;
+
+    if (updates.username !== undefined) {
+      const cleanUsername = updates.username.trim().toLowerCase().replace(/\s+/g, '_');
+      if (!cleanUsername) throw new Error('Username cannot be empty');
+
+      if (cleanUsername !== user.username) {
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', cleanUsername)
+          .neq('id', user.id)
+          .maybeSingle();
+
+        if (existing) {
+          throw new Error(`The username "@${cleanUsername}" is already taken. Please choose another username.`);
+        }
+      }
+      payload.username = cleanUsername;
     }
-    // Merge into local state immediately (no need to refetch)
+
+    const { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
+    if (error) throw error;
+
+    if (payload.username || updates.full_name) {
+      await supabase.auth.updateUser({
+        data: {
+          username: (payload.username as string) || user.username,
+          full_name: updates.full_name || user.name,
+        },
+      });
+    }
+
     setUser(prev => prev ? {
       ...prev,
       bio: updates.bio ?? prev.bio,
       location: updates.location ?? prev.location,
       interests: updates.interests ?? prev.interests,
       phone: updates.phone ?? prev.phone,
-      username: updates.username ?? prev.username,
-      name: updates.username ?? prev.name,
+      username: (payload.username as string) ?? prev.username,
+      name: updates.full_name ?? prev.name,
+      role: updates.role ?? prev.role,
     } : null);
-    toast.success('Profile updated!');
+
+    toast.success('Profile updated successfully!');
   };
 
   const openAuth = (mode: 'login' | 'signup') => {

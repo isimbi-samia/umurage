@@ -24,7 +24,7 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
         .from('posts')
         .select(`
           *,
-          author:profiles!posts_user_id_fkey(
+          author:profiles(
             id, username, email, bio, avatar_url, role, verified, verification_type, followers_count, following_count, posts_count
           )
         `)
@@ -60,16 +60,43 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
         }
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      let { data, error } = await query;
+      if (error) {
+        // Fallback without embedded join if relation fails
+        const fallbackQuery = supabase
+          .from('posts')
+          .select('*')
+          .eq('published', true)
+          .order('created_at', { ascending: false })
+          .limit(PAGE_SIZE + 1);
+        const { data: fbData, error: fbError } = await fallbackQuery;
+        if (fbError) throw fbError;
+        data = fbData;
+      }
 
-      const items = (data || []).slice(0, PAGE_SIZE);
+      const rawItems = data || [];
+      // Populate missing authors
+      const missingAuthorUserIds = [...new Set(rawItems.filter(p => !p.author && p.user_id).map(p => p.user_id))];
+      if (missingAuthorUserIds.length > 0) {
+        const { data: authorProfiles } = await supabase
+          .from('profiles')
+          .select('id, username, email, bio, avatar_url, role, verified, verification_type, followers_count, following_count, posts_count')
+          .in('id', missingAuthorUserIds);
+        const authorMap = new Map((authorProfiles || []).map(ap => [ap.id, ap]));
+        rawItems.forEach(p => {
+          if (!p.author && p.user_id) {
+            p.author = authorMap.get(p.user_id) || null;
+          }
+        });
+      }
+
+      const items = rawItems.slice(0, PAGE_SIZE);
       const lastItem = items[items.length - 1];
       const nextCursor = items.length === PAGE_SIZE ? (sortBy === 'latest' ? lastItem?.created_at ?? null : (sortBy === 'popular' ? String(lastItem?.likes_count ?? 0) : String(lastItem?.views_count ?? 0))) : null;
       return {
         items,
         nextCursor,
-        hasMore: (data || []).length > PAGE_SIZE,
+        hasMore: rawItems.length > PAGE_SIZE,
       };
     },
     initialPageParam: null as string | null,
@@ -147,8 +174,8 @@ export function useToggleLike() {
         if (error) throw error;
       }
     },
-    onSuccess: (_d, { userId }) => {
-      qc.invalidateQueries({ queryKey: ['likes', userId] });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['likes'] });
       qc.invalidateQueries({ queryKey: ['posts'] });
     },
     onError: () => toast.error('Failed to update like'),
@@ -170,7 +197,7 @@ export function useToggleSave() {
     },
     onSuccess: (_d, { userId }) => {
       qc.invalidateQueries({ queryKey: ['saves', userId] });
-      toast.success((_d as unknown as boolean) ? 'Removed from saved' : 'Saved!');
+      toast.success('Saved state updated');
     },
     onError: () => toast.error('Failed to update saved'),
   });
@@ -243,7 +270,7 @@ export function useComments(postId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('comments')
-        .select(`*, author:profiles!comments_user_id_fkey(id, username, avatar_url, verified)`)
+        .select(`*, author:profiles(id, username, avatar_url, verified)`)
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -258,11 +285,7 @@ export function useAddComment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ postId, userId, content }: { postId: string; userId: string; content: string }) => {
-      const { data, error } = await supabase
-        .from('comments')
-        .insert({ post_id: postId, user_id: userId, content })
-        .select()
-        .single();
+      const { data, error } = await supabase.from('comments').insert({ post_id: postId, user_id: userId, content }).select().single();
       if (error) throw error;
       return data;
     },

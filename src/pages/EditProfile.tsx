@@ -54,6 +54,21 @@ const EditProfile: React.FC = () => {
 
   const inputBase = 'w-full bg-umurage-surface border border-umurage-border rounded-xl px-4 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60 transition-colors';
 
+  React.useEffect(() => {
+    if (user) {
+      setFormData({
+        full_name: user.name || '',
+        username: user.username || '',
+        email: user.email || '',
+        phone_number: user.phone || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        interests: user.interests || [],
+        role: user.role || 'student',
+      });
+    }
+  }, [user]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -85,39 +100,22 @@ const EditProfile: React.FC = () => {
     setLoading(true);
 
     try {
-      let avatarUrl = user?.avatar || null;
-      let coverUrl = null;
-
-      if (avatarFile) {
+      if (avatarFile && user) {
         setUploadingMedia(true);
-        avatarUrl = await uploadMedia(avatarFile, 'avatar', user!.id);
+        const avatarUrl = await uploadMedia(avatarFile, 'avatar', user.id);
+        if (avatarUrl) {
+          await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
+        }
       }
-      if (coverFile) {
+      if (coverFile && user) {
         setUploadingMedia(true);
-        coverUrl = await uploadMedia(coverFile, 'cover', user!.id);
+        const coverUrl = await uploadMedia(coverFile, 'cover', user.id);
+        if (coverUrl) {
+          await supabase.from('profiles').update({ cover_image_url: coverUrl }).eq('id', user.id);
+        }
       }
       setUploadingMedia(false);
 
-      const updates: Record<string, unknown> = {
-        full_name: formData.full_name,
-        username: formData.username,
-        phone_number: formData.phone_number || null,
-        bio: formData.bio || null,
-        location: formData.location || null,
-        interests: formData.interests,
-        role: formData.role,
-        avatar_url: avatarUrl,
-        cover_url: coverUrl,
-      };
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user!.id);
-
-      if (profileError) throw profileError;
-
-      // Update password if provided
       if (password) {
         if (password !== confirmPassword) {
           setError('Passwords do not match');
@@ -134,16 +132,17 @@ const EditProfile: React.FC = () => {
       }
 
       await updateProfile({
+        full_name: formData.full_name,
+        username: formData.username,
+        phone: formData.phone_number,
         bio: formData.bio,
         location: formData.location,
         interests: formData.interests,
-        phone: formData.phone_number,
-        username: formData.username,
+        role: formData.role,
       });
 
       setSuccess(true);
-      toast.success('Profile updated successfully!');
-      setTimeout(() => navigate('/profile'), 1500);
+      setTimeout(() => navigate('/profile'), 1200);
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to update profile');
       toast.error((err as Error).message || 'Failed to update profile');
