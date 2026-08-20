@@ -60,8 +60,11 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 const ContentCard: React.FC<ContentCardProps> = ({ item, likedSet, savedSet }) => {
   const { user, isAuthenticated, openAuth } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const toggleLike = useToggleLike();
   const toggleSave = useToggleSave();

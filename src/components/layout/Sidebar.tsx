@@ -17,23 +17,24 @@ import {
   Upload,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import logoImg from '@/assets/logo.png';
 
 const NAV_ITEMS = [
-  { label: 'Home', icon: Home, path: '/' },
-  { label: 'Library', icon: BookOpen, path: '/library' },
-  { label: 'Stories', icon: Radio, path: '/stories' },
-  { label: 'Oral History', icon: Mic, path: '/oral-history' },
-  { label: 'Map', icon: Map, path: '/cultural-map' },
-  { label: 'Messages', icon: MessageSquare, path: '/messages' },
-  { label: 'Discussions', icon: MessageSquare, path: '/discussions' },
-  { label: 'Notifications', icon: Bell, path: '/notifications' },
-  { label: 'Cultural Events', icon: Calendar, path: '/cultural-events' },
-  { label: 'Marketplace', icon: ShoppingBag, path: '/marketplace' },
-  { label: 'Courses', icon: GraduationCap, path: '/courses' },
-  { label: 'My Heritage', icon: Heart, path: '/my-heritage' },
-  { label: 'AI Cultural Guide', icon: Sparkles, path: '/ai-guide' },
-  { label: 'Settings', icon: Settings, path: '/settings' },
+  { key: 'nav.home', label: 'Home', icon: Home, path: '/' },
+  { key: 'nav.library', label: 'Library', icon: BookOpen, path: '/library' },
+  { key: 'nav.stories', label: 'Stories', icon: Radio, path: '/stories' },
+  { key: 'nav.oral', label: 'Oral History', icon: Mic, path: '/oral-history' },
+  { key: 'nav.map', label: 'Map', icon: Map, path: '/cultural-map' },
+  { key: 'nav.messages', label: 'Messages', icon: MessageSquare, path: '/messages' },
+  { key: 'nav.discussions', label: 'Discussions', icon: MessageSquare, path: '/discussions' },
+  { key: 'nav.notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
+  { key: 'nav.events', label: 'Cultural Events', icon: Calendar, path: '/cultural-events' },
+  { key: 'nav.marketplace', label: 'Marketplace', icon: ShoppingBag, path: '/marketplace' },
+  { key: 'nav.courses', label: 'Courses', icon: GraduationCap, path: '/courses' },
+  { key: 'nav.heritage', label: 'My Heritage', icon: Heart, path: '/my-heritage' },
+  { key: 'nav.ai', label: 'AI Cultural Guide', icon: Sparkles, path: '/ai-guide' },
+  { key: 'nav.settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 interface SidebarProps {
@@ -43,6 +44,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const { isAuthenticated, openAuth } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -81,50 +83,60 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
           </div>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin">
-          {NAV_ITEMS.map(({ label, icon: Icon, path }) => {
-            const isActive = location.pathname === path;
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 scrollbar-hide">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = location.pathname === item.path;
+
             return (
               <button
-                key={label}
-                onClick={() => handleNav(path)}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors duration-150 ${
-                  isActive
-                    ? 'bg-[#24170d] text-[#d4a24c] font-semibold border-l-2 border-[#c8960c]'
-                    : 'text-[#c2b29f] hover:bg-[#1c120a] hover:text-[#f2e6d8]'
-                }`}
+                key={item.path}
+                onClick={() => handleNav(item.path)}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium
+                  transition-all duration-150 group text-left
+                  ${
+                    active
+                      ? 'bg-[#28180d] text-[#d4a24c] border border-[#3d2719] font-semibold shadow-xs'
+                      : 'text-[#c2b29f] hover:bg-[#1a110a] hover:text-[#f2e6d8]'
+                  }
+                `}
               >
-                <Icon size={15} className={`flex-shrink-0 ${isActive ? 'text-[#d4a24c]' : 'text-[#8c7662]'}`} />
-                <span className="truncate">{label}</span>
+                <Icon
+                  size={16}
+                  className={`flex-shrink-0 transition-colors ${
+                    active ? 'text-[#c8960c]' : 'text-[#8c7662] group-hover:text-[#d4a24c]'
+                  }`}
+                />
+                <span className="truncate">{t(item.key)}</span>
               </button>
             );
           })}
-
-          <button
-            type="button"
-            onClick={() => (!isAuthenticated ? openAuth('login') : handleNav('/upload'))}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#c8960c] px-3 py-2 text-xs font-semibold text-[#0e0906] transition-colors duration-150 hover:bg-[#d8a416]"
-          >
-            <Upload size={14} className="flex-shrink-0 text-[#0e0906]" />
-            <span>Share Cultural Content</span>
-          </button>
         </nav>
 
-        {/* Contribution Footer Card */}
-        <div className="m-3 rounded-xl border border-[#2d1e13] bg-[#1a110a] p-3">
-          <p className="font-cinzel text-[11px] font-semibold text-[#d4a24c] mb-1">
-            Preserve Our Heritage
+        {/* Action Button & Sign In CTA */}
+        <div className="p-3 border-t border-[#291b10] space-y-2">
+          {isAuthenticated ? (
+            <button
+              onClick={() => handleNav('/upload')}
+              className="btn-gold w-full py-2.5 px-3 text-xs font-semibold flex items-center justify-center gap-2"
+            >
+              <Upload size={14} />
+              <span>{t('nav.upload')}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => openAuth('login')}
+              className="btn-gold w-full py-2.5 px-3 text-xs font-semibold text-center block"
+            >
+              {t('auth.login')}
+            </button>
+          )}
+
+          <p className="text-[10px] text-[#7a6754] text-center pt-1">
+            {t('poweredBy')}
           </p>
-          <p className="text-[11px] leading-relaxed text-[#a89078] mb-2.5">
-            Add your voice, stories, and cultural memory to the living digital archive.
-          </p>
-          <button
-            onClick={() => (!isAuthenticated ? openAuth('signup') : handleNav('/upload'))}
-            className="w-full rounded-lg border border-[#c8960c]/40 bg-[#c8960c]/10 py-1.5 text-center text-xs font-medium text-[#e6c885] transition-colors duration-150 hover:bg-[#c8960c]/20"
-          >
-            Contribute Now
-          </button>
         </div>
       </aside>
     </>

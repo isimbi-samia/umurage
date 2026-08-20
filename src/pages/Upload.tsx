@@ -71,8 +71,11 @@ async function compressImage(file: File, maxWidthPx = 1920, quality = 0.82): Pro
   });
 }
 
+import { useLanguage } from '@/contexts/LanguageContext';
+
 const Upload: React.FC = () => {
   const { user, isAuthenticated, openAuth } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const createPost = useCreatePost();
   const uploadStory = useUploadStory();
@@ -392,9 +395,9 @@ const Upload: React.FC = () => {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <UploadIcon size={24} className="text-umurage-gold" />
-          <h1 className="font-cinzel text-3xl text-umurage-gold font-bold">Share Cultural Content</h1>
+          <h1 className="font-cinzel text-3xl text-umurage-gold font-bold">{t('upload.title')}</h1>
         </div>
-        <p className="text-umurage-muted text-base">Contribute to preserving Rwanda's rich cultural heritage for future generations.</p>
+        <p className="text-umurage-muted text-base">{t('upload.subtitle')}</p>
       </div>
 
       {/* Mode Switcher: Create Post vs Create Story */}
@@ -409,7 +412,7 @@ const Upload: React.FC = () => {
           }`}
         >
           <UploadIcon size={15} />
-          <span>CREATE POST</span>
+          <span>{t('feed.createPost')}</span>
         </button>
 
         <button
@@ -422,7 +425,7 @@ const Upload: React.FC = () => {
           }`}
         >
           <Radio size={15} />
-          <span>CREATE 24H STORY</span>
+          <span>{t('feed.createStory')}</span>
         </button>
       </div>
 
