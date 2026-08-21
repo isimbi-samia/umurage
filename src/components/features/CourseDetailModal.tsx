@@ -38,19 +38,19 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
       title: '1. Introduction to Rwandan Royal Heritage & Roots',
       duration: '15 mins',
       content:
-        'Rwanda''s heritage spans over 1,800 years of documented oral history, traditional governance, and sacred royal symbols such as Kalinga, Inyambo cattle, and Ubwitegerezo.',
+        "Rwanda's heritage spans over 1,800 years of documented oral history, traditional governance, and sacred royal symbols such as Kalinga, Inyambo cattle, and Ubwitegerezo.",
     },
     {
       title: '2. Ubwuzu & Umuganura Ceremonial Values',
       duration: '20 mins',
       content:
-        'Umuganura is the national harvest festival celebrating unity, sorghum, cattle, and community self-reliance. Learn the chants and oral recitations performed by traditional Abiru elders.',
+        "Umuganura is the national harvest festival celebrating unity, sorghum, cattle, and community self-reliance. Learn the chants and oral recitations performed by traditional Abiru elders.",
     },
     {
       title: '3. Traditional Music & Sacred Inanga Chants',
       duration: '25 mins',
       content:
-        'The Inanga is Rwanda''s premier traditional string instrument. Discover historic compositions by master players such as Thomas Kirusu and Sophie Nzayisenga.',
+        "The Inanga is Rwanda's premier traditional string instrument. Discover historic compositions by master players such as Thomas Kirusu and Sophie Nzayisenga.",
     },
   ];
 
@@ -66,7 +66,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         'D) A sports competition',
       ],
       correct: 'A',
-      explanation: 'Umuganura has been celebrated for over 1,800 years as Rwanda''s national harvest festival promoting unity and gratitude.',
+      explanation: "Umuganura has been celebrated for over 1,800 years as Rwanda's national harvest festival promoting unity and gratitude.",
     },
     {
       id: 2,
