@@ -1,10 +1,12 @@
 import React from 'react';
-import { Bell, CheckCheck, Loader2, MessageCircle, Heart, Sparkles, Shield } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, MessageCircle, Heart, Sparkles, Shield, Trash2, ShoppingBag, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useNotifications, useMarkAllRead, useMarkOneRead } from '@/hooks/useNotifications';
+import { useNotifications, useMarkAllRead, useMarkOneRead, useDeleteNotification } from '@/hooks/useNotifications';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 function timeAgo(dateStr: string) {
+  if (!dateStr) return '';
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return 'Just now';
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -18,6 +20,7 @@ const NotificationsPage: React.FC = () => {
   const { data: notifications = [], isLoading } = useNotifications(user?.id);
   const markAll = useMarkAllRead();
   const markOne = useMarkOneRead();
+  const deleteNotif = useDeleteNotification();
 
   const handleClick = (notif: { id: string; post_id?: string | null; topic_id?: string | null; type: string; read: boolean; user_id: string }) => {
     if (!notif.read) {
@@ -25,39 +28,49 @@ const NotificationsPage: React.FC = () => {
     }
     if (notif.post_id) navigate(`/post/${notif.post_id}`);
     else if (notif.topic_id) navigate('/discussions');
+    else if (notif.type === 'message') navigate('/messages');
+    else if (notif.type === 'order') navigate('/marketplace');
+    else if (notif.type === 'course') navigate('/courses');
     else navigate('/notifications');
   };
 
+  const handleDelete = (e: React.MouseEvent, notifId: string) => {
+    e.stopPropagation();
+    if (!user) return;
+    deleteNotif.mutate({ notifId, userId: user.id });
+    toast.success('Notification removed');
+  };
+
   return (
-    <div className="mx-auto max-w-5xl rounded-[28px] border border-[#4a2a12]/70 bg-[#1b120b]/90 p-6 shadow-[0_18px_70px_rgba(0,0,0,0.28)]">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-4xl rounded-[28px] border border-[#4a2a12]/70 bg-[#1b120b]/90 p-6 shadow-[0_18px_70px_rgba(0,0,0,0.28)]">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[#4a2a12]/60 pb-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-200/70">Notifications</p>
-          <h1 className="mt-1 text-2xl font-semibold text-amber-50">Your activity stream</h1>
+          <h1 className="mt-1 text-2xl font-semibold text-amber-50">Activity Stream & Alerts</h1>
         </div>
         <button
           onClick={() => markAll.mutate(user?.id || '')}
-          disabled={!user?.id || markAll.isPending}
-          className="rounded-full border border-amber-400/30 bg-[#221509] px-4 py-2 text-sm text-amber-100/80"
+          disabled={!user?.id || markAll.isPending || notifications.length === 0}
+          className="rounded-full border border-amber-400/30 bg-[#221509] px-4 py-2 text-xs text-amber-100/80 hover:bg-[#331d0c] disabled:opacity-40 transition-colors font-semibold"
         >
-          {markAll.isPending ? <Loader2 className="mr-2 inline animate-spin" size={16} /> : <CheckCheck className="mr-2 inline" size={16} />}
+          {markAll.isPending ? <Loader2 className="mr-2 inline animate-spin" size={14} /> : <CheckCheck className="mr-2 inline" size={14} />}
           Mark all read
         </button>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12 text-amber-200/70">
-          <Loader2 className="mr-2 animate-spin" size={18} />
-          Loading your notifications…
+        <div className="flex items-center justify-center py-16 text-amber-200/70 text-sm">
+          <Loader2 className="mr-2 animate-spin text-amber-400" size={18} />
+          Loading your activity notifications…
         </div>
       ) : notifications.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#5c3417] p-8 text-center text-amber-100/70">
-          <Bell className="mx-auto mb-3" size={28} />
-          <p className="text-sm">You are all caught up.</p>
-          <p className="mt-1 text-xs text-amber-100/50">Likes, replies, follows, and verification updates will appear here.</p>
+        <div className="rounded-2xl border border-dashed border-[#5c3417] p-10 text-center text-amber-100/70">
+          <Bell className="mx-auto mb-3 text-amber-400/40" size={32} />
+          <p className="text-sm font-semibold">You are all caught up!</p>
+          <p className="mt-1 text-xs text-amber-100/50">Messages, discussion replies, course activity, and marketplace updates will appear here.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {notifications.map((notif) => {
             const iconMap = {
               like: <Heart size={16} className="text-rose-400" />,
@@ -65,23 +78,39 @@ const NotificationsPage: React.FC = () => {
               comment: <MessageCircle size={16} className="text-amber-400" />,
               reply: <MessageCircle size={16} className="text-green-400" />,
               verification: <Shield size={16} className="text-purple-400" />,
+              message: <MessageCircle size={16} className="text-indigo-400" />,
+              order: <ShoppingBag size={16} className="text-emerald-400" />,
+              course: <BookOpen size={16} className="text-cyan-400" />,
             } as const;
 
             return (
-              <button
+              <div
                 key={notif.id}
                 onClick={() => handleClick(notif as any)}
-                className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${notif.read ? 'border-[#3d2510] bg-[#221509]' : 'border-amber-400/30 bg-[#2b1a0c]'}`}
+                className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3.5 text-left cursor-pointer group transition-all duration-200 ${
+                  notif.read ? 'border-[#3d2510] bg-[#221509] hover:bg-[#2c1b0c]' : 'border-amber-400/40 bg-[#2b1a0c] hover:bg-[#36210f]'
+                }`}
               >
-                <div className="rounded-full bg-[#140d07] p-2">
+                <div className="rounded-full bg-[#140d07] p-2 flex-shrink-0 border border-[#3d2510]">
                   {iconMap[notif.type as keyof typeof iconMap] || <Bell size={16} className="text-amber-400" />}
                 </div>
+
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-amber-50">{notif.message}</p>
-                  <p className="mt-1 text-xs text-amber-100/60">{timeAgo(notif.created_at)}</p>
+                  <p className="text-xs text-amber-50 leading-relaxed font-medium">{notif.message}</p>
+                  <p className="mt-1 text-[10px] text-amber-100/50">{timeAgo(notif.created_at)}</p>
                 </div>
-                {!notif.read && <span className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-400" />}
-              </button>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {!notif.read && <span className="h-2 w-2 rounded-full bg-amber-400" />}
+                  <button
+                    onClick={(e) => handleDelete(e, notif.id)}
+                    className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[#1b120b] text-amber-200/50 hover:text-red-400 transition-all"
+                    title="Delete Notification"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>

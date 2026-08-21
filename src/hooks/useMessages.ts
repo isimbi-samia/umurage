@@ -258,6 +258,29 @@ const { data: senderData } = await supabase
   const startConversation = useCallback(async (recipientId: string) => {
     if (!userId) return null;
 
+    // Check if a conversation between userId and recipientId already exists
+    const { data: myMemberships } = await supabase
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('user_id', userId);
+
+    if (myMemberships && myMemberships.length > 0) {
+      const myConvIds = myMemberships.map((m: { conversation_id: string }) => m.conversation_id);
+      const { data: sharedMemberships } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .in('conversation_id', myConvIds)
+        .eq('user_id', recipientId)
+        .limit(1);
+
+      if (sharedMemberships && sharedMemberships.length > 0) {
+        const existingConvId = sharedMemberships[0].conversation_id;
+        setActiveConversationId(existingConvId);
+        await refreshConversations();
+        return existingConvId;
+      }
+    }
+
     const { data: createdConversation, error: createConversationError } = await supabase
       .from('conversations')
       .insert({})

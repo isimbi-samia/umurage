@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'like' | 'follow' | 'comment' | 'reply' | 'verification';
+  type: 'like' | 'follow' | 'comment' | 'reply' | 'verification' | 'message' | 'order' | 'course';
   actor_id: string | null;
   post_id: string | null;
   topic_id: string | null;
@@ -25,11 +25,14 @@ export function useNotifications(userId?: string) {
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(30);
-      if (error) throw error;
+
+      if (error && error.code !== 'PGRST116') {
+        console.warn('Error fetching notifications:', error);
+      }
       return (data || []) as Notification[];
     },
     enabled: !!userId,
-    refetchInterval: 15000, // Poll every 15 seconds
+    refetchInterval: 15000,
     staleTime: 10000,
   });
 }
@@ -79,6 +82,25 @@ export function useMarkOneRead() {
         .from('notifications')
         .update({ read: true })
         .eq('id', notifId);
+      if (error) throw error;
+      return userId;
+    },
+    onSuccess: (_d, { userId }) => {
+      qc.invalidateQueries({ queryKey: ['notifications', userId] });
+      qc.invalidateQueries({ queryKey: ['notifications-unread', userId] });
+    },
+  });
+}
+
+export function useDeleteNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ notifId, userId }: { notifId: string; userId: string }) => {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notifId)
+        .eq('user_id', userId);
       if (error) throw error;
       return userId;
     },
