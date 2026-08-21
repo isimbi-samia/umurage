@@ -49,13 +49,12 @@ export function useMessages(userId?: string) {
 
   const loadAvailableProfiles = useCallback(async () => {
     if (!userId) return;
-
-const { data, error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, verified')
       .neq('id', userId)
       .order('full_name', { ascending: true })
-      .limit(30);
+      .limit(50);
 
     if (!error) {
       setAvailableProfiles((data || []) as MessageProfile[]);
@@ -96,7 +95,7 @@ const { data, error } = await supabase
 
         let participant: MessageProfile | null = null;
         if (otherUserIds.length > 0) {
-const { data: participantData } = await supabase
+          const { data: participantData } = await supabase
             .from('profiles')
             .select('id, username, full_name, avatar_url, verified')
             .in('id', otherUserIds)
@@ -105,7 +104,7 @@ const { data: participantData } = await supabase
         }
 
         if (!participant) {
-const { data: selfData } = await supabase
+          const { data: selfData } = await supabase
             .from('profiles')
             .select('id, username, full_name, avatar_url, verified')
             .eq('id', userId)
@@ -182,7 +181,7 @@ const { data: selfData } = await supabase
     }
 
     const senderIds = [...new Set((rows || []).map((row: { sender_id: string }) => row.sender_id))];
-const { data: profilesData } = senderIds.length > 0
+    const { data: profilesData } = senderIds.length > 0
       ? await supabase
           .from('profiles')
           .select('id, username, full_name, avatar_url, verified')
@@ -239,11 +238,11 @@ const { data: profilesData } = senderIds.length > 0
 
     if (error) throw error;
 
-const { data: senderData } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url, verified')
-        .eq('id', userId)
-        .maybeSingle();
+    const { data: senderData } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, verified')
+      .eq('id', userId)
+      .maybeSingle();
 
     const optimisticMessage = {
       ...(inserted as ChatMessage),
@@ -255,10 +254,21 @@ const { data: senderData } = await supabase
     await refreshConversations();
   }, [refreshConversations, userId]);
 
+  const updateMessage = useCallback(async (messageId: string, newContent: string) => {
+    const { error } = await supabase.from('messages').update({ content: newContent.trim() }).eq('id', messageId);
+    if (error) throw error;
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content: newContent.trim() } : m)));
+  }, []);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    const { error } = await supabase.from('messages').delete().eq('id', messageId);
+    if (error) throw error;
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  }, []);
+
   const startConversation = useCallback(async (recipientId: string) => {
     if (!userId) return null;
 
-    // Check if a conversation between userId and recipientId already exists
     const { data: myMemberships } = await supabase
       .from('conversation_members')
       .select('conversation_id')
@@ -387,6 +397,12 @@ const { data: senderData } = await supabase
         } : message));
         void refreshConversations();
       })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
+        const deleted = payload.old as Record<string, unknown>;
+        if (deleted?.id) {
+          setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
+        }
+      })
       .on('broadcast', { event: 'typing' }, (payload) => {
         const senderId = payload.payload?.user_id as string | undefined;
         const conversationId = payload.payload?.conversation_id as string | undefined;
@@ -441,11 +457,6 @@ const { data: senderData } = await supabase
     };
   }, [activeConversationId, loadMessages, refreshConversations, userId, clearTypingTimer]);
 
-  useEffect(() => () => {
-    Object.values(typingTimeoutsRef.current).forEach((timer) => clearTimeout(timer));
-    typingTimeoutsRef.current = {};
-  }, []);
-
   return {
     conversations,
     activeConversationId,
@@ -457,6 +468,8 @@ const { data: senderData } = await supabase
     loadMessages,
     refreshConversations,
     sendMessage,
+    updateMessage,
+    deleteMessage,
     startConversation,
     sendTyping,
     stopTyping,
