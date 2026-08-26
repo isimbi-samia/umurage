@@ -5,119 +5,7 @@ BEGIN;
 -- IMPORTANT: COMPLETE EXECUTABLE MIGRATION — WRAPPED IN A SINGLE TRANSACTION BLOCK.
 
 -- =============================================================================
--- 1. SECURITY DEFINER HELPER FUNCTIONS (ELIMINATE RLS RECURSION)
--- =============================================================================
-
--- Helper 1: Conversation Membership Check (Prevents conversation_members RLS recursion)
-CREATE OR REPLACE FUNCTION public.is_conversation_member(p_conversation_id uuid, p_user_id uuid)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.conversation_members
-    WHERE conversation_id = p_conversation_id AND user_id = p_user_id
-  );
-$$;
-
--- Helper 2: Marketplace Order Seller Check (Prevents circular order/order-item RLS recursion)
-CREATE OR REPLACE FUNCTION public.is_order_seller(p_order_id uuid, p_user_id uuid)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.marketplace_order_items
-    WHERE order_id = p_order_id AND seller_id = p_user_id
-  );
-$$;
-
--- Helper 3: Admin User Check
-CREATE OR REPLACE FUNCTION public.is_admin_user(p_user_id uuid)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = p_user_id AND is_admin = true
-  );
-$$;
-
--- Function Privileges Hardening
-REVOKE EXECUTE ON FUNCTION public.is_conversation_member(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.is_conversation_member(uuid, uuid) TO authenticated, service_role;
-
-REVOKE EXECUTE ON FUNCTION public.is_order_seller(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.is_order_seller(uuid, uuid) TO authenticated, service_role;
-
-REVOKE EXECUTE ON FUNCTION public.is_admin_user(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.is_admin_user(uuid) TO authenticated, service_role;
-
--- =============================================================================
--- 2. TRIGGER FUNCTION FOR SELLER STATUS PROTECTION (NO SAME-TABLE RLS RECURSION)
--- =============================================================================
-
-CREATE OR REPLACE FUNCTION public.prevent_seller_status_tampering()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  -- Prevent non-admins from modifying status column
-  IF NEW.status IS DISTINCT FROM OLD.status THEN
-    IF NOT public.is_admin_user(auth.uid()) THEN
-      NEW.status := OLD.status; -- Revert unauthorized status modification
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-REVOKE EXECUTE ON FUNCTION public.prevent_seller_status_tampering() FROM PUBLIC, authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_seller_status_tampering() TO service_role;
-
-DROP TRIGGER IF EXISTS trg_prevent_seller_status_tampering ON public.sellers;
-CREATE TRIGGER trg_prevent_seller_status_tampering
-  BEFORE UPDATE ON public.sellers
-  FOR EACH ROW
-  EXECUTE FUNCTION public.prevent_seller_status_tampering();
-
--- =============================================================================
--- 3. PUBLIC SAFE PROFILES VIEW (PRESERVE PII PRIVACY)
--- =============================================================================
-
-CREATE OR REPLACE VIEW public.public_profiles AS
-SELECT 
-  id,
-  username,
-  full_name,
-  avatar_url,
-  bio,
-  role,
-  verified,
-  verified_type,
-  followers_count,
-  following_count,
-  posts_count,
-  created_at
-FROM public.profiles;
-
-CREATE OR REPLACE VIEW public.user_profiles AS
-SELECT * FROM public.public_profiles;
-
-GRANT SELECT ON public.public_profiles TO anon, authenticated, service_role;
-GRANT SELECT ON public.user_profiles TO anon, authenticated, service_role;
-
--- =============================================================================
--- 4. ENABLE ROW LEVEL SECURITY ON ALL TABLES
+-- 1. ENABLE ROW LEVEL SECURITY ON ALL TABLES
 -- =============================================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -152,8 +40,12 @@ ALTER TABLE public.content_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.library_items ENABLE ROW LEVEL SECURITY;
 
 -- =============================================================================
--- 5. COMPREHENSIVE DROP OF ALL HISTORICAL / PERMISSIVE POLICIES
+-- 2. COMPREHENSIVE DROP OF ALL HISTORICAL / PERMISSIVE POLICIES & TRIGGERS
+-- (Removes policy dependencies before dropping/recreating helper functions)
 -- =============================================================================
+
+-- Drop Triggers
+DROP TRIGGER IF EXISTS trg_prevent_seller_status_tampering ON public.sellers;
 
 -- Profiles
 DROP POLICY IF EXISTS "Public read profiles" ON public.profiles;
@@ -324,7 +216,128 @@ DROP POLICY IF EXISTS "library_items_select_public" ON public.library_items;
 DROP POLICY IF EXISTS "Public read library items" ON public.library_items;
 
 -- =============================================================================
--- 6. PROFILES SECURITY (STRICT OWNER-ONLY SELECT ON TABLES, SAFE PUBLIC VIEWS)
+-- 3. DROP PRE-EXISTING HELPER FUNCTIONS SAFELY
+-- (Avoids PostgreSQL 42P13 parameter name mismatch error)
+-- =============================================================================
+
+DROP FUNCTION IF EXISTS public.is_conversation_member(uuid, uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_order_seller(uuid, uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin_user(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.prevent_seller_status_tampering() CASCADE;
+
+-- =============================================================================
+-- 4. RECREATE SECURITY DEFINER HELPER FUNCTIONS (HARDENED)
+-- =============================================================================
+
+-- Helper 1: Conversation Membership Check (Prevents conversation_members RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_conversation_member(p_conversation_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.conversation_members
+    WHERE conversation_id = p_conversation_id AND user_id = p_user_id
+  );
+$$;
+
+-- Helper 2: Marketplace Order Seller Check (Prevents circular order/order-item RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_order_seller(p_order_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.marketplace_order_items
+    WHERE order_id = p_order_id AND seller_id = p_user_id
+  );
+$$;
+
+-- Helper 3: Admin User Check
+CREATE OR REPLACE FUNCTION public.is_admin_user(p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = p_user_id AND is_admin = true
+  );
+$$;
+
+-- Function Privileges Hardening
+REVOKE EXECUTE ON FUNCTION public.is_conversation_member(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_conversation_member(uuid, uuid) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.is_order_seller(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_order_seller(uuid, uuid) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.is_admin_user(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_admin_user(uuid) TO authenticated, service_role;
+
+-- =============================================================================
+-- 5. TRIGGER FUNCTION FOR SELLER STATUS PROTECTION (NO SAME-TABLE RLS RECURSION)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.prevent_seller_status_tampering()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Prevent non-admins from modifying status column
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NOT public.is_admin_user(auth.uid()) THEN
+      NEW.status := OLD.status; -- Revert unauthorized status modification
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.prevent_seller_status_tampering() FROM PUBLIC, authenticated;
+GRANT EXECUTE ON FUNCTION public.prevent_seller_status_tampering() TO service_role;
+
+CREATE TRIGGER trg_prevent_seller_status_tampering
+  BEFORE UPDATE ON public.sellers
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_seller_status_tampering();
+
+-- =============================================================================
+-- 6. PUBLIC SAFE PROFILES VIEW (PRESERVE PII PRIVACY)
+-- =============================================================================
+
+CREATE OR REPLACE VIEW public.public_profiles AS
+SELECT 
+  id,
+  username,
+  full_name,
+  avatar_url,
+  bio,
+  role,
+  verified,
+  verified_type,
+  followers_count,
+  following_count,
+  posts_count,
+  created_at
+FROM public.profiles;
+
+CREATE OR REPLACE VIEW public.user_profiles AS
+SELECT * FROM public.public_profiles;
+
+GRANT SELECT ON public.public_profiles TO anon, authenticated, service_role;
+GRANT SELECT ON public.user_profiles TO anon, authenticated, service_role;
+
+-- =============================================================================
+-- 7. PROFILES SECURITY (STRICT OWNER-ONLY SELECT ON TABLES, SAFE PUBLIC VIEWS)
 -- =============================================================================
 
 CREATE POLICY "profiles_select_owner" ON public.profiles
@@ -334,7 +347,7 @@ CREATE POLICY "profiles_update_self" ON public.profiles
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- =============================================================================
--- 7. POSTS & STORIES SECURITY
+-- 8. POSTS & STORIES SECURITY
 -- =============================================================================
 
 CREATE POLICY "posts_select_public" ON public.posts FOR SELECT USING (true);
@@ -348,7 +361,7 @@ CREATE POLICY "stories_update_owner" ON public.stories FOR UPDATE USING (auth.ui
 CREATE POLICY "stories_delete_owner" ON public.stories FOR DELETE USING (auth.uid() = user_id);
 
 -- =============================================================================
--- 8. SOCIAL INTERACTIONS (COMMENTS, LIKES, SAVES, FOLLOWS)
+-- 9. SOCIAL INTERACTIONS (COMMENTS, LIKES, SAVES, FOLLOWS)
 -- =============================================================================
 
 CREATE POLICY "comments_select_public" ON public.comments FOR SELECT USING (true);
@@ -369,7 +382,7 @@ CREATE POLICY "follows_insert_owner" ON public.follows FOR INSERT WITH CHECK (au
 CREATE POLICY "follows_delete_owner" ON public.follows FOR DELETE USING (auth.uid() = follower_id);
 
 -- =============================================================================
--- 9. NOTIFICATIONS SECURITY (DISABLE CLIENT INSERT FORGERY)
+-- 10. NOTIFICATIONS SECURITY (DISABLE CLIENT INSERT FORGERY)
 -- =============================================================================
 
 CREATE POLICY "notifications_select_owner" ON public.notifications
@@ -380,10 +393,9 @@ CREATE POLICY "notifications_update_owner" ON public.notifications
 
 CREATE POLICY "notifications_delete_owner" ON public.notifications
   FOR DELETE USING (auth.uid() = user_id);
--- Client INSERT intentionally disabled. Database triggers generate activity notifications safely under SECURITY DEFINER context.
 
 -- =============================================================================
--- 10. MESSAGING SECURITY (NON-RECURSIVE HELPER FUNCTION)
+-- 11. MESSAGING SECURITY (NON-RECURSIVE HELPER FUNCTION)
 -- =============================================================================
 
 CREATE POLICY "conv_select_policy" ON public.conversations FOR SELECT USING (
@@ -410,7 +422,7 @@ CREATE POLICY "msg_insert_policy" ON public.messages FOR INSERT WITH CHECK (
 );
 
 -- =============================================================================
--- 11. MARKETPLACE & PAYMENTS SECURITY
+-- 12. MARKETPLACE & PAYMENTS SECURITY
 -- =============================================================================
 
 -- Marketplace Products
@@ -457,7 +469,7 @@ CREATE POLICY "payments_insert_owner" ON public.payments FOR INSERT WITH CHECK (
 );
 
 -- =============================================================================
--- 12. COURSES, HERITAGE, DISCUSSIONS, KNOWLEDGE, VERIFICATION, EVENTS, LIBRARY
+-- 13. COURSES, HERITAGE, DISCUSSIONS, KNOWLEDGE, VERIFICATION, EVENTS, LIBRARY
 -- =============================================================================
 
 CREATE POLICY "courses_select_public" ON public.courses FOR SELECT USING (true);
