@@ -99,17 +99,46 @@ export const AIGuide: React.FC = () => {
     setIsTyping(true);
 
     try {
-      // Check database
-      const { data: dbRecords } = await supabase.from('cultural_knowledge').select('*');
-      let response = getLocalizedResponse(msg, lang);
+      // 1. Try cultural-ai Edge Function
+      let aiContent: string | null = null;
+      let aiSource = 'Umurage AI Cultural Guide';
 
-      if (dbRecords && dbRecords.length > 0) {
-        const found = dbRecords.find(
-          (r: any) => msg.toLowerCase().includes(r.topic?.toLowerCase()) || msg.toLowerCase().includes(r.title?.toLowerCase())
-        );
-        if (found) {
-          response = { text: `**${found.title}**\n\n${found.content}`, source: found.source_name || 'RCHA Archives' };
+      try {
+        const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('cultural-ai', {
+          body: {
+            messages: [{ role: 'user', content: msg }],
+            language: lang,
+          },
+        });
+
+        if (!edgeErr && edgeData?.content) {
+          aiContent = edgeData.content;
         }
+      } catch {
+        // Silently continue to DB fallback
+      }
+
+      // 2. If Edge function did not return content, query database with targeted query
+      if (!aiContent) {
+        const firstWord = msg.split(' ')[0] || msg;
+        const { data: dbRecords } = await supabase
+          .from('cultural_knowledge')
+          .select('id, title, content, topic, source_name')
+          .or(`topic.ilike.%${firstWord}%,title.ilike.%${firstWord}%`)
+          .limit(3);
+
+        if (dbRecords && dbRecords.length > 0) {
+          const found = dbRecords[0];
+          aiContent = `**${found.title}**\n\n${found.content}`;
+          aiSource = found.source_name || 'RCHA Archives';
+        }
+      }
+
+      // 3. Fallback to localized response engine if no DB/Edge match
+      if (!aiContent) {
+        const fallback = getLocalizedResponse(msg, lang);
+        aiContent = fallback.text;
+        aiSource = fallback.source;
       }
 
       setMessages((prev) => [
@@ -117,9 +146,9 @@ export const AIGuide: React.FC = () => {
         {
           id: (Date.now() + 1).toString(),
           role: 'ai',
-          content: response.text,
+          content: aiContent!,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          source: response.source,
+          source: aiSource,
         },
       ]);
     } catch (e) {
@@ -205,7 +234,7 @@ export const AIGuide: React.FC = () => {
           ].map((l) => (
             <button
               key={l.key}
-              onClick={() => setLang(l.key as any)}
+              onClick={() => setLang(l.key as 'en' | 'rw' | 'fr')}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
                 lang === l.key ? 'bg-umurage-gold text-umurage-bg font-bold' : 'text-umurage-subtle hover:text-umurage-cream'
               }`}

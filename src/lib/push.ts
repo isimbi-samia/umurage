@@ -3,10 +3,11 @@ export async function registerServiceWorkerAndSubscribe(vapidPublicKey?: string)
   try {
     const reg = await navigator.serviceWorker.register('/sw.js');
     // Subscribe to push
+    const pushServerUrl = import.meta.env.VITE_PUSH_SERVER_URL as string | undefined;
     let vapid = vapidPublicKey;
-    if (!vapid) {
+    if (!vapid && pushServerUrl) {
       try {
-        const resp = await fetch((import.meta.env.VITE_PUSH_SERVER_URL as string) || 'http://localhost:4000/keys');
+        const resp = await fetch(`${pushServerUrl.replace(/\/$/, '')}/keys`);
         const json = await resp.json();
         vapid = json.publicKey;
       } catch (e) {
@@ -17,14 +18,15 @@ export async function registerServiceWorkerAndSubscribe(vapidPublicKey?: string)
     const convertedVapidKey = urlBase64ToUint8Array(vapid);
     const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: convertedVapidKey });
 
-    // Optionally send subscription to server
-    try {
-      const serverUrl = (import.meta.env.VITE_PUSH_SERVER_URL as string) || 'http://localhost:4000';
-      await fetch(`${serverUrl.replace(/\/$/, '')}/subscribe`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub)
-      });
-    } catch (e) {
-      console.warn('Failed to POST subscription to server', e);
+    // Optionally send subscription to server if push server is configured
+    if (pushServerUrl) {
+      try {
+        await fetch(`${pushServerUrl.replace(/\/$/, '')}/subscribe`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub)
+        });
+      } catch (e) {
+        console.warn('Failed to POST subscription to push server', e);
+      }
     }
 
     return { registration: reg, subscription: sub };

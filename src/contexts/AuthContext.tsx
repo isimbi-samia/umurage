@@ -6,13 +6,15 @@ import { toast } from 'sonner';
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 async function callEdgeFunction(name: string, body: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const authToken = session?.access_token || (import.meta.env.VITE_SUPABASE_ANON_KEY as string);
   const url = `${EDGE_FUNCTION_URL}/${name}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      Authorization: `Bearer ${authToken}`,
     },
     body: JSON.stringify(body),
   });
