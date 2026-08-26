@@ -45,12 +45,12 @@ export const SellerOnboardingModal: React.FC<SellerOnboardingModalProps> = ({ is
         city,
         description: description.trim(),
         payout_info: payoutInfo.trim() || 'MTN Mobile Money',
-        status: 'approved',
+        status: 'pending',
       });
 
       if (error) throw error;
 
-      toast.success('Seller registration completed! You can now post Made-in-Rwanda products.');
+      toast.success('Seller application submitted! Pending admin verification before active product listing.');
       onSuccess();
       onClose();
     } catch (err: any) {
