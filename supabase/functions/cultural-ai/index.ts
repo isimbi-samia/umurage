@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GEMINI_MODEL = 'gemini-3.7-flash';
 
-// Language detection helper with strict priority
+// Language detection helper with strict lexical and grammatical priority
 function detectEffectiveLanguage(text: string, selectorLang?: string): 'rw' | 'fr' | 'en' {
   if (!text || typeof text !== 'string') {
     return selectorLang === 'rw' || selectorLang === 'fr' ? selectorLang : 'en';
@@ -16,41 +16,56 @@ function detectEffectiveLanguage(text: string, selectorLang?: string): 'rw' | 'f
   if (/\b(en français|en francais|en langue française|in french)\b/i.test(lower)) return 'fr';
   if (/\b(in english|mu cyongereza|en anglais)\b/i.test(lower)) return 'en';
 
-  // Priority B: High-confidence lexical and grammatical markers
-  const rwPatterns = [
-    /\b(muraho|bite|amakuru|umuco|nyarwanda|urwanda|u rwanda|akamaro|akahe kamaro|ni iki|kuki|gute|kubera iki|ryari|hehe)\b/i,
-    /\b(umuganura|kwita izina|gusaba|gukwa|inyambo|intore|imigongo|ingoma|inanga|kalinga|ubwiru|mwami|umwami)\b/i,
-    /\b(abanyarwanda|abakurambere|amateka|itorero|imigani|inzu ndangamurage|ubupfura|kwigira|ubutwari|ubumwe)\b/i,
-    /\b(mbwira|sobanura|tanga|ibisobanuro|ubusobanuro|kumenya|kubijyanye|ku bijyanye|byatangiye|zatangiye)\b/i,
-    /\b(ufite|bafite|bifashishwa|bakora|byakorwaga|wajyaga|byari|yari|kandi|ndetse|cyangwa|kuko|niba)\b/i,
+  // Priority B: Strong grammatical and conversational indicators (excluding standalone cultural entity names)
+  const rwGrammar = [
+    /\b(mbwira|sobanura|tanga|ibisobanuro|ubusobanuro|kumenya|kubijyanye|ku bijyanye)\b/i,
+    /\b(ni iki|kuki|gute|ryari|hehe|akahe kamaro|akamaro|kamaro ki|kamaro ka)\b/i,
     /\b(mu muco|mu mateka|mu rwanda|ku butaka|mu birori|mu migenzo|k'itorero|by'intore|z'intore)\b/i,
+    /\b(abanyarwanda|abakurambere|itorero|amateka ya|umuco nyarwanda|indangagaciro)\b/i,
+    /\b(zatangiye|byatangiye|bifashishwa|bakora|byakorwaga|wajyaga|byari|yari|kandi|ndetse|cyangwa|kuko|niba)\b/i,
+    /\b(muraho|bite|amakuru|mwaramutse|mwiriwe)\b/i,
   ];
 
-  const frPatterns = [
+  const frGrammar = [
     /\b(bonjour|salut|bonsoir|merci|s'il vous plaît|sil vous plait)\b/i,
-    /\b(quelle|quel|quels|quelles|pourquoi|comment|qu'est-ce|est-ce que|qu'est ce que)\b/i,
-    /\b(l'importance|importance|dans la culture|dans le|dans les|du rwanda|au rwanda|culture rwandaise)\b/i,
-    /\b(patrimoine|cérémonie|cérémonies|tradition|traditions|traditionnel|traditionnelle|histoire|historique)\b/i,
-    /\b(pouvez-vous|expliquez-moi|racontez-moi|parlez-moi|parlez-moi de|donnez-moi|quelles sont|quels sont)\b/i,
+    /\b(quelle est|quel est|quels sont|quelles sont|pourquoi|comment|qu'est-ce|est-ce que|qu'est ce que)\b/i,
+    /\b(l'importance|importance de|dans la culture|dans le|dans les|du rwanda|au rwanda|culture rwandaise)\b/i,
+    /\b(patrimoine|cérémonie|cérémonies|tradition|traditions|traditionnel|traditionnelle|histoire de)\b/i,
+    /\b(pouvez-vous|expliquez-moi|racontez-moi|parlez-moi|parlez-moi de|donnez-moi)\b/i,
     /\b(avec|pour|dans|sur|sous|mais|donc|or|ni|car|parce que|c'est|ce sont)\b/i,
   ];
 
-  let rwMatches = 0;
-  for (const pattern of rwPatterns) {
-    if (pattern.test(lower)) rwMatches += 1;
+  const enGrammar = [
+    /\b(hello|hi|good morning|good afternoon|thank you|thanks|please)\b/i,
+    /\b(what is|what are|why is|why are|how is|how are|who was|who were|when was|where did)\b/i,
+    /\b(tell me|tell me about|explain|describe|give me|can you|could you)\b/i,
+    /\b(in rwandan culture|in rwanda|rwandan heritage|traditional dance|history of|importance of|meaning of)\b/i,
+    /\b(about|with|from|their|there|which|because|started|originated|symbolize|symbolizes)\b/i,
+  ];
+
+  let rwScore = 0;
+  for (const p of rwGrammar) {
+    if (p.test(lower)) rwScore += 2;
   }
 
-  let frMatches = 0;
-  for (const pattern of frPatterns) {
-    if (pattern.test(lower)) frMatches += 1;
+  let frScore = 0;
+  for (const p of frGrammar) {
+    if (p.test(lower)) frScore += 2;
   }
 
-  if (rwMatches >= 1 && rwMatches > frMatches) return 'rw';
-  if (frMatches >= 1 && frMatches > rwMatches) return 'fr';
+  let enScore = 0;
+  for (const p of enGrammar) {
+    if (p.test(lower)) enScore += 2;
+  }
 
-  // Priority C: UI selector language
+  // If there are clear grammatical hits for a specific language
+  if (rwScore >= 2 && rwScore > frScore && rwScore > enScore) return 'rw';
+  if (frScore >= 2 && frScore > rwScore && frScore > enScore) return 'fr';
+  if (enScore >= 2 && enScore > rwScore && enScore > frScore) return 'en';
+
+  // Priority C: UI selector language fallback
   if (selectorLang === 'rw' || selectorLang === 'fr') return selectorLang;
-  if (selectorLang === 'en' && rwMatches === 0 && frMatches === 0) return 'en';
+  if (selectorLang === 'en') return 'en';
 
   return 'en';
 }
@@ -90,7 +105,7 @@ Deno.serve(async (req: Request) => {
         const keywords = latestUserMsg
           .replace(/[^\w\s]/gi, '')
           .split(/\s+/)
-          .filter((w: string) => w.length > 3 && !['mbwira', 'kubijyanye', 'bijyanye', 'about', 'parlez', 'dans'].includes(w.toLowerCase()))
+          .filter((w: string) => w.length > 3 && !['mbwira', 'kubijyanye', 'bijyanye', 'about', 'parlez', 'dans', 'tell', 'what'].includes(w.toLowerCase()))
           .slice(0, 3);
 
         if (keywords.length > 0) {
