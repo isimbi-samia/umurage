@@ -217,13 +217,13 @@ DROP POLICY IF EXISTS "Public read library items" ON public.library_items;
 
 -- =============================================================================
 -- 3. DROP PRE-EXISTING HELPER FUNCTIONS SAFELY
--- (Avoids PostgreSQL 42P13 parameter name mismatch error)
+-- (Avoids PostgreSQL 42P13 parameter name mismatch error without silent CASCADE)
 -- =============================================================================
 
-DROP FUNCTION IF EXISTS public.is_conversation_member(uuid, uuid) CASCADE;
-DROP FUNCTION IF EXISTS public.is_order_seller(uuid, uuid) CASCADE;
-DROP FUNCTION IF EXISTS public.is_admin_user(uuid) CASCADE;
-DROP FUNCTION IF EXISTS public.prevent_seller_status_tampering() CASCADE;
+DROP FUNCTION IF EXISTS public.is_conversation_member(uuid, uuid);
+DROP FUNCTION IF EXISTS public.is_order_seller(uuid, uuid);
+DROP FUNCTION IF EXISTS public.is_admin_user(uuid);
+DROP FUNCTION IF EXISTS public.prevent_seller_status_tampering();
 
 -- =============================================================================
 -- 4. RECREATE SECURITY DEFINER HELPER FUNCTIONS (HARDENED)
