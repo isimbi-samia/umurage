@@ -314,7 +314,11 @@ CREATE TRIGGER trg_prevent_seller_status_tampering
 -- 6. PUBLIC SAFE PROFILES VIEW (PRESERVE PII PRIVACY)
 -- =============================================================================
 
-CREATE OR REPLACE VIEW public.public_profiles AS
+-- Drop existing views in reverse dependency order to avoid 42P16 column structure mismatch
+DROP VIEW IF EXISTS public.user_profiles;
+DROP VIEW IF EXISTS public.public_profiles;
+
+CREATE VIEW public.public_profiles AS
 SELECT 
   id,
   username,
@@ -330,7 +334,7 @@ SELECT
   created_at
 FROM public.profiles;
 
-CREATE OR REPLACE VIEW public.user_profiles AS
+CREATE VIEW public.user_profiles AS
 SELECT * FROM public.public_profiles;
 
 GRANT SELECT ON public.public_profiles TO anon, authenticated, service_role;
