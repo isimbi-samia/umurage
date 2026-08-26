@@ -1,9 +1,104 @@
 -- Migration: 20260829_strict_rls_security_policies.sql
--- Purpose: Strict, Reconciled RLS Security Migration for Umurage Hub (Phase 3B Review & Correction)
+-- Purpose: Final Reconciled PostgreSQL RLS Security Migration for Umurage Hub
 -- IMPORTANT: PROPOSED MIGRATION — DO NOT EXECUTE UNTIL REVIEWED.
 
 -- =============================================================================
--- 1. ENABLE ROW LEVEL SECURITY ON ALL TABLES
+-- 1. SECURITY DEFINER HELPER FUNCTIONS (ELIMINATE RLS RECURSION)
+-- =============================================================================
+
+-- Helper 1: Conversation Membership Check (Prevents conversation_members RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_conversation_member(p_conversation_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.conversation_members
+    WHERE conversation_id = p_conversation_id AND user_id = p_user_id
+  );
+$$;
+
+-- Helper 2: Marketplace Order Seller Check (Prevents circular order/order-item RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_order_seller(p_order_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.marketplace_order_items
+    WHERE order_id = p_order_id AND seller_id = p_user_id
+  );
+$$;
+
+-- Helper 3: Admin Check
+CREATE OR REPLACE FUNCTION public.is_admin_user(p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = p_user_id AND is_admin = true
+  );
+$$;
+
+-- =============================================================================
+-- 2. TRIGGER FUNCTION FOR SELLER STATUS PROTECTION (NO SAME-TABLE RLS RECURSION)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.prevent_seller_status_tampering()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Prevent non-admins from modifying status column
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NOT public.is_admin_user(auth.uid()) THEN
+      NEW.status := OLD.status; -- Revert unauthorized status modification
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_seller_status_tampering ON public.sellers;
+CREATE TRIGGER trg_prevent_seller_status_tampering
+  BEFORE UPDATE ON public.sellers
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_seller_status_tampering();
+
+-- =============================================================================
+-- 3. PUBLIC SAFE PROFILES VIEW (PRESERVE PII PRIVACY)
+-- =============================================================================
+
+CREATE OR REPLACE VIEW public.public_profiles AS
+SELECT 
+  id,
+  username,
+  full_name,
+  avatar_url,
+  bio,
+  role,
+  verified,
+  verified_type,
+  followers_count,
+  following_count,
+  posts_count,
+  created_at
+FROM public.profiles;
+
+GRANT SELECT ON public.public_profiles TO anon, authenticated;
+
+-- =============================================================================
+-- 4. ENABLE ROW LEVEL SECURITY ON ALL TABLES
 -- =============================================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -38,7 +133,7 @@ ALTER TABLE public.content_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.library_items ENABLE ROW LEVEL SECURITY;
 
 -- =============================================================================
--- 2. COMPREHENSIVE DROP OF OBSOLETE / PERMISSIVE POLICIES
+-- 5. COMPREHENSIVE DROP OF ALL HISTORICAL / PERMISSIVE POLICIES
 -- =============================================================================
 
 -- Profiles
@@ -103,10 +198,26 @@ DROP POLICY IF EXISTS "notifications_update_all" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_delete_all" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_select_owner" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_insert_auth" ON public.notifications;
+DROP POLICY IF EXISTS "notifications_insert_actor" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_update_owner" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_delete_owner" ON public.notifications;
 
--- Sellers
+-- Conversations, Members, Messages
+DROP POLICY IF EXISTS "conv_select_policy" ON public.conversations;
+DROP POLICY IF EXISTS "conv_insert_policy" ON public.conversations;
+DROP POLICY IF EXISTS "cm_select_policy" ON public.conversation_members;
+DROP POLICY IF EXISTS "cm_insert_policy" ON public.conversation_members;
+DROP POLICY IF EXISTS "msg_select_policy" ON public.messages;
+DROP POLICY IF EXISTS "msg_insert_policy" ON public.messages;
+
+-- Products & Sellers
+DROP POLICY IF EXISTS "products_select_public" ON public.marketplace_products;
+DROP POLICY IF EXISTS "products_insert_seller" ON public.marketplace_products;
+DROP POLICY IF EXISTS "products_update_seller" ON public.marketplace_products;
+DROP POLICY IF EXISTS "products_delete_seller" ON public.marketplace_products;
+DROP POLICY IF EXISTS "Public read products" ON public.marketplace_products;
+DROP POLICY IF EXISTS "Sellers manage own products" ON public.marketplace_products;
+
 DROP POLICY IF EXISTS "sellers_select_public" ON public.sellers;
 DROP POLICY IF EXISTS "sellers_insert_owner" ON public.sellers;
 DROP POLICY IF EXISTS "sellers_update_owner" ON public.sellers;
@@ -114,13 +225,12 @@ DROP POLICY IF EXISTS "sellers_admin_manage" ON public.sellers;
 DROP POLICY IF EXISTS "Public read approved sellers" ON public.sellers;
 DROP POLICY IF EXISTS "Sellers manage own profile" ON public.sellers;
 
--- Marketplace Orders
+-- Marketplace Orders & Items
 DROP POLICY IF EXISTS "orders_select_buyer_seller" ON public.marketplace_orders;
 DROP POLICY IF EXISTS "orders_insert_buyer" ON public.marketplace_orders;
 DROP POLICY IF EXISTS "Buyers view own orders" ON public.marketplace_orders;
 DROP POLICY IF EXISTS "Buyers insert own orders" ON public.marketplace_orders;
 
--- Marketplace Order Items
 DROP POLICY IF EXISTS "order_items_select_authorized" ON public.marketplace_order_items;
 DROP POLICY IF EXISTS "order_items_insert_buyer" ON public.marketplace_order_items;
 DROP POLICY IF EXISTS "Order items visible to order buyer or seller" ON public.marketplace_order_items;
@@ -140,7 +250,7 @@ DROP POLICY IF EXISTS "enrollments_select_owner" ON public.enrollments;
 DROP POLICY IF EXISTS "enrollments_insert_owner" ON public.enrollments;
 DROP POLICY IF EXISTS "enrollments_update_owner" ON public.enrollments;
 
--- Heritage Saves & Recordings
+-- Heritage
 DROP POLICY IF EXISTS "heritage_recordings_select_public" ON public.heritage_recordings;
 DROP POLICY IF EXISTS "heritage_recordings_insert_owner" ON public.heritage_recordings;
 DROP POLICY IF EXISTS "heritage_recordings_update_owner" ON public.heritage_recordings;
@@ -167,18 +277,34 @@ DROP POLICY IF EXISTS "discussion_saves_insert_owner" ON public.discussion_saves
 DROP POLICY IF EXISTS "discussion_saves_delete_owner" ON public.discussion_saves;
 DROP POLICY IF EXISTS "Users manage own discussion_saves" ON public.discussion_saves;
 
--- Cultural Knowledge
+-- Cultural Knowledge, Verification, Events, Analytics, Library
 DROP POLICY IF EXISTS "cultural_knowledge_select_public" ON public.cultural_knowledge;
 DROP POLICY IF EXISTS "cultural_knowledge_admin_manage" ON public.cultural_knowledge;
 DROP POLICY IF EXISTS "Public read cultural_knowledge" ON public.cultural_knowledge;
 
--- Verification Applications
 DROP POLICY IF EXISTS "verification_select_owner_admin" ON public.verification_applications;
 DROP POLICY IF EXISTS "verification_insert_owner" ON public.verification_applications;
 DROP POLICY IF EXISTS "verification_admin_manage" ON public.verification_applications;
 
+DROP POLICY IF EXISTS "cultural_events_select_public" ON public.cultural_events;
+DROP POLICY IF EXISTS "cultural_events_insert_owner" ON public.cultural_events;
+DROP POLICY IF EXISTS "cultural_events_update_owner" ON public.cultural_events;
+DROP POLICY IF EXISTS "cultural_events_delete_owner" ON public.cultural_events;
+DROP POLICY IF EXISTS "Public read events" ON public.cultural_events;
+DROP POLICY IF EXISTS "Auth create events" ON public.cultural_events;
+
+DROP POLICY IF EXISTS "event_registrations_select_owner" ON public.event_registrations;
+DROP POLICY IF EXISTS "event_registrations_insert_owner" ON public.event_registrations;
+DROP POLICY IF EXISTS "event_registrations_delete_owner" ON public.event_registrations;
+
+DROP POLICY IF EXISTS "content_views_insert_public" ON public.content_views;
+DROP POLICY IF EXISTS "Public record content views" ON public.content_views;
+
+DROP POLICY IF EXISTS "library_items_select_public" ON public.library_items;
+DROP POLICY IF EXISTS "Public read library items" ON public.library_items;
+
 -- =============================================================================
--- 3. PROFILES SECURITY
+-- 6. PROFILES SECURITY
 -- =============================================================================
 
 CREATE POLICY "profiles_select_public" ON public.profiles
@@ -188,119 +314,83 @@ CREATE POLICY "profiles_update_self" ON public.profiles
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- =============================================================================
--- 4. POSTS & STORIES SECURITY (STRICT OWNER ENFORCEMENT)
+-- 7. POSTS & STORIES SECURITY
 -- =============================================================================
 
 CREATE POLICY "posts_select_public" ON public.posts FOR SELECT USING (true);
-
-CREATE POLICY "posts_insert_owner" ON public.posts
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
-
-CREATE POLICY "posts_update_owner" ON public.posts
-  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "posts_delete_owner" ON public.posts
-  FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "posts_insert_owner" ON public.posts FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
+CREATE POLICY "posts_update_owner" ON public.posts FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "posts_delete_owner" ON public.posts FOR DELETE USING (auth.uid() = user_id);
 
 CREATE POLICY "stories_select_public" ON public.stories FOR SELECT USING (true);
-
-CREATE POLICY "stories_insert_owner" ON public.stories
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
-
-CREATE POLICY "stories_update_owner" ON public.stories
-  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "stories_delete_owner" ON public.stories
-  FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "stories_insert_owner" ON public.stories FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
+CREATE POLICY "stories_update_owner" ON public.stories FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "stories_delete_owner" ON public.stories FOR DELETE USING (auth.uid() = user_id);
 
 -- =============================================================================
--- 5. SOCIAL INTERACTIONS (COMMENTS, LIKES, SAVES, FOLLOWS)
+-- 8. SOCIAL INTERACTIONS (COMMENTS, LIKES, SAVES, FOLLOWS)
 -- =============================================================================
 
--- Comments
 CREATE POLICY "comments_select_public" ON public.comments FOR SELECT USING (true);
 CREATE POLICY "comments_insert_owner" ON public.comments FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "comments_update_owner" ON public.comments FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "comments_delete_owner" ON public.comments FOR DELETE USING (auth.uid() = user_id);
 
--- Likes
 CREATE POLICY "likes_select_public" ON public.likes FOR SELECT USING (true);
 CREATE POLICY "likes_insert_owner" ON public.likes FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "likes_delete_owner" ON public.likes FOR DELETE USING (auth.uid() = user_id);
 
--- Saves (Private to User)
 CREATE POLICY "saves_select_owner" ON public.saves FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "saves_insert_owner" ON public.saves FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "saves_delete_owner" ON public.saves FOR DELETE USING (auth.uid() = user_id);
 
--- Follows
 CREATE POLICY "follows_select_public" ON public.follows FOR SELECT USING (true);
 CREATE POLICY "follows_insert_owner" ON public.follows FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = follower_id);
 CREATE POLICY "follows_delete_owner" ON public.follows FOR DELETE USING (auth.uid() = follower_id);
 
 -- =============================================================================
--- 6. NOTIFICATIONS SECURITY (PREVENT CLIENT NOTIFICATION FORGERY)
+-- 9. NOTIFICATIONS SECURITY (DISABLE CLIENT INSERT FORGERY)
 -- =============================================================================
 
 CREATE POLICY "notifications_select_owner" ON public.notifications
   FOR SELECT USING (auth.uid() = user_id);
-
--- Database triggers run under SECURITY DEFINER context to auto-generate notifications on social actions.
--- For optional client-generated notifications, require auth.uid() = actor_id to prevent forging actor identity.
-CREATE POLICY "notifications_insert_actor" ON public.notifications
-  FOR INSERT WITH CHECK (
-    auth.role() = 'authenticated' AND (
-      actor_id IS NULL OR actor_id = auth.uid()
-    )
-  );
 
 CREATE POLICY "notifications_update_owner" ON public.notifications
   FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "notifications_delete_owner" ON public.notifications
   FOR DELETE USING (auth.uid() = user_id);
+-- Client INSERT intentionally disabled. Database triggers generate activity notifications safely under SECURITY DEFINER context.
 
 -- =============================================================================
--- 7. MESSAGING SECURITY (CONVERSATIONS, MEMBERS, MESSAGES)
+-- 10. MESSAGING SECURITY (NON-RECURSIVE HELPER FUNCTION)
 -- =============================================================================
 
--- Conversations
-DROP POLICY IF EXISTS "conv_select_policy" ON public.conversations;
 CREATE POLICY "conv_select_policy" ON public.conversations FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = conversations.id AND user_id = auth.uid())
+  public.is_conversation_member(id, auth.uid())
 );
-
-DROP POLICY IF EXISTS "conv_insert_policy" ON public.conversations;
 CREATE POLICY "conv_insert_policy" ON public.conversations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- Conversation Members
-DROP POLICY IF EXISTS "cm_select_policy" ON public.conversation_members;
 CREATE POLICY "cm_select_policy" ON public.conversation_members FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.conversation_members cm WHERE cm.conversation_id = conversation_members.conversation_id AND cm.user_id = auth.uid())
+  public.is_conversation_member(conversation_id, auth.uid())
 );
 
-DROP POLICY IF EXISTS "cm_insert_policy" ON public.conversation_members;
 CREATE POLICY "cm_insert_policy" ON public.conversation_members FOR INSERT WITH CHECK (
   auth.role() = 'authenticated' AND (
-    user_id = auth.uid() OR
-    EXISTS (SELECT 1 FROM public.conversation_members cm WHERE cm.conversation_id = conversation_members.conversation_id AND cm.user_id = auth.uid())
+    user_id = auth.uid() OR public.is_conversation_member(conversation_id, auth.uid())
   )
 );
 
--- Messages
-DROP POLICY IF EXISTS "msg_select_policy" ON public.messages;
 CREATE POLICY "msg_select_policy" ON public.messages FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
+  public.is_conversation_member(conversation_id, auth.uid())
 );
 
-DROP POLICY IF EXISTS "msg_insert_policy" ON public.messages;
 CREATE POLICY "msg_insert_policy" ON public.messages FOR INSERT WITH CHECK (
-  auth.uid() = sender_id AND
-  EXISTS (SELECT 1 FROM public.conversation_members WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
+  auth.uid() = sender_id AND public.is_conversation_member(conversation_id, auth.uid())
 );
 
 -- =============================================================================
--- 8. MARKETPLACE & PAYMENTS SECURITY
+-- 11. MARKETPLACE & PAYMENTS SECURITY
 -- =============================================================================
 
 -- Marketplace Products
@@ -309,24 +399,23 @@ CREATE POLICY "products_insert_seller" ON public.marketplace_products FOR INSERT
 CREATE POLICY "products_update_seller" ON public.marketplace_products FOR UPDATE USING (auth.uid() = seller_id) WITH CHECK (auth.uid() = seller_id);
 CREATE POLICY "products_delete_seller" ON public.marketplace_products FOR DELETE USING (auth.uid() = seller_id);
 
--- Sellers Profile (SECURE APPLICATION LIFECYCLE: pending -> admin review -> approved)
+-- Sellers Profile (TRIGGER-PROTECTED STATUS TAMPERING)
 CREATE POLICY "sellers_select_public" ON public.sellers FOR SELECT USING (true);
 CREATE POLICY "sellers_insert_owner" ON public.sellers FOR INSERT WITH CHECK (
   auth.role() = 'authenticated' AND auth.uid() = user_id AND status = 'pending'
 );
 CREATE POLICY "sellers_update_owner" ON public.sellers FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (
-  auth.uid() = user_id AND status = (SELECT s.status FROM public.sellers s WHERE s.id = sellers.id)
+  auth.uid() = user_id
 );
 CREATE POLICY "sellers_admin_manage" ON public.sellers FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
+  public.is_admin_user(auth.uid())
 ) WITH CHECK (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
+  public.is_admin_user(auth.uid())
 );
 
--- Marketplace Orders (Buyer & Product Seller PII Scoped)
+-- Marketplace Orders (NON-CIRCULAR PII SCOPING)
 CREATE POLICY "orders_select_buyer_seller" ON public.marketplace_orders FOR SELECT USING (
-  auth.uid() = buyer_id OR
-  EXISTS (SELECT 1 FROM public.marketplace_order_items moi WHERE moi.order_id = marketplace_orders.id AND moi.seller_id = auth.uid())
+  auth.uid() = buyer_id OR public.is_order_seller(id, auth.uid())
 );
 CREATE POLICY "orders_insert_buyer" ON public.marketplace_orders FOR INSERT WITH CHECK (
   auth.role() = 'authenticated' AND auth.uid() = buyer_id
@@ -341,31 +430,22 @@ CREATE POLICY "order_items_insert_buyer" ON public.marketplace_order_items FOR I
   EXISTS (SELECT 1 FROM public.marketplace_orders mo WHERE mo.id = order_id AND mo.buyer_id = auth.uid())
 );
 
--- Payments Infrastructure Log Table (CRITICAL: ZERO UPDATE FOR NORMAL USERS)
+-- Payments (CRITICAL: ZERO UPDATE FOR NORMAL USERS)
 CREATE POLICY "payments_select_owner" ON public.payments FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "payments_insert_owner" ON public.payments FOR INSERT WITH CHECK (
   auth.role() = 'authenticated' AND auth.uid() = user_id AND status = 'pending'
 );
 
 -- =============================================================================
--- 9. COURSES & ENROLLMENTS SECURITY
+-- 12. COURSES, HERITAGE, DISCUSSIONS, KNOWLEDGE, VERIFICATION, EVENTS, LIBRARY
 -- =============================================================================
 
 CREATE POLICY "courses_select_public" ON public.courses FOR SELECT USING (true);
-
-CREATE POLICY "courses_admin_manage" ON public.courses FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
-) WITH CHECK (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
-);
+CREATE POLICY "courses_admin_manage" ON public.courses FOR ALL USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 CREATE POLICY "enrollments_select_owner" ON public.enrollments FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "enrollments_insert_owner" ON public.enrollments FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "enrollments_update_owner" ON public.enrollments FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
--- =============================================================================
--- 10. HERITAGE ARCHIVE & SAVES SECURITY
--- =============================================================================
 
 CREATE POLICY "heritage_recordings_select_public" ON public.heritage_recordings FOR SELECT USING (true);
 CREATE POLICY "heritage_recordings_insert_owner" ON public.heritage_recordings FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
@@ -375,10 +455,6 @@ CREATE POLICY "heritage_recordings_delete_owner" ON public.heritage_recordings F
 CREATE POLICY "heritage_saves_select_owner" ON public.heritage_saves FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "heritage_saves_insert_owner" ON public.heritage_saves FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "heritage_saves_delete_owner" ON public.heritage_saves FOR DELETE USING (auth.uid() = user_id);
-
--- =============================================================================
--- 11. DISCUSSION FORUM SECURITY
--- =============================================================================
 
 CREATE POLICY "discussion_topics_select_public" ON public.discussion_topics FOR SELECT USING (true);
 CREATE POLICY "discussion_topics_insert_owner" ON public.discussion_topics FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
@@ -398,39 +474,12 @@ CREATE POLICY "discussion_saves_select_owner" ON public.discussion_saves FOR SEL
 CREATE POLICY "discussion_saves_insert_owner" ON public.discussion_saves FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "discussion_saves_delete_owner" ON public.discussion_saves FOR DELETE USING (auth.uid() = user_id);
 
--- =============================================================================
--- 12. CULTURAL KNOWLEDGE BASE SECURITY
--- =============================================================================
-
 CREATE POLICY "cultural_knowledge_select_public" ON public.cultural_knowledge FOR SELECT USING (true);
-CREATE POLICY "cultural_knowledge_admin_manage" ON public.cultural_knowledge FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
-) WITH CHECK (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
-);
+CREATE POLICY "cultural_knowledge_admin_manage" ON public.cultural_knowledge FOR ALL USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
--- =============================================================================
--- 13. VERIFICATION APPLICATIONS SECURITY
--- =============================================================================
-
-CREATE POLICY "verification_select_owner_admin" ON public.verification_applications FOR SELECT USING (
-  auth.uid() = user_id OR
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
-);
-
-CREATE POLICY "verification_insert_owner" ON public.verification_applications FOR INSERT WITH CHECK (
-  auth.role() = 'authenticated' AND auth.uid() = user_id AND status = 'pending'
-);
-
-CREATE POLICY "verification_admin_manage" ON public.verification_applications FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
-) WITH CHECK (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
-);
-
--- =============================================================================
--- 14. CONTENT VIEWS, LIBRARY & EVENTS SECURITY
--- =============================================================================
+CREATE POLICY "verification_select_owner_admin" ON public.verification_applications FOR SELECT USING (auth.uid() = user_id OR public.is_admin_user(auth.uid()));
+CREATE POLICY "verification_insert_owner" ON public.verification_applications FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id AND status = 'pending');
+CREATE POLICY "verification_admin_manage" ON public.verification_applications FOR ALL USING (public.is_admin_user(auth.uid())) WITH CHECK (public.is_admin_user(auth.uid()));
 
 CREATE POLICY "content_views_insert_public" ON public.content_views FOR INSERT WITH CHECK (true);
 CREATE POLICY "library_items_select_public" ON public.library_items FOR SELECT USING (true);
