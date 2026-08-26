@@ -1,6 +1,8 @@
+BEGIN;
+
 -- Migration: 20260829_strict_rls_security_policies.sql
--- Purpose: Final Reconciled PostgreSQL RLS Security Migration for Umurage Hub
--- IMPORTANT: PROPOSED MIGRATION — DO NOT EXECUTE UNTIL REVIEWED.
+-- Purpose: Final Complete Reconciled PostgreSQL RLS Security Migration for Umurage Hub
+-- IMPORTANT: COMPLETE EXECUTABLE MIGRATION — WRAPPED IN A SINGLE TRANSACTION BLOCK.
 
 -- =============================================================================
 -- 1. SECURITY DEFINER HELPER FUNCTIONS (ELIMINATE RLS RECURSION)
@@ -34,7 +36,7 @@ AS $$
   );
 $$;
 
--- Helper 3: Admin Check
+-- Helper 3: Admin User Check
 CREATE OR REPLACE FUNCTION public.is_admin_user(p_user_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -47,6 +49,16 @@ AS $$
     WHERE id = p_user_id AND is_admin = true
   );
 $$;
+
+-- Function Privileges Hardening
+REVOKE EXECUTE ON FUNCTION public.is_conversation_member(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_conversation_member(uuid, uuid) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.is_order_seller(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_order_seller(uuid, uuid) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.is_admin_user(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_admin_user(uuid) TO authenticated, service_role;
 
 -- =============================================================================
 -- 2. TRIGGER FUNCTION FOR SELLER STATUS PROTECTION (NO SAME-TABLE RLS RECURSION)
@@ -68,6 +80,9 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.prevent_seller_status_tampering() FROM PUBLIC, authenticated;
+GRANT EXECUTE ON FUNCTION public.prevent_seller_status_tampering() TO service_role;
 
 DROP TRIGGER IF EXISTS trg_prevent_seller_status_tampering ON public.sellers;
 CREATE TRIGGER trg_prevent_seller_status_tampering
@@ -95,7 +110,11 @@ SELECT
   created_at
 FROM public.profiles;
 
-GRANT SELECT ON public.public_profiles TO anon, authenticated;
+CREATE OR REPLACE VIEW public.user_profiles AS
+SELECT * FROM public.public_profiles;
+
+GRANT SELECT ON public.public_profiles TO anon, authenticated, service_role;
+GRANT SELECT ON public.user_profiles TO anon, authenticated, service_role;
 
 -- =============================================================================
 -- 4. ENABLE ROW LEVEL SECURITY ON ALL TABLES
@@ -492,3 +511,5 @@ CREATE POLICY "cultural_events_delete_owner" ON public.cultural_events FOR DELET
 CREATE POLICY "event_registrations_select_owner" ON public.event_registrations FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "event_registrations_insert_owner" ON public.event_registrations FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "event_registrations_delete_owner" ON public.event_registrations FOR DELETE USING (auth.uid() = user_id);
+
+COMMIT;
