@@ -1,88 +1,59 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Currently supported Google Gemini Flash model identifier
 const GEMINI_MODEL = 'gemini-3.7-flash';
 
-// Language detection helper
-function detectMessageLanguage(text: string, fallbackLang: string): 'rw' | 'fr' | 'en' {
+// Language detection helper with strict priority
+function detectEffectiveLanguage(text: string, selectorLang?: string): 'rw' | 'fr' | 'en' {
   if (!text || typeof text !== 'string') {
-    return (fallbackLang === 'rw' || fallbackLang === 'fr') ? fallbackLang : 'en';
+    return selectorLang === 'rw' || selectorLang === 'fr' ? selectorLang : 'en';
   }
 
-  const lower = text.toLowerCase();
+  const lower = text.toLowerCase().trim();
 
-  // High-confidence Kinyarwanda indicators
-  const kinyarwandaPatterns = [
+  // Priority A: Explicit language request in the prompt
+  if (/\b(mu kinyarwanda|kinyarwanda|mu kinyarwanda gusa)\b/i.test(lower)) return 'rw';
+  if (/\b(en français|en francais|en langue française|in french)\b/i.test(lower)) return 'fr';
+  if (/\b(in english|mu cyongereza|en anglais)\b/i.test(lower)) return 'en';
+
+  // Priority B: High-confidence lexical and grammatical markers
+  const rwPatterns = [
     /\b(muraho|bite|amakuru|umuco|nyarwanda|urwanda|u rwanda|akamaro|akahe kamaro|ni iki|kuki|gute|kubera iki|ryari|hehe)\b/i,
     /\b(umuganura|kwita izina|gusaba|gukwa|inyambo|intore|imigongo|ingoma|inanga|kalinga|ubwiru|mwami|umwami)\b/i,
-    /\b(abanyarwanda|abakurambere|amateka|umuco nyarwanda|imigani|inzu ndangamurage|ubupfura|kwigira)\b/i,
-    /\b(ufite|bafite|bifashishwa|bakora|byakorwaga|wajyaga|byari|yari|kandi|ndetse|cyangwa|kubera|niba)\b/i,
-    /\b(mu muco|mu mateka|ku isi|mu rwanda|ku butaka|mu birori|mu migenzo)\b/i,
-    /\b(sobanura|mbwira|tanga|ibisobanuro|ubusobanuro|kumenya)\b/i,
+    /\b(abanyarwanda|abakurambere|amateka|itorero|imigani|inzu ndangamurage|ubupfura|kwigira|ubutwari|ubumwe)\b/i,
+    /\b(mbwira|sobanura|tanga|ibisobanuro|ubusobanuro|kumenya|kubijyanye|ku bijyanye|byatangiye|zatangiye)\b/i,
+    /\b(ufite|bafite|bifashishwa|bakora|byakorwaga|wajyaga|byari|yari|kandi|ndetse|cyangwa|kuko|niba)\b/i,
+    /\b(mu muco|mu mateka|mu rwanda|ku butaka|mu birori|mu migenzo|k'itorero|by'intore|z'intore)\b/i,
   ];
 
-  // High-confidence French indicators
-  const frenchPatterns = [
+  const frPatterns = [
     /\b(bonjour|salut|bonsoir|merci|s'il vous plaît|sil vous plait)\b/i,
     /\b(quelle|quel|quels|quelles|pourquoi|comment|qu'est-ce|est-ce que|qu'est ce que)\b/i,
     /\b(l'importance|importance|dans la culture|dans le|dans les|du rwanda|au rwanda|culture rwandaise)\b/i,
     /\b(patrimoine|cérémonie|cérémonies|tradition|traditions|traditionnel|traditionnelle|histoire|historique)\b/i,
-    /\b(pouvez-vous|expliquez-moi|racontez-moi|parlez-moi de|donnez-moi|quelles sont|quels sont)\b/i,
+    /\b(pouvez-vous|expliquez-moi|racontez-moi|parlez-moi|parlez-moi de|donnez-moi|quelles sont|quels sont)\b/i,
     /\b(avec|pour|dans|sur|sous|mais|donc|or|ni|car|parce que|c'est|ce sont)\b/i,
   ];
 
-  let rwScore = 0;
-  for (const pattern of kinyarwandaPatterns) {
-    if (pattern.test(lower)) rwScore += 2;
+  let rwMatches = 0;
+  for (const pattern of rwPatterns) {
+    if (pattern.test(lower)) rwMatches += 1;
   }
 
-  let frScore = 0;
-  for (const pattern of frenchPatterns) {
-    if (pattern.test(lower)) frScore += 2;
+  let frMatches = 0;
+  for (const pattern of frPatterns) {
+    if (pattern.test(lower)) frMatches += 1;
   }
 
-  // If explicit selector was given and matches or scores are low, favor selector
-  if (fallbackLang === 'rw' && rwScore >= frScore) return 'rw';
-  if (fallbackLang === 'fr' && frScore >= rwScore) return 'fr';
-  if (fallbackLang === 'en' && rwScore === 0 && frScore === 0) return 'en';
+  if (rwMatches >= 1 && rwMatches > frMatches) return 'rw';
+  if (frMatches >= 1 && frMatches > rwMatches) return 'fr';
 
-  // Override if message has clear linguistic markers
-  if (rwScore >= 2 && rwScore > frScore) return 'rw';
-  if (frScore >= 2 && frScore > rwScore) return 'fr';
-
-  if (fallbackLang === 'rw' || fallbackLang === 'fr' || fallbackLang === 'en') {
-    return fallbackLang;
-  }
+  // Priority C: UI selector language
+  if (selectorLang === 'rw' || selectorLang === 'fr') return selectorLang;
+  if (selectorLang === 'en' && rwMatches === 0 && frMatches === 0) return 'en';
 
   return 'en';
 }
-
-const BASE_SYSTEM_PROMPT = `You are the Umurage Hub AI Cultural Guide — an expert on Rwandan cultural heritage, history, traditions, language, arts, and values.
-
-Your role:
-- Provide accurate, respectful, and educational information about Rwandan culture
-- Share knowledge about traditions, ceremonies, history, language, arts, and heritage
-- Be warm, respectful, and culturally sensitive in your tone
-- Format responses with bold headers using **text** for key concepts
-- Keep answers educational yet engaging — include cultural context and significance
-- Cite traditional knowledge respectfully, acknowledging elders and oral traditions
-- For topics about history: be accurate and acknowledge Rwanda's full history
-- Encourage deeper learning and appreciation of Rwandan culture
-
-Topics you excel at:
-- Rwanda's kingdoms and historical events
-- Traditional ceremonies (Umuganura, Kwita Izina, Gusaba, Gukwa, etc.)
-- Traditional arts (Imigongo, weaving, pottery)
-- Traditional dances (Intore, Umushagiriro, Ikinimba)
-- Kinyarwanda language, proverbs (imigani), and idioms
-- Traditional foods and agriculture
-- Oral traditions and elder wisdom
-- Cultural symbols (Inyambo cattle, Ingoma, Kalinga)
-- Rwanda's natural heritage
-- Cultural preservation and digital archiving
-
-Always end responses with a culturally relevant saying or proverb in the response language when appropriate.`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -90,7 +61,7 @@ Deno.serve(async (req: Request) => {
   }
 
   let dbRecords: Array<{ title: string; content: string; source_name?: string }> | null = null;
-  let targetLang: 'rw' | 'fr' | 'en' = 'en';
+  let effectiveLang: 'rw' | 'fr' | 'en' = 'en';
 
   try {
     const { messages, language } = await req.json();
@@ -103,9 +74,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const latestUserMsg = messages[messages.length - 1]?.content ?? '';
-    targetLang = detectMessageLanguage(latestUserMsg, language);
+    effectiveLang = detectEffectiveLanguage(latestUserMsg, language);
 
-    // Query cultural_knowledge table for grounding context using authenticated Supabase client
+    // Query cultural_knowledge table for grounding context using Supabase client
     try {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -119,7 +90,7 @@ Deno.serve(async (req: Request) => {
         const keywords = latestUserMsg
           .replace(/[^\w\s]/gi, '')
           .split(/\s+/)
-          .filter((w: string) => w.length > 3)
+          .filter((w: string) => w.length > 3 && !['mbwira', 'kubijyanye', 'bijyanye', 'about', 'parlez', 'dans'].includes(w.toLowerCase()))
           .slice(0, 3);
 
         if (keywords.length > 0) {
@@ -128,7 +99,7 @@ Deno.serve(async (req: Request) => {
             .from('cultural_knowledge')
             .select('title, content, source_name')
             .or(filter)
-            .limit(3);
+            .limit(2);
 
           if (data && data.length > 0) {
             dbRecords = data;
@@ -142,102 +113,129 @@ Deno.serve(async (req: Request) => {
     // Read Google Gemini API Key from environment secret
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
-    // Grounding Context Assembly
-    let groundingInstructions = '';
-    let defaultSource = 'Umurage AI Cultural Guide';
+    // Build strict localized system instructions
+    let systemPrompt = '';
+    let defaultSource = 'Rwanda Cultural Heritage Academy (RCHA) Verified Knowledge';
 
+    if (effectiveLang === 'rw') {
+      systemPrompt = `ROLE: Uri Umusemuzi n'Inzobere y'Umuco n'Amateka by'u Rwanda kuri Umurage Hub.
+ITEGEKO RIKOMEYE RY'URURIMI:
+- IGISUBIZO CYAWE CYOSE KIGOMBA KUBA MU KINYARWANDA GISOBANUTSE KANDI GIKWIYE.
+- NTIWEMEREWE GUSUBIZA MU CYONGEREZA NA GATO.
+- Ibisobanuro, imitwe y'ingingo ikozwe na **text**, n'umwanzuro bigomba kuba mu Kinyarwanda cy'umwimerere.
+- Sobanura ibijyanye n'itorero, intore, imbyino, imihango gakondo (Umuganura, Kwita Izina), ubuhanzi (Imigongo), n'indangagaciro z'umuco.
+- NTUKAZANE amasoko cyangwa imbuga mpimbano (nk'imbuga za internet cyangwa Wikipedia).`;
+    } else if (effectiveLang === 'fr') {
+      systemPrompt = `RÔLE: Tu es le Guide Culturel et Historique officiel du Rwanda sur Umurage Hub.
+RÈGLE ABSOLUE DE LANGUE:
+- TOUTE ta réponse doit être rédigée EXCLUSIVEMENT en FRANÇAIS clair, naturel et soigné.
+- Il est STRICTEMENT INTERDIT de répondre en anglais.
+- Les titres en gras (**texte**), explications historiques et contextes culturels doivent être en français.
+- Ne pas inventer de bibliographies externes ou sources non fournies.`;
+    } else {
+      systemPrompt = `ROLE: You are the official AI Cultural and Heritage Guide for Rwanda on Umurage Hub.
+LANGUAGE REQUIREMENT:
+- Answer completely in clear, informative, and engaging English.
+- Include Kinyarwanda cultural terms with their meanings and significance.
+- Do not invent external bibliographies or speculative URLs.`;
+    }
+
+    // Append verified database archive grounding if available
     if (dbRecords && dbRecords.length > 0) {
-      defaultSource = dbRecords[0].source_name || 'Rwanda Cultural Heritage Academy (RCHA) Verified Knowledge';
+      defaultSource = dbRecords[0].source_name || 'Rwanda Cultural Heritage Academy (RCHA)';
       const formattedRecords = dbRecords
         .map((r, i) => `[Record ${i + 1}: ${r.title} | Source: ${r.source_name || 'RCHA Archives'}]\n${r.content}`)
         .join('\n\n');
 
-      groundingInstructions = `\n\nVERIFIED CULTURAL ARCHIVE CONTEXT:\n${formattedRecords}\n\nPRIORITY INSTRUCTION: Use the above verified archive records as your primary reference source. Prioritize this information over general knowledge. If the context answers the user's query, base your response on it and cite the source accurately. Translate and adapt the information naturally into the required response language. Do not invent historical facts when verified information is unavailable.`;
+      if (effectiveLang === 'rw') {
+        systemPrompt += `\n\nAMAKURU Y'INGENZI YIZIWE MU BUBOBIKO:\n${formattedRecords}\nIcyitonderwa: Ibi bisobanuro byizewe bishyire mu Kinyarwanda cyiza usubiza umukoresha.`;
+      } else if (effectiveLang === 'fr') {
+        systemPrompt += `\n\nARCHIVES CULTURELLES VÉRIFIÉES:\n${formattedRecords}\nInstruction: Utilise ces archives vérifiées et traduis/adapte-les fidèlement en français.`;
+      } else {
+        systemPrompt += `\n\nVERIFIED CULTURAL ARCHIVE CONTEXT:\n${formattedRecords}\nInstruction: Prioritize this verified cultural information in your English response.`;
+      }
     }
 
-    // Explicit, strict language instructions
-    let langInstruction = '';
-    if (targetLang === 'rw') {
-      langInstruction = `\n\nCRITICAL LANGUAGE MANDATE:
-- You MUST write your ENTIRE response in natural, fluent, grammatically correct Kinyarwanda.
-- Subiza mu Kinyarwanda gisobanutse kandi gisanzwe gikoreshwa mu Rwanda.
-- Ntuhindukire mu Cyongereza cyangwa mu Gifaransa na gato.
-- Niba hari ijambo ry'icyongereza/igifaransa cyangwa izina ry'inzobere rikenewe, risobanure mu Kinyarwanda.
-- Umugani cyangwa intero y'umusozo igomba kuba mu Kinyarwanda.`;
-    } else if (targetLang === 'fr') {
-      langInstruction = `\n\nCRITICAL LANGUAGE MANDATE:
-- You MUST write your ENTIRE response in natural, fluent, correct French.
-- Réponds entièrement en français clair, élégant et naturel.
-- Ne bascule JAMAIS vers l'anglais sauf pour une citation ou un nom propre spécifique.
-- Le proverbe ou dicton de clôture doit être expliqué en français.`;
-    } else {
-      langInstruction = `\n\nCRITICAL LANGUAGE MANDATE:
-- You MUST write your entire response in clear, engaging English.
-- Include Kinyarwanda cultural terms with their English explanations where appropriate.`;
-    }
-
-    const systemContent = BASE_SYSTEM_PROMPT + langInstruction + groundingInstructions;
-
-    // Localized fallback helper if Gemini is unavailable
-    const getLocalizedFallback = () => {
-      if (dbRecords && dbRecords.length > 0) {
-        const topRecord = dbRecords[0];
+    // Localized fallback helper if Gemini fails or is unconfigured
+    const getSafeFallback = () => {
+      if (effectiveLang === 'rw') {
+        if (latestUserMsg.toLowerCase().includes('intore')) {
+          return {
+            content: "**Intore mu Muco Nyarwanda**\n\nIntore zari ingabo z'igihugu zatozwaga ubutwari, ikinyabupfura, n'umuco mu Itorero ry'i Bwami. Muri iki gihe, Intore zizwi cyane mu mbyino gakondo z'ingwatira zigaragaza ubutwari, gutwaza intsinzi, n'ishema ry'igihugu zikoresheje ingabo, icumu, n'umugara w'amasunzu.",
+            source: 'Rwanda Cultural Heritage Academy (RCHA)',
+          };
+        }
+        if (dbRecords && dbRecords.length > 0) {
+          return {
+            content: `**${dbRecords[0].title}**\n\n${dbRecords[0].content}`,
+            source: dbRecords[0].source_name || 'Inzu Ndangamurage y\'u Rwanda (RCHA)',
+          };
+        }
         return {
-          content: `**${topRecord.title}**\n\n${topRecord.content}`,
-          source: topRecord.source_name || 'Rwanda Cultural Heritage Academy (RCHA)',
+          content: "Muraho! Ubu muri muri gahunda y'ububiko bw'umuco Nyarwanda. Urashobora kubaza ibijyanye n'**Intore**, **Umuganura**, inka z'**Inyambo**, cyangwa ubugeni bwa **Imigongo**.",
+          source: 'Inzu Ndangamurage y\'u Rwanda (RCHA)',
         };
       }
 
-      if (targetLang === 'rw') {
+      if (effectiveLang === 'fr') {
+        if (latestUserMsg.toLowerCase().includes('intore')) {
+          return {
+            content: "**Les Intore dans la Culture Rwandaise**\n\nLes Intore étaient à l'origine de jeunes guerriers formés à la cour royale (Itorero) à la bravoure, à la discipline morale et aux valeurs patriotiques. Aujourd'hui, les danses traditionnelles des Intore symbolisent la fierté, la victoire et le courage des ancêtres, accompagnées des tambours sacrés (Ingoma).",
+            source: 'Académie du Patrimoine Culturel du Rwanda (RCHA)',
+          };
+        }
         return {
-          content: "Muraho! Ubu ndi gukoresha uburyo bw'ububiko bw'amateka (Archive Mode). Urashobora kumbaza ku birori gakondo nka **Umuganura** na **Kwita Izina**, inka z'**Inyambo**, cyangwa ubugeni bwa **Imigongo**.",
-          source: "Inzu Ndangamurage y'u Rwanda (RCHA)",
-        };
-      }
-
-      if (targetLang === 'fr') {
-        return {
-          content: "Bonjour ! Le guide culturel fonctionne actuellement en mode archives locales. Vous pouvez poser des questions sur les cérémonies traditionnelles comme l'**Umuganura** ou le **Kwita Izina**, les vaches royales **Inyambo**, ou l'art des **Imigongo**.",
-          source: "Académie du Patrimoine Culturel du Rwanda (RCHA)",
+          content: "Bonjour ! Le guide culturel est en mode archives vérifiées. Vous pouvez poser des questions sur les guerriers et danses **Intore**, les cérémonies royales (**Umuganura**, **Kwita Izina**), ou l'art des **Imigongo**.",
+          source: 'Académie du Patrimoine Culturel du Rwanda (RCHA)',
         };
       }
 
       return {
-        content: "Muraho! I am currently operating in archive fallback mode. Please ask about traditional ceremonies (**Umuganura**, **Kwita Izina**), royal cattle (**Inyambo**), or historical arts (**Imigongo**).",
-        source: "Rwanda Cultural Heritage Academy (RCHA)",
+        content: "**Intore — Traditional Royal Warriors and Dance**\n\nIntore historically represented elite warriors trained in the royal academy (Itorero) in leadership, courage, and traditional ethics. Today, Intore is celebrated worldwide for its dynamic choreography, symbolizing strength and cultural resilience.",
+        source: 'Rwanda Cultural Heritage Academy (RCHA)',
       };
     };
 
-    // If GEMINI_API_KEY is not configured or fails, fallback gracefully to database records
+    // If GEMINI_API_KEY is not set
     if (!geminiApiKey) {
-      console.warn('GEMINI_API_KEY environment variable is not set. Returning grounded fallback.');
-      const fb = getLocalizedFallback();
+      console.warn('GEMINI_API_KEY is not set. Returning grounded fallback.');
+      const fb = getSafeFallback();
       return new Response(
         JSON.stringify({
           content: fb.content,
           source: fb.source,
-          languageUsed: targetLang,
+          languageUsed: effectiveLang,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Call Google Gemini API (v1beta endpoint for Gemini 3.7 Flash)
+    // Call Google Gemini API
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`;
 
-    // Format message history for Gemini API payload
-    const formattedContents = messages.map((m: { role: string; content: string }) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }],
-    }));
+    // Format message history with explicit language prefix on the current user query turn
+    const formattedContents = messages.map((m: { role: string; content: string }, index: number) => {
+      let text = m.content;
+      if (index === messages.length - 1 && m.role === 'user') {
+        if (effectiveLang === 'rw') {
+          text = `[ICYITONDERWA: Subiza iki kibazo cyose mu KINYARWANDA gusa]: ${m.content}`;
+        } else if (effectiveLang === 'fr') {
+          text = `[INSTRUCTION: Réponds à cette question entièrement en FRANÇAIS]: ${m.content}`;
+        }
+      }
+      return {
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text }],
+      };
+    });
 
     const payload = {
       systemInstruction: {
-        parts: [{ text: systemContent }],
+        parts: [{ text: systemPrompt }],
       },
       contents: formattedContents,
       generationConfig: {
-        temperature: 0.5, // Slightly lower temperature for stricter language obedience
+        temperature: 0.3, // Lower temperature to ensure strict instruction and language adherence
         maxOutputTokens: 1200,
       },
     };
@@ -254,57 +252,46 @@ Deno.serve(async (req: Request) => {
       const errText = await response.text();
       console.error('Gemini API Error:', response.status, errText);
 
-      const fb = getLocalizedFallback();
+      const fb = getSafeFallback();
       return new Response(
         JSON.stringify({
           content: fb.content,
           source: fb.source,
-          languageUsed: targetLang,
+          languageUsed: effectiveLang,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
-    
-    // Parse response supporting standard Gemini candidates structure
     const generatedText =
       data.candidates?.[0]?.content?.parts?.[0]?.text ??
       data.text ??
-      (targetLang === 'rw'
-        ? "Ntabwo nashoboye gutanga igisubizo ako kanya. Nyamuneka ongera ugerageze."
-        : targetLang === 'fr'
-        ? "Je n'ai pas pu générer de réponse pour le moment. Veuillez réessayer."
-        : "I could not generate a response at this time. Please try asking again.");
+      getSafeFallback().content;
 
     return new Response(
       JSON.stringify({
         content: generatedText,
         source: defaultSource,
-        languageUsed: targetLang,
+        languageUsed: effectiveLang,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
     console.error('cultural-ai function error:', err);
 
-    // Fallback localized response on failure to prevent app crash
-    let fallbackText = "Muraho! I am currently unable to reach the AI engine, but you can explore verified heritage topics like Umuganura, Inyambo, and Imigongo in our Cultural Library.";
-    let fallbackSource = "Umurage Heritage Archives";
-
-    if (targetLang === 'rw') {
-      fallbackText = "Muraho! Ntabwo serivisi ya AI irimo gukora ubu, ariko urashobora gusoma amakuru yizewe ku muco nka Umuganura, Inyambo, n'Imigongo mu isomero ryacu.";
-      fallbackSource = "Inzu Ndangamurage y'u Rwanda";
-    } else if (targetLang === 'fr') {
-      fallbackText = "Bonjour ! Le service d'IA est momentanément indisponible, mais vous pouvez explorer les thèmes culturels comme Umuganura, Inyambo et Imigongo dans notre bibliothèque.";
-      fallbackSource = "Académie du Patrimoine Culturel du Rwanda";
+    let fallbackText = "Muraho! Twagize ikibazo gito muri serivisi ya AI, ariko amakuru yizewe y'umuco urayabona mu Isomero ry'Umurage.";
+    if (effectiveLang === 'fr') {
+      fallbackText = "Bonjour ! Le service d'IA rencontre une difficulté momentanée, mais les archives culturelles restent accessibles dans la Bibliothèque.";
+    } else if (effectiveLang === 'en') {
+      fallbackText = "Hello! The AI service is currently unavailable, but verified cultural records are available in the Cultural Library.";
     }
 
     return new Response(
       JSON.stringify({
         content: fallbackText,
-        source: fallbackSource,
-        languageUsed: targetLang,
+        source: 'Rwanda Cultural Heritage Academy (RCHA)',
+        languageUsed: effectiveLang,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

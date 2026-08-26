@@ -77,8 +77,41 @@ export const AIGuide: React.FC = () => {
       };
     }
 
+    if (q.includes('intore') || q.includes('itorero') || q.includes('dance')) {
+      if (currentLang === 'rw') {
+        return {
+          text: "**Intore mu Muco Nyarwanda**\n\nIntore zari ingabo z'igihugu zatozwaga ubutwari, ikinyabupfura n'indangagaciro z'umuco mu Itorero ry'i Bwami. Muri iki gihe, imbyino z'Intore zerekana ishema, ubutwari n'umuco gakondo w'u Rwanda ziherekejwe n'ingoma gakondo.",
+          source: 'Inzu Ndangamurage y\'u Rwanda (RCHA)',
+        };
+      }
+      if (currentLang === 'fr') {
+        return {
+          text: "**Les Intore dans la Culture Rwandaise**\n\nLes Intore étaient des guerriers d'élite formés à la cour royale (Itorero) aux valeurs de bravoure et de patriotisme. Aujourd'hui, les danses des Intore incarnent l'héroïsme et le patrimoine traditionnel rwandais au rythme des tambours sacrés.",
+          source: 'Académie du Patrimoine Culturel du Rwanda (RCHA)',
+        };
+      }
+      return {
+        text: "**Intore — Traditional Royal Warriors and Dance**\n\nIntore were elite warriors trained in the royal academy (Itorero) in leadership, courage, and traditional ethics. Today, Intore is celebrated for its dynamic choreography, symbolizing strength and cultural resilience.",
+        source: 'Rwanda Cultural Heritage Academy (RCHA)',
+      };
+    }
+
+    if (currentLang === 'rw') {
+      return {
+        text: `Ibisobanuro kuri "${queryText}": Ububiko bwa RCHA bwemeza ko umuco nyarwanda wibanda ku kwigira, imigani y'abakurambere, no gukunda igihugu.`,
+        source: 'Ububiko bwa RCHA n\'Inzu Ndangamurage',
+      };
+    }
+
+    if (currentLang === 'fr') {
+      return {
+        text: `Réponse pour "${queryText}": Les archives patrimoniales soulignent que les traditions rwandaises valorisent l'auto-suffisance (Kwigira), la sagesse orale et l'artisanat traditionnel.`,
+        source: 'Archives de la RCHA',
+      };
+    }
+
     return {
-      text: `Answer for "${queryText}": Verified heritage archives record that Rwandan traditions emphasize community self-reliance (Kwigira), oral proverbs (Imigani iremre), and sacred craftsmanship.`,
+      text: `Answer for "${queryText}": Verified heritage archives record that Rwandan traditions emphasize community self-reliance (Kwigira), oral proverbs, and sacred craftsmanship.`,
       source: 'RCHA & RALC Archives',
     };
   };
