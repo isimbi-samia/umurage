@@ -113,6 +113,9 @@ export const AIGuide: React.FC = () => {
 
         if (!edgeErr && edgeData?.content) {
           aiContent = edgeData.content;
+          if (edgeData.source) {
+            aiSource = edgeData.source;
+          }
         }
       } catch {
         // Silently continue to DB fallback
