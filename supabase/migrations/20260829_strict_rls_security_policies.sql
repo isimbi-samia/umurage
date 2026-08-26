@@ -110,6 +110,7 @@ DROP POLICY IF EXISTS "notifications_delete_owner" ON public.notifications;
 DROP POLICY IF EXISTS "sellers_select_public" ON public.sellers;
 DROP POLICY IF EXISTS "sellers_insert_owner" ON public.sellers;
 DROP POLICY IF EXISTS "sellers_update_owner" ON public.sellers;
+DROP POLICY IF EXISTS "sellers_admin_manage" ON public.sellers;
 DROP POLICY IF EXISTS "Public read approved sellers" ON public.sellers;
 DROP POLICY IF EXISTS "Sellers manage own profile" ON public.sellers;
 
@@ -314,7 +315,12 @@ CREATE POLICY "sellers_insert_owner" ON public.sellers FOR INSERT WITH CHECK (
   auth.role() = 'authenticated' AND auth.uid() = user_id AND status = 'pending'
 );
 CREATE POLICY "sellers_update_owner" ON public.sellers FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (
-  auth.uid() = user_id AND status = status
+  auth.uid() = user_id AND status = (SELECT s.status FROM public.sellers s WHERE s.id = sellers.id)
+);
+CREATE POLICY "sellers_admin_manage" ON public.sellers FOR ALL USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
+) WITH CHECK (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_admin = true)
 );
 
 -- Marketplace Orders (Buyer & Product Seller PII Scoped)
