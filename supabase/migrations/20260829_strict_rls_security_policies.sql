@@ -158,6 +158,7 @@ ALTER TABLE public.library_items ENABLE ROW LEVEL SECURITY;
 -- Profiles
 DROP POLICY IF EXISTS "Public read profiles" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_select_public" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_owner" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update_self" ON public.profiles;
 DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
@@ -323,11 +324,11 @@ DROP POLICY IF EXISTS "library_items_select_public" ON public.library_items;
 DROP POLICY IF EXISTS "Public read library items" ON public.library_items;
 
 -- =============================================================================
--- 6. PROFILES SECURITY
+-- 6. PROFILES SECURITY (STRICT OWNER-ONLY SELECT ON TABLES, SAFE PUBLIC VIEWS)
 -- =============================================================================
 
-CREATE POLICY "profiles_select_public" ON public.profiles
-  FOR SELECT USING (true);
+CREATE POLICY "profiles_select_owner" ON public.profiles
+  FOR SELECT USING (auth.uid() = id OR public.is_admin_user(auth.uid()));
 
 CREATE POLICY "profiles_update_self" ON public.profiles
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);

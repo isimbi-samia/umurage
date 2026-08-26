@@ -50,7 +50,7 @@ export function useMessages(userId?: string) {
   const loadAvailableProfiles = useCallback(async () => {
     if (!userId) return;
     const { data, error } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('id, username, full_name, avatar_url, verified')
       .neq('id', userId)
       .order('full_name', { ascending: true })
@@ -96,7 +96,7 @@ export function useMessages(userId?: string) {
         let participant: MessageProfile | null = null;
         if (otherUserIds.length > 0) {
           const { data: participantData } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('id, username, full_name, avatar_url, verified')
             .in('id', otherUserIds)
             .maybeSingle();
@@ -105,7 +105,7 @@ export function useMessages(userId?: string) {
 
         if (!participant) {
           const { data: selfData } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('id, username, full_name, avatar_url, verified')
             .eq('id', userId)
             .maybeSingle();
@@ -183,7 +183,7 @@ export function useMessages(userId?: string) {
     const senderIds = [...new Set((rows || []).map((row: { sender_id: string }) => row.sender_id))];
     const { data: profilesData } = senderIds.length > 0
       ? await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, username, full_name, avatar_url, verified')
           .in('id', senderIds)
       : { data: [] };
@@ -239,7 +239,7 @@ export function useMessages(userId?: string) {
     if (error) throw error;
 
     const { data: senderData } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('id, username, full_name, avatar_url, verified')
       .eq('id', userId)
       .maybeSingle();

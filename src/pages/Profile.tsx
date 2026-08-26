@@ -79,8 +79,8 @@ function useUserProfile(userId?: string) {
     queryFn: async () => {
       if (!userId) return null;
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, email, avatar_url, cover_image_url, cover_url, bio, location, interests, role, verified, verification_type, followers_count, following_count, posts_count')
+        .from('public_profiles')
+        .select('id, full_name, username, avatar_url, cover_image_url, cover_url, bio, location, interests, role, verified, verification_type, followers_count, following_count, posts_count')
         .eq('id', userId)
         .maybeSingle();
       if (error) throw error;
@@ -106,8 +106,8 @@ function useUserPosts(userId?: string) {
       if (!posts || posts.length === 0) return [];
 
       const { data: authorProfile } = await supabase
-        .from('profiles')
-        .select('id, username, email, avatar_url, verified, verification_type, role')
+        .from('public_profiles')
+        .select('id, username, avatar_url, verified, verification_type, role')
         .eq('id', userId)
         .maybeSingle();
 
@@ -307,7 +307,7 @@ const Profile: React.FC = () => {
 
       const authorIds = [...new Set((posts || []).map((p: { user_id: string }) => p.user_id))];
       const { data: authors } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, username, avatar_url, verified, verification_type, role')
         .in('id', authorIds);
 

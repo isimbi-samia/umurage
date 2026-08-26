@@ -80,8 +80,8 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
       const missingAuthorUserIds = [...new Set(rawItems.filter(p => !p.author && p.user_id).map(p => p.user_id))];
       if (missingAuthorUserIds.length > 0) {
         const { data: authorProfiles } = await supabase
-          .from('profiles')
-          .select('id, username, email, bio, avatar_url, role, verified, verification_type, followers_count, following_count, posts_count')
+          .from('public_profiles')
+          .select('id, username, bio, avatar_url, role, verified, verification_type, followers_count, following_count, posts_count')
           .in('id', missingAuthorUserIds);
         const authorMap = new Map((authorProfiles || []).map(ap => [ap.id, ap]));
         rawItems.forEach(p => {

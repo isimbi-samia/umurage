@@ -75,8 +75,8 @@ export function useVerifiedCreators() {
     queryKey: ['verified-creators'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, email, avatar_url, verified, verified_type, followers_count, role, bio')
+        .from('public_profiles')
+        .select('id, username, avatar_url, verified, verified_type, followers_count, role, bio')
         .eq('verified', true)
         .order('followers_count', { ascending: false })
         .limit(6);

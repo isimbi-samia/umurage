@@ -46,7 +46,7 @@ export function useStories() {
 
       const userIds = [...new Set(storiesData.map((s) => s.user_id))];
       const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, username, avatar_url, verified')
         .in('id', userIds);
       if (profilesError) throw profilesError;
