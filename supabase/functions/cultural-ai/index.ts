@@ -1,7 +1,8 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+// Currently supported Google Gemini Flash model identifier
+const GEMINI_MODEL = 'gemini-3.7-flash';
 
 const BASE_SYSTEM_PROMPT = `You are the Umurage Hub AI Cultural Guide — an expert on Rwandan cultural heritage, history, traditions, language, arts, and values.
 
@@ -49,7 +50,7 @@ Deno.serve(async (req: Request) => {
 
     const latestUserMsg = messages[messages.length - 1]?.content ?? '';
 
-    // Query cultural_knowledge table for grounding context using Supabase client
+    // Query cultural_knowledge table for grounding context using authenticated Supabase client
     try {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -131,7 +132,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Call Google Gemini API (generateContent endpoint)
+    // Call Google Gemini API (v1beta endpoint for Gemini 3.7 Flash)
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`;
 
     // Format message history for Gemini API payload
@@ -179,8 +180,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await response.json();
+    
+    // Parse response supporting standard Gemini candidates structure
     const generatedText =
       data.candidates?.[0]?.content?.parts?.[0]?.text ??
+      data.text ??
       'I could not generate a response at this time. Please try asking again.';
 
     return new Response(
