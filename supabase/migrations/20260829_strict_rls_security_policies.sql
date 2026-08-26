@@ -498,8 +498,8 @@ CREATE POLICY "discussion_topics_update_owner" ON public.discussion_topics FOR U
 CREATE POLICY "discussion_topics_delete_owner" ON public.discussion_topics FOR DELETE USING (auth.uid() = user_id);
 
 CREATE POLICY "discussion_replies_select_public" ON public.discussion_replies FOR SELECT USING (true);
-CREATE POLICY "discussion_replies_insert_owner" ON public.discussion_replies FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = author_id);
-CREATE POLICY "discussion_replies_delete_owner" ON public.discussion_replies FOR DELETE USING (auth.uid() = author_id);
+CREATE POLICY "discussion_replies_insert_owner" ON public.discussion_replies FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
+CREATE POLICY "discussion_replies_delete_owner" ON public.discussion_replies FOR DELETE USING (auth.uid() = user_id);
 
 CREATE POLICY "discussion_votes_select_owner" ON public.discussion_votes FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "discussion_votes_insert_owner" ON public.discussion_votes FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
