@@ -31,6 +31,9 @@ export const OralHistory: React.FC = () => {
           storyteller_name,
           region,
           language,
+          transcript,
+          ai_translation,
+          tags,
           created_at
         `)
         .order('created_at', { ascending: false });
@@ -51,6 +54,7 @@ export const OralHistory: React.FC = () => {
           thumbnail_url,
           duration,
           region,
+          tags,
           created_at
         `)
         .eq('type', 'audio')
@@ -81,12 +85,16 @@ export const OralHistory: React.FC = () => {
           title: r.title,
           description: r.description || '',
           audio_url: r.audio_url,
-          thumbnail: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=200&h=150&fit=crop',
-          elder: r.storyteller_name || u?.username || 'Elder Storyteller',
-          avatar: u?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${r.storyteller_name}`,
+          thumbnail: r.thumbnail_url || null,
+          elder: r.storyteller_name || u?.full_name || u?.username || 'Elder Storyteller',
+          avatar: u?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${r.storyteller_name || 'OralHistory'}`,
           region: r.region || 'Rwanda',
-          duration: r.duration || '15:00',
-          verified: u?.verified ?? true,
+          language: r.language || 'Kinyarwanda',
+          duration: r.duration || 'Audio Recording',
+          transcript: r.transcript || null,
+          ai_translation: r.ai_translation || null,
+          tags: Array.isArray(r.tags) ? r.tags : [],
+          verified: u?.verified ?? false,
           created_at: r.created_at,
         };
       });
@@ -95,14 +103,18 @@ export const OralHistory: React.FC = () => {
         const author = profileMap.get(p.user_id);
         return {
           id: p.id,
-          title: p.title || 'Oral Account',
+          title: p.title || 'Oral History Record',
           description: p.description || '',
           audio_url: p.media_url,
-          thumbnail: p.thumbnail_url || 'https://images.unsplash.com/photo-1516307365426-bea591f05011?w=200&h=150&fit=crop',
-          elder: author?.username || 'Community Elder',
+          thumbnail: p.thumbnail_url || null,
+          elder: author?.full_name || author?.username || 'Community Elder',
           avatar: author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.title}`,
-          region: p.region || 'Northern Province',
-          duration: p.duration || '12:30',
+          region: p.region || 'Rwanda',
+          language: 'Kinyarwanda',
+          duration: p.duration || 'Audio Recording',
+          transcript: null,
+          ai_translation: null,
+          tags: Array.isArray(p.tags) ? p.tags : [],
           verified: author?.verified ?? false,
           created_at: p.created_at,
         };
@@ -131,12 +143,20 @@ export const OralHistory: React.FC = () => {
       activeAudioElem.pause();
     }
 
+    if (!record.audio_url) {
+      toast.error('Audio file is unavailable for this recording.');
+      return;
+    }
+
     const audio = new Audio(record.audio_url);
     audio.play().then(() => {
       setPlayingAudioId(record.id);
       setActiveAudioElem(audio);
     }).catch(err => {
       console.error('Audio play error:', err);
+      toast.error('Unable to play audio stream. Please check your connection.');
+      setPlayingAudioId(null);
+      setActiveAudioElem(null);
     });
 
     audio.onended = () => {
@@ -162,7 +182,7 @@ export const OralHistory: React.FC = () => {
             <Plus size={15} /> Record Oral History
           </button>
         </div>
-        <p className="text-umurage-muted text-base">
+        <p className="text-umurage-muted text-sm max-w-2xl">
           Preserving elder voices, ancestral genealogies, and living community memories forever.
         </p>
       </div>
@@ -177,15 +197,15 @@ export const OralHistory: React.FC = () => {
         </div>
         <div className="flex-1 text-center md:text-left">
           <h3 className="text-umurage-cream font-semibold text-lg mb-1">Have an Elder Story or Community Record?</h3>
-          <p className="text-umurage-muted text-sm">
-            Record directly from your browser microphone with custom thumbnails, cultural permissions, and chunked long audio support.
+          <p className="text-umurage-muted text-xs">
+            Record directly from your browser microphone with cultural permissions, region tagging, and permanent archive preservation.
           </p>
         </div>
         <button
-          onClick={() => isAuthenticated ? setIsRecorderOpen(true) : openAuth('signup')}
-          className="btn-gold px-6 py-3 flex-shrink-0 font-bold"
+          onClick={() => isAuthenticated ? setIsRecorderOpen(true) : openAuth('login')}
+          className="btn-gold px-6 py-3 flex-shrink-0 font-bold text-xs"
         >
-          {isAuthenticated ? 'Open Studio Recorder' : 'Sign Up to Record'}
+          {isAuthenticated ? 'Open Studio Recorder' : 'Sign In to Record'}
         </button>
       </div>
 
@@ -203,9 +223,12 @@ export const OralHistory: React.FC = () => {
       ) : recordings.length === 0 ? (
         <div className="umurage-card rounded-2xl p-12 text-center border border-dashed border-umurage-border">
           <Mic size={40} className="text-purple-400/40 mx-auto mb-3" />
-          <h3 className="text-umurage-cream font-semibold text-base mb-2">No recordings available yet</h3>
-          <p className="text-umurage-muted text-sm mb-5">Be the first to record an elder narrative for future generations.</p>
-          <button onClick={() => setIsRecorderOpen(true)} className="btn-gold text-xs px-5 py-2.5">
+          <h3 className="text-umurage-cream font-semibold text-base mb-2">No oral histories have been shared yet</h3>
+          <p className="text-umurage-muted text-xs mb-5">Be the first to record an elder narrative for future generations.</p>
+          <button
+            onClick={() => isAuthenticated ? setIsRecorderOpen(true) : openAuth('login')}
+            className="btn-gold text-xs px-5 py-2.5 font-semibold"
+          >
             Start Recording
           </button>
         </div>
@@ -215,11 +238,18 @@ export const OralHistory: React.FC = () => {
             const isPlaying = playingAudioId === record.id;
             return (
               <div key={record.id} className="umurage-card rounded-2xl p-5 flex flex-col sm:flex-row gap-4 group transition-all duration-200 hover:border-purple-800/40">
-                <img
-                  src={record.thumbnail}
-                  alt={record.title}
-                  className="w-full sm:w-36 h-28 rounded-xl object-cover flex-shrink-0 group-hover:scale-[1.02] transition-transform"
-                />
+                {record.thumbnail ? (
+                  <img
+                    src={record.thumbnail}
+                    alt={record.title}
+                    className="w-full sm:w-36 h-28 rounded-xl object-cover flex-shrink-0 group-hover:scale-[1.02] transition-transform"
+                  />
+                ) : (
+                  <div className="w-full sm:w-36 h-28 rounded-xl bg-[#251528] border border-purple-900/40 flex flex-col items-center justify-center flex-shrink-0 text-center p-2">
+                    <Headphones size={28} className="text-purple-400 mb-1.5" />
+                    <span className="text-[10px] text-purple-300 font-semibold truncate max-w-full">{record.language}</span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -255,6 +285,14 @@ export const OralHistory: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Persisted AI Transcript if present */}
+                  {record.transcript && (
+                    <div className="mt-2.5 p-2.5 rounded-lg bg-purple-950/30 border border-purple-800/30 text-xs">
+                      <span className="text-[10px] font-semibold text-purple-300 block mb-0.5">ARCHIVED TRANSCRIPT</span>
+                      <p className="text-umurage-cream text-[11px] leading-relaxed line-clamp-3">{record.transcript}</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 mt-3">
                     <img src={record.avatar} alt={record.elder} className="w-5 h-5 rounded-full object-cover border border-purple-800/40" />
                     <span className="text-umurage-muted text-xs">{record.elder}</span>
@@ -263,12 +301,21 @@ export const OralHistory: React.FC = () => {
                         Verified Storyteller
                       </span>
                     )}
+                    {record.tags && record.tags.length > 0 && (
+                      <div className="flex gap-1 ml-auto">
+                        {record.tags.slice(0, 2).map((t: string, idx: number) => (
+                          <span key={idx} className="text-[9px] bg-purple-900/30 border border-purple-800/30 text-purple-300 px-1.5 py-0.5 rounded">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-4 mt-3 pt-2 border-t border-umurage-border/40 text-umurage-subtle text-xs">
                     <span className="flex items-center gap-1"><User size={12} />{record.region}</span>
                     <span className="flex items-center gap-1"><Clock size={12} />{record.duration}</span>
-                    <span className="flex items-center gap-1"><Headphones size={12} />Audio Record</span>
+                    <span className="flex items-center gap-1"><Headphones size={12} />{record.language}</span>
                   </div>
                 </div>
               </div>

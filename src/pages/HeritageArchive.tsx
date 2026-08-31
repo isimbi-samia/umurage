@@ -10,6 +10,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
+import { AudioRecorderModal } from '@/components/features/AudioRecorderModal';
+
 const CATEGORIES = ['Oral Story', 'Traditional Song', 'Custom', 'Memory', 'Proverb', 'Family History'];
 const LANGUAGES = ['Kinyarwanda', 'English', 'French', 'Kinyarwanda & English'];
 const REGIONS = [
@@ -139,9 +141,9 @@ const SubmitRecordingModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         region: form.region || undefined,
         elder_name: form.elder_name || undefined,
         elder_age: form.elder_age ? parseInt(form.elder_age) : undefined,
-        tags: aiData?.tags || form.tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: aiData?.tags?.length ? aiData.tags : form.tags.split(',').map(t => t.trim()).filter(Boolean),
         ai_translation: aiData?.translation || undefined,
-        transcript: aiData?.summary || undefined,
+        transcript: aiData?.transcript || undefined,
       });
 
       setStep('done');
@@ -314,10 +316,10 @@ const SubmitRecordingModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 // ---- Main Heritage Archive Page ----
 const HeritageArchive: React.FC = () => {
   const { isAuthenticated, openAuth } = useAuth();
-  const { data: recordings = [], isLoading } = useHeritageRecordings();
+  const { data: recordings = [], isLoading, refetch } = useHeritageRecordings();
   const [showSubmit, setShowSubmit] = useState(false);
+  const [isRecorderOpen, setIsRecorderOpen] = useState(false);
   const [filter, setFilter] = useState('All');
-  const [playing, setPlaying] = useState<string | null>(null);
 
   const FILTER_CATS = ['All', ...CATEGORIES];
   const filtered = filter === 'All' ? recordings : (recordings as Record<string, unknown>[]).filter(r => r.category === filter);
@@ -326,6 +328,11 @@ const HeritageArchive: React.FC = () => {
     'Oral Story': '🗣️', 'Traditional Song': '🎵', 'Custom': '🌿',
     'Memory': '💭', 'Proverb': '📜', 'Family History': '👨‍👩‍👧‍👦',
   };
+
+  const storiesCount = recordings.length;
+  const eldersCount = new Set((recordings as any[]).map(r => r.elder_name || r.storyteller_name).filter(Boolean)).size;
+  const languagesCount = Math.max(new Set((recordings as any[]).map(r => r.language).filter(Boolean)).size, recordings.length > 0 ? 1 : 0);
+  const contributorsCount = new Set((recordings as any[]).map(r => r.user_id).filter(Boolean)).size;
 
   return (
     <div className="animate-fade-in">
@@ -375,7 +382,10 @@ const HeritageArchive: React.FC = () => {
               <Archive size={16} />
               Submit Heritage Recording
             </button>
-            <button className="btn-outline-gold flex items-center gap-2">
+            <button
+              onClick={() => (isAuthenticated ? setIsRecorderOpen(true) : openAuth('login'))}
+              className="btn-outline-gold flex items-center gap-2"
+            >
               <Mic size={15} />
               Record Audio Now
             </button>
@@ -383,13 +393,13 @@ const HeritageArchive: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - 100% Real Derived Data */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
-          { label: 'Stories Preserved', value: (recordings as []).length.toString() || '0', icon: '📖' },
-          { label: 'Elders Recorded', value: `${Math.floor(Math.random() * 20 + 10)}`, icon: '👴' },
-          { label: 'Languages Covered', value: '3', icon: '🌍' },
-          { label: 'Archive Contributors', value: `${Math.floor(Math.random() * 50 + 20)}`, icon: '🤝' },
+          { label: 'Stories Preserved', value: storiesCount.toString(), icon: '📖' },
+          { label: 'Elders Recorded', value: eldersCount.toString(), icon: '👴' },
+          { label: 'Languages Covered', value: languagesCount.toString(), icon: '🌍' },
+          { label: 'Archive Contributors', value: contributorsCount.toString(), icon: '🤝' },
         ].map((stat, i) => (
           <div key={i} className="umurage-card rounded-xl p-4 text-center">
             <span className="text-2xl block mb-2">{stat.icon}</span>
@@ -428,9 +438,14 @@ const HeritageArchive: React.FC = () => {
           <p className="text-umurage-muted text-sm mb-5 max-w-md mx-auto">
             Every elder's voice, every family story, every traditional song — they all deserve to live forever. Be the first to contribute.
           </p>
-          <button onClick={() => isAuthenticated ? setShowSubmit(true) : openAuth('signup')} className="btn-gold px-8 py-3">
-            Submit First Heritage Recording
-          </button>
+          <div className="flex justify-center gap-3">
+            <button onClick={() => isAuthenticated ? setShowSubmit(true) : openAuth('signup')} className="btn-gold px-6 py-2.5 text-xs">
+              Submit Recording
+            </button>
+            <button onClick={() => isAuthenticated ? setIsRecorderOpen(true) : openAuth('login')} className="btn-outline-gold px-6 py-2.5 text-xs">
+              Record Audio
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -522,6 +537,11 @@ const HeritageArchive: React.FC = () => {
       </div>
 
       {showSubmit && <SubmitRecordingModal onClose={() => setShowSubmit(false)} />}
+      <AudioRecorderModal
+        isOpen={isRecorderOpen}
+        onClose={() => setIsRecorderOpen(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 };

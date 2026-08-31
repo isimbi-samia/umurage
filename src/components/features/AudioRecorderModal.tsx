@@ -41,14 +41,23 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
   const [isUploading, setIsUploading] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const stopMediaStream = () => {
+    if (activeStreamRef.current) {
+      activeStreamRef.current.getTracks().forEach((track) => track.stop());
+      activeStreamRef.current = null;
+    }
+  };
 
   useEffect(() => {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
+      stopMediaStream();
     };
   }, [audioUrl]);
 
@@ -75,8 +84,14 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
     setPermissionError(null);
     audioChunksRef.current = [];
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setPermissionError('Microphone audio recording is not supported by your browser. Please try Chrome, Firefox, Edge, or Safari.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      activeStreamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
@@ -91,7 +106,7 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
-        stream.getTracks().forEach((track) => track.stop());
+        stopMediaStream();
       };
 
       mediaRecorder.start(1000);
@@ -100,6 +115,7 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
       startTimer();
     } catch (err: any) {
       console.error('Microphone access error:', err);
+      stopMediaStream();
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setPermissionError('Microphone permission denied. Please allow microphone access in your browser settings to record oral history.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -131,16 +147,23 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
       mediaRecorderRef.current.stop();
       setRecordingState('stopped');
       stopTimer();
+      stopMediaStream();
     }
   };
 
   const resetRecording = () => {
     stopTimer();
+    stopMediaStream();
     setRecordingState('idle');
     setTimerSeconds(0);
     setAudioBlob(null);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setAudioUrl(null);
+  };
+
+  const handleClose = () => {
+    resetRecording();
+    onClose();
   };
 
   const togglePreviewPlayback = () => {
@@ -153,6 +176,20 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
       setIsPlayingPreview(true);
     }
   };
+
+// Helper to convert Blob to Base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
 
   const handleUploadAndSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,16 +226,24 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
 
       // 3. Insert record into heritage_recordings
       const durationStr = formatTimer(timerSeconds);
-      const { error: dbError } = await supabase.from('heritage_recordings').insert({
-        user_id: user.id,
-        title: title.trim(),
-        description: description.trim(),
-        audio_url: audioUploadRes.url,
-        duration: durationStr,
-        storyteller_name: storyteller.trim() || user.user_metadata?.full_name || 'Elder Storyteller',
-        region,
-        language,
-      });
+      const { data: insertedRec, error: dbError } = await supabase
+        .from('heritage_recordings')
+        .insert({
+          user_id: user.id,
+          title: title.trim(),
+          description: description.trim(),
+          audio_url: audioUploadRes.url,
+          duration: durationStr,
+          storyteller_name: storyteller.trim() || user.user_metadata?.full_name || 'Elder Storyteller',
+          elder_name: storyteller.trim() || undefined,
+          region,
+          language,
+          category: topic,
+          media_type: 'audio',
+          tags: [topic.toLowerCase(), 'oral-history'],
+        })
+        .select('id')
+        .single();
 
       if (dbError) throw dbError;
 
@@ -216,6 +261,42 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
         published: visibility === 'public',
       });
 
+      // 5. Asynchronous Gemini Transcription & Cultural Analysis
+      // Check audio size (8MB limit for inline Base64 transport)
+      if (audioBlob.size <= 8 * 1024 * 1024) {
+        try {
+          const audioBase64 = await blobToBase64(audioBlob);
+          const { data: aiData, error: aiError } = await supabase.functions.invoke('transcribe-heritage', {
+            body: {
+              title: title.trim(),
+              description: description.trim(),
+              category: topic,
+              language,
+              elder_name: storyteller.trim(),
+              audio_base64: audioBase64,
+              audio_mime: 'audio/webm',
+            },
+          });
+
+          if (!aiError && aiData && aiData.status === 'success') {
+            await supabase
+              .from('heritage_recordings')
+              .update({
+                transcript: aiData.transcript || null,
+                ai_translation: aiData.translation || null,
+                tags: Array.isArray(aiData.tags) && aiData.tags.length > 0 ? aiData.tags : [topic.toLowerCase(), 'oral-history'],
+              })
+              .eq('id', insertedRec.id)
+              .eq('user_id', user.id);
+          }
+        } catch (aiErr) {
+          console.warn('AI transcription notice:', aiErr);
+          // Recording is already safely saved in DB!
+        }
+      } else {
+        toast.info('Recording saved! Audio file exceeds 8MB inline size limit for automated AI transcription.');
+      }
+
       toast.success('Oral History recording successfully preserved!');
       resetRecording();
       if (onSuccess) onSuccess();
@@ -230,9 +311,9 @@ export const AudioRecorderModal: React.FC<AudioRecorderModalProps> = ({ isOpen, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={handleClose} />
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#18110a] border border-[#5c3c1e] p-6 z-10 animate-fade-in text-umurage-cream">
-        <button onClick={onClose} className="absolute top-4 right-4 text-umurage-subtle hover:text-umurage-cream">
+        <button onClick={handleClose} className="absolute top-4 right-4 text-umurage-subtle hover:text-umurage-cream">
           <X size={20} />
         </button>
 
