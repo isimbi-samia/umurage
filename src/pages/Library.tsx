@@ -41,6 +41,7 @@ const Library: React.FC = () => {
         .from('library_items')
         .select(`
           id,
+          user_id,
           title,
           description,
           category,
@@ -50,8 +51,7 @@ const Library: React.FC = () => {
           author,
           views_count,
           year_created,
-          created_at,
-          user:profiles!library_items_user_id_fkey(id, username, email, avatar_url, verified)
+          created_at
         `);
 
       if (activeCategory !== 'all') {
@@ -72,25 +72,7 @@ const Library: React.FC = () => {
       // Also query posts for published content if library_items has few items
       let postsQuery = supabase
         .from('posts')
-        .select(`
-          id,
-          type,
-          title,
-          description,
-          thumbnail_url,
-          media_url,
-          duration,
-          category,
-          region,
-          tags,
-          created_at,
-          views_count,
-          likes_count,
-          comments_count,
-          shares_count,
-          published,
-          author:profiles!posts_user_id_fkey(id, username, email, avatar_url, verified, verification_type, role)
-        `)
+        .select('*')
         .eq('published', true);
 
       if (activeCategory !== 'all') {
@@ -106,7 +88,32 @@ const Library: React.FC = () => {
 
       if (postsError) throw postsError;
 
-      const mappedLibItems = (libItems || []).map((item: any) => ({
+      const rawPosts = postsItems || [];
+      const rawLibs = libItems || [];
+      const allUserIds = [...new Set([...rawPosts.map((p: any) => p.user_id), ...rawLibs.map((l: any) => l.user_id)].filter(Boolean))];
+      
+      const authorMap = new Map<string, any>();
+      if (allUserIds.length > 0) {
+        const { data: authorProfiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, full_name, avatar_url, verified, verified_type, role')
+          .in('id', allUserIds);
+        (authorProfiles || []).forEach((ap: any) => {
+          authorMap.set(ap.id, { ...ap, verification_type: ap.verified_type });
+        });
+      }
+
+      rawPosts.forEach((p: any) => {
+        p.author = authorMap.get(p.user_id) || {
+          id: p.user_id,
+          username: p.author_name || 'Umurage Member',
+          avatar_url: null,
+          verified: false,
+          role: 'user',
+        };
+      });
+
+      const mappedLibItems = rawLibs.map((item: any) => ({
         id: item.id,
         type: item.type || 'book',
         title: item.title || 'Untitled Material',
@@ -123,7 +130,7 @@ const Library: React.FC = () => {
         comments_count: 0,
         shares_count: 0,
         created_at: item.created_at,
-        author: item.user || { id: item.user_id, username: item.author || 'Cultural Archive', email: null, avatar_url: null, verified: true },
+        author: authorMap.get(item.user_id) || { id: item.user_id, username: item.author || 'Cultural Archive', avatar_url: null, verified: true, role: 'user' },
         liked: false,
         saved: false,
       }));

@@ -21,7 +21,7 @@ export function useNotifications(userId?: string) {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('notifications')
-        .select(`*, actor:profiles!notifications_actor_id_fkey(username, avatar_url)`)
+        .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(30);
@@ -29,7 +29,24 @@ export function useNotifications(userId?: string) {
       if (error && error.code !== 'PGRST116') {
         console.warn('Error fetching notifications:', error);
       }
-      return (data || []) as Notification[];
+
+      const raw = (data || []) as Notification[];
+      const actorIds = [...new Set(raw.map(n => n.actor_id).filter(Boolean))] as string[];
+
+      if (actorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, avatar_url')
+          .in('id', actorIds);
+
+        const actorMap = new Map((profiles || []).map(p => [p.id, p]));
+        return raw.map(n => ({
+          ...n,
+          actor: n.actor_id ? actorMap.get(n.actor_id) || null : null,
+        }));
+      }
+
+      return raw;
     },
     enabled: !!userId,
     refetchInterval: 15000,

@@ -173,13 +173,43 @@ export function useSavedPosts(userId?: string) {
     queryKey: ['saved-posts', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data: saves, error: savesError } = await supabase
         .from('saves')
-        .select(`post:posts(*, author:profiles!posts_user_id_fkey(id, username, avatar_url, verified, verified_type, role))`)
+        .select('post_id, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(s => s.post).filter(Boolean);
+      if (savesError) throw savesError;
+      if (!saves || saves.length === 0) return [];
+
+      const postIds = saves.map(s => s.post_id);
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .in('id', postIds);
+      if (postsError) throw postsError;
+
+      const rawPosts = posts || [];
+      const authorIds = [...new Set(rawPosts.map(p => p.user_id).filter(Boolean))];
+      const authorMap = new Map<string, any>();
+
+      if (authorIds.length > 0) {
+        const { data: authors } = await supabase
+          .from('public_profiles')
+          .select('id, username, full_name, avatar_url, verified, verified_type, role')
+          .in('id', authorIds);
+        (authors || []).forEach((a: any) => {
+          authorMap.set(a.id, { ...a, verification_type: a.verified_type });
+        });
+      }
+
+      const postMap = new Map(rawPosts.map(p => [p.id, {
+        ...p,
+        author: authorMap.get(p.user_id) || null,
+      }]));
+
+      return saves
+        .map(s => postMap.get(s.post_id))
+        .filter(Boolean);
     },
     enabled: !!userId,
     staleTime: 30000,

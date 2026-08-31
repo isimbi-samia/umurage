@@ -29,11 +29,26 @@ function useHeritageRecordings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('heritage_recordings')
-        .select(`*, author:profiles!heritage_recordings_user_id_fkey(id, username, avatar_url, verified)`)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
       if (error) throw error;
-      return data || [];
+
+      const raw = data || [];
+      const userIds = [...new Set(raw.map((r: any) => r.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, avatar_url, verified')
+          .in('id', userIds);
+        const map = new Map((profiles || []).map((p: any) => [p.id, p]));
+        return raw.map((r: any) => ({
+          ...r,
+          author: map.get(r.user_id) || null,
+        }));
+      }
+
+      return raw;
     },
     staleTime: 30000,
   });

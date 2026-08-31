@@ -23,6 +23,7 @@ export const OralHistory: React.FC = () => {
         .from('heritage_recordings')
         .select(`
           id,
+          user_id,
           title,
           description,
           audio_url,
@@ -30,8 +31,7 @@ export const OralHistory: React.FC = () => {
           storyteller_name,
           region,
           language,
-          created_at,
-          user:profiles!heritage_recordings_user_id_fkey(id, username, avatar_url, verified)
+          created_at
         `)
         .order('created_at', { ascending: false });
 
@@ -44,46 +44,69 @@ export const OralHistory: React.FC = () => {
         .from('posts')
         .select(`
           id,
+          user_id,
           title,
           description,
           media_url,
           thumbnail_url,
           duration,
           region,
-          created_at,
-          author:profiles!posts_user_id_fkey(id, username, avatar_url, verified)
+          created_at
         `)
         .eq('type', 'audio')
         .eq('published', true)
         .order('created_at', { ascending: false });
 
-      const mappedRecs = (recs || []).map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        description: r.description || '',
-        audio_url: r.audio_url,
-        thumbnail: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=200&h=150&fit=crop',
-        elder: r.storyteller_name || r.user?.username || 'Elder Storyteller',
-        avatar: r.user?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${r.storyteller_name}`,
-        region: r.region || 'Rwanda',
-        duration: r.duration || '15:00',
-        verified: r.user?.verified ?? true,
-        created_at: r.created_at,
-      }));
+      // Populate authors from public_profiles
+      const allUserIds = [
+        ...new Set([
+          ...(recs || []).map((r: any) => r.user_id),
+          ...(audioPosts || []).map((p: any) => p.user_id),
+        ].filter(Boolean))
+      ];
 
-      const mappedPosts = (audioPosts || []).map((p: any) => ({
-        id: p.id,
-        title: p.title || 'Oral Account',
-        description: p.description || '',
-        audio_url: p.media_url,
-        thumbnail: p.thumbnail_url || 'https://images.unsplash.com/photo-1516307365426-bea591f05011?w=200&h=150&fit=crop',
-        elder: p.author?.username || 'Community Elder',
-        avatar: p.author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.title}`,
-        region: p.region || 'Northern Province',
-        duration: p.duration || '12:30',
-        verified: p.author?.verified ?? false,
-        created_at: p.created_at,
-      }));
+      const profileMap = new Map<string, any>();
+      if (allUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, avatar_url, verified')
+          .in('id', allUserIds);
+        (profiles || []).forEach((p: any) => profileMap.set(p.id, p));
+      }
+
+      const mappedRecs = (recs || []).map((r: any) => {
+        const u = profileMap.get(r.user_id);
+        return {
+          id: r.id,
+          title: r.title,
+          description: r.description || '',
+          audio_url: r.audio_url,
+          thumbnail: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=200&h=150&fit=crop',
+          elder: r.storyteller_name || u?.username || 'Elder Storyteller',
+          avatar: u?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${r.storyteller_name}`,
+          region: r.region || 'Rwanda',
+          duration: r.duration || '15:00',
+          verified: u?.verified ?? true,
+          created_at: r.created_at,
+        };
+      });
+
+      const mappedPosts = (audioPosts || []).map((p: any) => {
+        const author = profileMap.get(p.user_id);
+        return {
+          id: p.id,
+          title: p.title || 'Oral Account',
+          description: p.description || '',
+          audio_url: p.media_url,
+          thumbnail: p.thumbnail_url || 'https://images.unsplash.com/photo-1516307365426-bea591f05011?w=200&h=150&fit=crop',
+          elder: author?.username || 'Community Elder',
+          avatar: author?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.title}`,
+          region: p.region || 'Northern Province',
+          duration: p.duration || '12:30',
+          verified: author?.verified ?? false,
+          created_at: p.created_at,
+        };
+      });
 
       const combined = [...mappedRecs, ...mappedPosts];
       const seen = new Set();

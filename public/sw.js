@@ -1,4 +1,4 @@
-const CACHE_NAME = 'umurage-cache-v1';
+const CACHE_NAME = 'umurage-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -26,15 +26,22 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  // Prefer network, fallback to cache, then offline page
+
+  // Never intercept or cache Supabase, REST APIs, or non-GET requests
   if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/functions/') || url.pathname.startsWith('/rest/')) {
+    return;
+  }
 
   event.respondWith(
     fetch(request)
       .then((res) => {
-        // Put a copy in cache
-        const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, resClone));
+        // Cache successful same-origin static responses
+        if (res && res.status === 200 && res.type === 'basic') {
+          const resClone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, resClone));
+        }
         return res;
       })
       .catch(() => caches.match(request).then((cached) => cached || caches.match('/offline.html')))

@@ -22,12 +22,7 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
     queryFn: async ({ pageParam }) => {
       let query = supabase
         .from('posts')
-        .select(`
-          *,
-          author:profiles(
-            id, username, email, bio, avatar_url, role, verified, verification_type, followers_count, following_count, posts_count
-          )
-        `)
+        .select('*')
         .eq('published', true)
         .neq('type', 'story')
         .limit(PAGE_SIZE + 1);
@@ -61,34 +56,41 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
         }
       }
 
-      let { data, error } = await query;
+      const { data, error } = await query;
       if (error) {
-        // Fallback without embedded join if relation fails
-        const fallbackQuery = supabase
-          .from('posts')
-          .select('*')
-          .eq('published', true)
-          .order('created_at', { ascending: false })
-          .limit(PAGE_SIZE + 1);
-        const { data: fbData, error: fbError } = await fallbackQuery;
-        if (fbError) throw fbError;
-        data = fbData;
+        console.error('Error fetching posts:', error);
+        throw error;
       }
 
       const rawItems = data || [];
-      // Populate missing authors
-      const missingAuthorUserIds = [...new Set(rawItems.filter(p => !p.author && p.user_id).map(p => p.user_id))];
-      if (missingAuthorUserIds.length > 0) {
-        const { data: authorProfiles } = await supabase
+      // Populate author information from public_profiles
+      const authorUserIds = [...new Set(rawItems.map(p => p.user_id).filter(Boolean))];
+      if (authorUserIds.length > 0) {
+        const { data: authorProfiles, error: profileErr } = await supabase
           .from('public_profiles')
-          .select('id, username, bio, avatar_url, role, verified, verification_type, followers_count, following_count, posts_count')
-          .in('id', missingAuthorUserIds);
-        const authorMap = new Map((authorProfiles || []).map(ap => [ap.id, ap]));
-        rawItems.forEach(p => {
-          if (!p.author && p.user_id) {
-            p.author = authorMap.get(p.user_id) || null;
-          }
-        });
+          .select('id, username, full_name, bio, avatar_url, role, verified, verified_type, followers_count, following_count, posts_count')
+          .in('id', authorUserIds);
+
+        if (!profileErr && authorProfiles) {
+          const authorMap = new Map(authorProfiles.map(ap => [
+            ap.id,
+            {
+              ...ap,
+              verification_type: ap.verified_type,
+            },
+          ]));
+          rawItems.forEach(p => {
+            p.author = authorMap.get(p.user_id) || {
+              id: p.user_id,
+              username: p.author_name || 'Umurage Member',
+              full_name: p.author_name || 'Umurage Member',
+              avatar_url: null,
+              role: 'user',
+              verified: false,
+              verification_type: null,
+            };
+          });
+        }
       }
 
       const items = rawItems.slice(0, PAGE_SIZE);
@@ -269,13 +271,31 @@ export function useComments(postId: string) {
   return useQuery({
     queryKey: ['comments', postId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: comments, error } = await supabase
         .from('comments')
-        .select(`*, author:profiles(id, username, avatar_url, verified)`)
+        .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return data || [];
+      if (!comments || comments.length === 0) return [];
+
+      const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, full_name, avatar_url, verified, verified_type')
+          .in('id', userIds);
+        const map = new Map((profiles || []).map(p => [p.id, { ...p, verification_type: p.verified_type }]));
+        comments.forEach(c => {
+          c.author = map.get(c.user_id) || {
+            id: c.user_id,
+            username: 'Member',
+            avatar_url: null,
+            verified: false,
+          };
+        });
+      }
+      return comments;
     },
     staleTime: 30000,
   });

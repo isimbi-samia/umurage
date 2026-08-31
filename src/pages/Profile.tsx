@@ -80,11 +80,15 @@ function useUserProfile(userId?: string) {
       if (!userId) return null;
       const { data, error } = await supabase
         .from('public_profiles')
-        .select('id, full_name, username, avatar_url, cover_image_url, cover_url, bio, location, interests, role, verified, verification_type, followers_count, following_count, posts_count')
+        .select('id, full_name, username, avatar_url, bio, role, verified, verified_type, followers_count, following_count, posts_count, created_at')
         .eq('id', userId)
         .maybeSingle();
       if (error) throw error;
-      return (data as ProfileRecord | null) ?? null;
+      if (!data) return null;
+      return {
+        ...data,
+        verification_type: data.verified_type,
+      } as ProfileRecord;
     },
     enabled: !!userId,
     staleTime: 30000,
@@ -107,7 +111,7 @@ function useUserPosts(userId?: string) {
 
       const { data: authorProfile } = await supabase
         .from('public_profiles')
-        .select('id, username, avatar_url, verified, verification_type, role')
+        .select('id, username, full_name, avatar_url, verified, verified_type, role')
         .eq('id', userId)
         .maybeSingle();
 
@@ -115,10 +119,9 @@ function useUserPosts(userId?: string) {
         ? {
             id: authorProfile.id,
             username: authorProfile.username,
-            email: authorProfile.email,
             avatar_url: authorProfile.avatar_url,
             verified: authorProfile.verified,
-            verified_type: authorProfile.verification_type,
+            verified_type: authorProfile.verified_type,
             role: authorProfile.role,
           }
         : null;
@@ -308,7 +311,7 @@ const Profile: React.FC = () => {
       const authorIds = [...new Set((posts || []).map((p: { user_id: string }) => p.user_id))];
       const { data: authors } = await supabase
         .from('public_profiles')
-        .select('id, username, avatar_url, verified, verification_type, role')
+        .select('id, username, full_name, avatar_url, verified, verified_type, role')
         .in('id', authorIds);
 
       const authorMap = new Map(
@@ -319,7 +322,7 @@ const Profile: React.FC = () => {
             username: a.username,
             avatar_url: a.avatar_url,
             verified: a.verified,
-            verified_type: a.verification_type,
+            verified_type: a.verified_type,
             role: a.role,
           } as ProfileAuthorRecord,
         ])

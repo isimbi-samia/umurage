@@ -41,7 +41,7 @@ function useTopics(category: string, page: number) {
     queryFn: async () => {
       let query = supabase
         .from('discussion_topics')
-        .select(`*, author:profiles!discussion_topics_user_id_fkey(id, username, avatar_url, verified, verification_type)`, { count: 'exact' })
+        .select('*', { count: 'exact' })
         .order('pinned', { ascending: false })
         .order('created_at', { ascending: false })
         .range((page - 1) * 10, page * 10 - 1);
@@ -50,7 +50,26 @@ function useTopics(category: string, page: number) {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { topics: data || [], total: count || 0 };
+
+      const topics = data || [];
+      const userIds = [...new Set(topics.map(t => t.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: authorProfiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, full_name, avatar_url, verified, verified_type')
+          .in('id', userIds);
+        const map = new Map((authorProfiles || []).map(ap => [ap.id, { ...ap, verification_type: ap.verified_type }]));
+        topics.forEach(t => {
+          t.author = map.get(t.user_id) || {
+            id: t.user_id,
+            username: 'Member',
+            avatar_url: null,
+            verified: false,
+          };
+        });
+      }
+
+      return { topics, total: count || 0 };
     },
     staleTime: 30000,
   });
@@ -81,12 +100,29 @@ function useReplies(topicId: string | null) {
       if (!topicId) return [];
       const { data, error } = await supabase
         .from('discussion_replies')
-        .select(`*, author:profiles!discussion_replies_user_id_fkey(id, username, avatar_url, verified)`)
+        .select('*')
         .eq('topic_id', topicId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data || [];
+      const replies = data || [];
+      const userIds = [...new Set(replies.map(r => r.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: authorProfiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, full_name, avatar_url, verified, verified_type')
+          .in('id', userIds);
+        const map = new Map((authorProfiles || []).map(ap => [ap.id, { ...ap, verification_type: ap.verified_type }]));
+        replies.forEach(r => {
+          r.author = map.get(r.user_id) || {
+            id: r.user_id,
+            username: 'Member',
+            avatar_url: null,
+            verified: false,
+          };
+        });
+      }
+      return replies;
     },
     enabled: !!topicId,
   });

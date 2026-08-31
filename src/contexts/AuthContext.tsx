@@ -254,7 +254,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Check if username already exists
       const { data: existingProfile } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id')
         .eq('username', username.toLowerCase().trim())
         .maybeSingle();

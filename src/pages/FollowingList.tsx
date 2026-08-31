@@ -16,17 +16,30 @@ const FollowingList: React.FC = () => {
     queryKey: ['following-list', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
+      const { data: followRows, error } = await supabase
         .from('follows')
-        .select(`
-          following:profiles!follows_following_id_fkey(
-            id, username, email, avatar_url, verified, verification_type, role, full_name
-          )
-        `)
+        .select('following_id, created_at')
         .eq('follower_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data || [];
+      if (!followRows || followRows.length === 0) return [];
+
+      const followingIds = followRows.map(f => f.following_id).filter(Boolean);
+      const { data: profiles } = await supabase
+        .from('public_profiles')
+        .select('id, username, full_name, avatar_url, verified, verified_type, role')
+        .in('id', followingIds);
+
+      const map = new Map((profiles || []).map(p => [p.id, { ...p, verification_type: p.verified_type }]));
+      return followRows.map(f => ({
+        following: map.get(f.following_id) || {
+          id: f.following_id,
+          username: 'Member',
+          avatar_url: null,
+          verified: false,
+          role: 'user',
+        },
+      }));
     },
     enabled: !!user?.id,
     staleTime: 30000,

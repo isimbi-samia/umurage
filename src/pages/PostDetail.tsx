@@ -65,15 +65,38 @@ function usePost(postId: string | undefined) {
     queryKey: ['post', postId],
     queryFn: async (): Promise<Post | null> => {
       if (!postId) return null;
-      const { data, error } = await supabase
+      const { data: post, error } = await supabase
         .from('posts')
-        .select(`*, author:profiles(id, username, email, avatar_url, verified, verification_type, role, bio, followers_count)`)
+        .select('*')
         .eq('id', postId)
         .single();
       if (error) throw error;
+      if (!post) return null;
+
+      if (post.user_id) {
+        const { data: authorProfile } = await supabase
+          .from('public_profiles')
+          .select('id, username, full_name, avatar_url, verified, verified_type, role, bio, followers_count')
+          .eq('id', post.user_id)
+          .single();
+
+        post.author = authorProfile ? {
+          ...authorProfile,
+          verification_type: authorProfile.verified_type,
+        } : {
+          id: post.user_id,
+          username: post.author_name || 'Umurage Member',
+          full_name: post.author_name || 'Umurage Member',
+          avatar_url: null,
+          role: 'user',
+          verified: false,
+          verification_type: null,
+        };
+      }
+
       // Increment view count
-      supabase.from('posts').update({ views: (data.views || 0) + 1 }).eq('id', postId);
-      return data as Post;
+      supabase.from('posts').update({ views: (post.views || 0) + 1 }).eq('id', postId);
+      return post as Post;
     },
     enabled: !!postId,
     staleTime: 30000,

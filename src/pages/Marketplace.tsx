@@ -63,7 +63,6 @@ export const Marketplace: React.FC = () => {
           rating,
           review_count,
           seller_id,
-          seller:profiles!marketplace_products_seller_fkey(id, username, avatar_url, verified),
           created_at
         `)
         .order('created_at', { ascending: false });
@@ -77,7 +76,19 @@ export const Marketplace: React.FC = () => {
         console.warn('Error fetching marketplace products:', error);
       }
 
-      const mapped = (data || []).map((p: any) => ({
+      const rawItems = data || [];
+      const sellerIds = [...new Set(rawItems.map((p: any) => p.seller_id).filter(Boolean))];
+      const sellerMap = new Map<string, any>();
+
+      if (sellerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, avatar_url, verified')
+          .in('id', sellerIds);
+        (profiles || []).forEach((pr: any) => sellerMap.set(pr.id, pr));
+      }
+
+      const mapped = rawItems.map((p: any) => ({
         id: p.id,
         title: p.title || p.name || 'Made-in-Rwanda Product',
         name: p.title || p.name || 'Made-in-Rwanda Product',
@@ -90,7 +101,7 @@ export const Marketplace: React.FC = () => {
         rating: p.rating ?? 4.9,
         review_count: p.review_count ?? 12,
         seller_id: p.seller_id,
-        seller: p.seller || { username: 'Artisan Creator' },
+        seller: sellerMap.get(p.seller_id) || { username: 'Artisan Creator' },
       }));
 
       return mapped as MarketplaceProduct[];

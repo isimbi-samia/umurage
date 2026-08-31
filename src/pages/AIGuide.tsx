@@ -42,17 +42,32 @@ export const AIGuide: React.FC = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const detectQueryLanguage = (queryText: string, currentLang: string): 'rw' | 'fr' | 'en' => {
+    const q = queryText.toLowerCase().trim();
+    if (/\b(mu kinyarwanda|kinyarwanda)\b/i.test(q)) return 'rw';
+    if (/\b(en français|en francais|in french)\b/i.test(q)) return 'fr';
+    if (/\b(in english|mu cyongereza|en anglais)\b/i.test(q)) return 'en';
+
+    const rwIndicators = /\b(mbwira|sobanura|tanga|ibisobanuro|ubusobanuro|kumenya|kubijyanye|ku bijyanye|mu muco|mu mateka|mu rwanda|nyarwanda|abanyarwanda|abakurambere|itorero|intore|imbyino|ingoma|umuganura|inyambo|imigongo|bite|amakuru|muraho)\b/i;
+    const frIndicators = /\b(bonjour|salut|merci|quelle est|quel est|pourquoi|comment|qu'est-ce|est-ce que|dans la culture|du rwanda|au rwanda|culture rwandaise|patrimoine|cérémonie|tradition|traditionnel|traditionnelle|parlez-moi|expliquez-moi|racontez-moi)\b/i;
+
+    if (rwIndicators.test(q)) return 'rw';
+    if (frIndicators.test(q)) return 'fr';
+    return currentLang === 'rw' || currentLang === 'fr' ? currentLang : 'en';
+  };
+
   const getLocalizedResponse = (queryText: string, currentLang: string) => {
     const q = queryText.toLowerCase();
+    const effectiveLang = detectQueryLanguage(queryText, currentLang);
 
-    if (q.includes('umuganura') || q.includes('harvest')) {
-      if (currentLang === 'rw') {
+    if (q.includes('umuganura') || q.includes('harvest') || q.includes('umusaruro')) {
+      if (effectiveLang === 'rw') {
         return {
           text: "**Umuganura — Umunsi Mukuru w'Umusaruro**\n\nUmuganura ni umwe mu minsi mikuru ikomeye mu muco Nyarwanda wajyaga wizihizwa kuva mu myaka irenga 1,800 shize. Wari umwanya wo gushimira Umwami n'Abanyarwanda ku musaruro w'ubutaka, amasaka, inka n'ubumwe bw'igihugu.",
           source: 'Rwanda Cultural Heritage Academy (RCHA)',
         };
       }
-      if (currentLang === 'fr') {
+      if (effectiveLang === 'fr') {
         return {
           text: "**Umuganura — La Fête Nationale de la Moisson**\n\nUmuganura est l'une des cérémonies traditionnelles les plus sacrées du Rwanda, célébrée depuis plus de 1 800 ans. Elle exprime la gratitude pour la récolte, le sorgho, le bétail et l'unité nationale.",
           source: 'Académie du Patrimoine Culturel du Rwanda (RCHA)',
@@ -64,11 +79,17 @@ export const AIGuide: React.FC = () => {
       };
     }
 
-    if (q.includes('inyambo') || q.includes('cattle')) {
-      if (currentLang === 'rw') {
+    if (q.includes('inyambo') || q.includes('cattle') || q.includes('inka')) {
+      if (effectiveLang === 'rw') {
         return {
           text: "**Inyambo — Inka z'Ingoro y'Uwami**\n\nInyambo ni ubwoko bw'inka z'ihembe rirerire zabaga mu ngoro y'Uwami i Nyanza. Zatozwaga gutambuka neza mu birori n'imihango y'ingoro.",
           source: 'Inzu ndangamurage y\'i Nyanza',
+        };
+      }
+      if (effectiveLang === 'fr') {
+        return {
+          text: "**Les Inyambo — Bovins Royaux Sacrés**\n\nLes Inyambo sont une race prestigieuse de vaches à longues cornes réservée autrefois à la cour royale de Nyanza. Elles étaient dressées pour défiler avec grâce lors des cérémonies royales.",
+          source: 'Institut des Musées Nationaux du Rwanda (INMR)',
         };
       }
       return {
@@ -77,14 +98,14 @@ export const AIGuide: React.FC = () => {
       };
     }
 
-    if (q.includes('intore') || q.includes('itorero') || q.includes('dance')) {
-      if (currentLang === 'rw') {
+    if (q.includes('intore') || q.includes('itorero') || q.includes('dance') || q.includes('imbyino')) {
+      if (effectiveLang === 'rw') {
         return {
           text: "**Intore mu Muco Nyarwanda**\n\nIntore zari ingabo z'igihugu zatozwaga ubutwari, ikinyabupfura n'indangagaciro z'umuco mu Itorero ry'i Bwami. Muri iki gihe, imbyino z'Intore zerekana ishema, ubutwari n'umuco gakondo w'u Rwanda ziherekejwe n'ingoma gakondo.",
           source: 'Inzu Ndangamurage y\'u Rwanda (RCHA)',
         };
       }
-      if (currentLang === 'fr') {
+      if (effectiveLang === 'fr') {
         return {
           text: "**Les Intore dans la Culture Rwandaise**\n\nLes Intore étaient des guerriers d'élite formés à la cour royale (Itorero) aux valeurs de bravoure et de patriotisme. Aujourd'hui, les danses des Intore incarnent l'héroïsme et le patrimoine traditionnel rwandais au rythme des tambours sacrés.",
           source: 'Académie du Patrimoine Culturel du Rwanda (RCHA)',
@@ -96,14 +117,14 @@ export const AIGuide: React.FC = () => {
       };
     }
 
-    if (currentLang === 'rw') {
+    if (effectiveLang === 'rw') {
       return {
         text: `Ibisobanuro kuri "${queryText}": Ububiko bwa RCHA bwemeza ko umuco nyarwanda wibanda ku kwigira, imigani y'abakurambere, no gukunda igihugu.`,
         source: 'Ububiko bwa RCHA n\'Inzu Ndangamurage',
       };
     }
 
-    if (currentLang === 'fr') {
+    if (effectiveLang === 'fr') {
       return {
         text: `Réponse pour "${queryText}": Les archives patrimoniales soulignent que les traditions rwandaises valorisent l'auto-suffisance (Kwigira), la sagesse orale et l'artisanat traditionnel.`,
         source: 'Archives de la RCHA',
