@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
@@ -15,6 +16,33 @@ export interface Notification {
 }
 
 export function useNotifications(userId?: string) {
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`user-notifications-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ['notifications', userId] });
+          qc.invalidateQueries({ queryKey: ['notifications-unread', userId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void channel.unsubscribe();
+    };
+  }, [userId, qc]);
+
   return useQuery({
     queryKey: ['notifications', userId],
     queryFn: async (): Promise<Notification[]> => {
@@ -49,7 +77,6 @@ export function useNotifications(userId?: string) {
       return raw;
     },
     enabled: !!userId,
-    refetchInterval: 15000,
     staleTime: 10000,
   });
 }

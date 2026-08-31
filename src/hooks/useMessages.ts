@@ -268,7 +268,27 @@ export function useMessages(userId?: string) {
 
   const startConversation = useCallback(async (recipientId: string) => {
     if (!userId) return null;
+    if (userId === recipientId) {
+      throw new Error('Cannot start a conversation with yourself');
+    }
 
+    try {
+      // 1. Try atomic database RPC function first
+      const { data: rpcConvId, error: rpcError } = await supabase.rpc('create_or_get_conversation', {
+        p_other_user_id: recipientId,
+      });
+
+      if (!rpcError && rpcConvId) {
+        setActiveConversationId(rpcConvId);
+        setMessages([]);
+        await refreshConversations();
+        return rpcConvId;
+      }
+    } catch (rpcErr) {
+      console.warn('RPC create_or_get_conversation unavailable, using client fallback:', rpcErr);
+    }
+
+    // 2. Client-side fallback if RPC is not yet applied
     const { data: myMemberships } = await supabase
       .from('conversation_members')
       .select('conversation_id')
@@ -293,7 +313,7 @@ export function useMessages(userId?: string) {
 
     const { data: createdConversation, error: createConversationError } = await supabase
       .from('conversations')
-      .insert({})
+      .insert({ updated_at: new Date().toISOString() })
       .select('id')
       .single();
 
@@ -302,13 +322,9 @@ export function useMessages(userId?: string) {
     }
 
     const conversationId = createdConversation.id;
-    const members = [
-      { conversation_id: conversationId, user_id: userId },
-      { conversation_id: conversationId, user_id: recipientId },
-    ];
-
-    const { error: membersError } = await supabase.from('conversation_members').insert(members);
-    if (membersError) throw membersError;
+    // Insert self first, then other user
+    await supabase.from('conversation_members').insert({ conversation_id: conversationId, user_id: userId });
+    await supabase.from('conversation_members').insert({ conversation_id: conversationId, user_id: recipientId });
 
     setActiveConversationId(conversationId);
     setMessages([]);

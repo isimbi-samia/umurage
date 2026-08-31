@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
-  MessageSquare, Eye, PlusCircle, ChevronRight,
+  MessageSquare, Eye, PlusCircle, ChevronRight, Search,
   Filter, ArrowUp, ArrowDown, Pin, Loader2, X, Send, ChevronLeft, Bookmark, Share2, Copy, Check
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -35,9 +36,9 @@ function timeAgo(dateStr: string) {
 }
 
 // ---- Hooks ----
-function useTopics(category: string, page: number) {
+function useTopics(category: string, searchQuery: string, page: number) {
   return useQuery({
-    queryKey: ['discussion-topics', category, page],
+    queryKey: ['discussion-topics', category, searchQuery, page],
     queryFn: async () => {
       let query = supabase
         .from('discussion_topics')
@@ -46,7 +47,14 @@ function useTopics(category: string, page: number) {
         .order('created_at', { ascending: false })
         .range((page - 1) * 10, page * 10 - 1);
 
-      if (category !== 'All') query = query.eq('category', category);
+      if (category !== 'All') {
+        query = query.eq('category', category);
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim();
+        query = query.or(`title.ilike.%${q}%,body.ilike.%${q}%,category.ilike.%${q}%`);
+      }
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -314,26 +322,87 @@ const NewTopicModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [category, setCategory] = useState('Traditions');
+  const [inviteSearch, setInviteSearch] = useState('');
+  const [invitedUsers, setInvitedUsers] = useState<Array<{ id: string; username: string | null; full_name: string | null; avatar_url: string | null }>>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<Array<{ id: string; username: string | null; full_name: string | null; avatar_url: string | null }>>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    void supabase
+      .from('public_profiles')
+      .select('id, username, full_name, avatar_url')
+      .neq('id', user.id)
+      .limit(30)
+      .then(({ data }) => {
+        if (data) setAvailableProfiles(data);
+      });
+  }, [user]);
+
+  const toggleInviteUser = (p: { id: string; username: string | null; full_name: string | null; avatar_url: string | null }) => {
+    if (invitedUsers.some((u) => u.id === p.id)) {
+      setInvitedUsers(invitedUsers.filter((u) => u.id !== p.id));
+    } else {
+      setInvitedUsers([...invitedUsers, p]);
+    }
+  };
+
+  const filteredInviteProfiles = availableProfiles.filter((p) => {
+    const q = inviteSearch.toLowerCase().trim();
+    if (!q) return false;
+    return (
+      (p.username && p.username.toLowerCase().includes(q)) ||
+      (p.full_name && p.full_name.toLowerCase().includes(q))
+    );
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) { openAuth('login'); return; }
     if (!title.trim() || !body.trim()) { toast.error('Please fill in all fields'); return; }
-    await createTopic.mutateAsync({ user_id: user.id, title: title.trim(), body: body.trim(), category });
+
+    const newTopic = await createTopic.mutateAsync({
+      user_id: user.id,
+      title: title.trim(),
+      body: body.trim(),
+      category,
+    });
+
+    if (newTopic && invitedUsers.length > 0) {
+      try {
+        const notifs = invitedUsers.map((inv) => ({
+          user_id: inv.id,
+          actor_id: user.id,
+          type: 'reply',
+          topic_id: newTopic.id,
+          message: `Invited you to join the discussion: "${title.trim()}"`,
+          read: false,
+        }));
+        await supabase.from('notifications').insert(notifs);
+      } catch (err) {
+        console.warn('Failed to send discussion invitations:', err);
+      }
+    }
+
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl p-7 animate-fade-in z-10" style={{ background: 'rgba(22, 14, 5, 0.99)', border: '1px solid rgba(200,150,12,0.3)' }}>
-        <button onClick={onClose} className="absolute top-4 right-4 text-umurage-subtle hover:text-umurage-cream"><X size={18} /></button>
+      <div
+        className="relative w-full max-w-lg rounded-2xl p-7 animate-fade-in z-10 max-h-[90vh] overflow-y-auto"
+        style={{ background: 'rgba(22, 14, 5, 0.99)', border: '1px solid rgba(200,150,12,0.3)' }}
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-umurage-subtle hover:text-umurage-cream">
+          <X size={18} />
+        </button>
         <h2 className="font-cinzel text-umurage-gold text-lg font-bold mb-5">Start a New Discussion</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-umurage-muted text-xs font-medium block mb-1.5">Topic Title *</label>
             <input
-              value={title} onChange={e => setTitle(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="What would you like to discuss?"
               className="w-full bg-umurage-surface border border-umurage-border rounded-xl px-4 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60"
             />
@@ -341,24 +410,101 @@ const NewTopicModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div>
             <label className="text-umurage-muted text-xs font-medium block mb-1.5">Category *</label>
             <select
-              value={category} onChange={e => setCategory(e.target.value)}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
               className="w-full bg-umurage-surface border border-umurage-border rounded-xl px-4 py-3 text-sm text-umurage-cream focus:outline-none focus:border-umurage-gold/60 cursor-pointer"
             >
-              {CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIES.filter((c) => c !== 'All').map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className="text-umurage-muted text-xs font-medium block mb-1.5">Your thoughts *</label>
             <textarea
-              value={body} onChange={e => setBody(e.target.value)}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
               placeholder="Share your knowledge, questions, or experiences about Rwandan culture..."
-              rows={5}
+              rows={4}
               className="w-full bg-umurage-surface border border-umurage-border rounded-xl px-4 py-3 text-sm text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60 resize-none leading-relaxed"
             />
           </div>
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-3 text-sm text-umurage-muted border border-umurage-border rounded-xl hover:border-umurage-gold/30 transition-colors">Cancel</button>
-            <button type="submit" disabled={createTopic.isPending} className="flex-1 btn-gold py-3 text-sm flex items-center justify-center gap-2 font-bold">
+
+          {/* Optional Discussion Invitations */}
+          <div>
+            <label className="text-umurage-muted text-xs font-medium block mb-1.5">
+              Invite people to participate (Optional)
+            </label>
+            <div className="relative mb-2">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+              <input
+                type="text"
+                value={inviteSearch}
+                onChange={(e) => setInviteSearch(e.target.value)}
+                placeholder="Search username to invite..."
+                className="w-full bg-umurage-surface border border-umurage-border rounded-xl pl-9 pr-3 py-2 text-xs text-umurage-cream placeholder-umurage-subtle focus:outline-none focus:border-umurage-gold/60"
+              />
+            </div>
+
+            {/* Selected invites pills */}
+            {invitedUsers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {invitedUsers.map((u) => (
+                  <span
+                    key={u.id}
+                    className="inline-flex items-center gap-1 bg-amber-900/50 border border-amber-600/40 text-amber-200 text-[11px] px-2 py-0.5 rounded-full"
+                  >
+                    @{u.username || 'user'}
+                    <button type="button" onClick={() => toggleInviteUser(u)} className="hover:text-white">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Filtered invite options */}
+            {inviteSearch && (
+              <div className="max-h-28 overflow-y-auto space-y-1 border border-umurage-border rounded-xl p-1 bg-[#150d07]">
+                {filteredInviteProfiles.length === 0 ? (
+                  <p className="text-[11px] text-umurage-subtle p-2">No users found</p>
+                ) : (
+                  filteredInviteProfiles.map((p) => {
+                    const isSelected = invitedUsers.some((u) => u.id === p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => toggleInviteUser(p)}
+                        className={`w-full text-left p-1.5 rounded-lg flex items-center justify-between text-xs ${
+                          isSelected ? 'bg-amber-800/40 text-amber-200' : 'hover:bg-[#20140c] text-umurage-cream'
+                        }`}
+                      >
+                        <span className="truncate">{p.full_name || p.username} (@{p.username || 'user'})</span>
+                        <span className="text-[10px] text-amber-400 font-semibold">{isSelected ? 'Added' : '+ Add'}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 text-sm text-umurage-muted border border-umurage-border rounded-xl hover:border-umurage-gold/30 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createTopic.isPending}
+              className="flex-1 btn-gold py-3 text-sm flex items-center justify-center gap-2 font-bold"
+            >
               {createTopic.isPending ? <Loader2 size={15} className="animate-spin" /> : null}
               Post Discussion
             </button>
@@ -526,7 +672,9 @@ const TopicDetail: React.FC<{ topic: any; onBack: () => void }> = ({ topic, onBa
 const Discussions: React.FC = () => {
   const { t } = useLanguage();
   const { isAuthenticated, user, openAuth } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [showNewTopic, setShowNewTopic] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Record<string, unknown> | null>(null);
@@ -537,10 +685,51 @@ const Discussions: React.FC = () => {
   const voteTopic = useVoteTopic();
   const saveTopic = useSaveTopic();
 
-  const { data, isLoading } = useTopics(activeCategory, page);
+  const { data, isLoading } = useTopics(activeCategory, searchQuery, page);
   const topics = data?.topics || [];
   const total = data?.total || 0;
   const totalPages = Math.ceil(total / 10);
+
+  // Deep-link topic from URL search param
+  useEffect(() => {
+    const topicIdFromUrl = searchParams.get('topic');
+    if (topicIdFromUrl) {
+      const match = topics.find((t) => t.id === topicIdFromUrl);
+      if (match) {
+        setSelectedTopic(match);
+      } else {
+        void supabase
+          .from('discussion_topics')
+          .select('*')
+          .eq('id', topicIdFromUrl)
+          .maybeSingle()
+          .then(async ({ data: singleTopic }) => {
+            if (singleTopic) {
+              const { data: authorData } = await supabase
+                .from('public_profiles')
+                .select('id, username, full_name, avatar_url, verified, verified_type')
+                .eq('id', singleTopic.user_id)
+                .maybeSingle();
+
+              setSelectedTopic({
+                ...singleTopic,
+                author: authorData || { id: singleTopic.user_id, username: 'Member', avatar_url: null, verified: false },
+              });
+            }
+          });
+      }
+    }
+  }, [searchParams, topics]);
+
+  const handleSelectTopic = (topic: Record<string, unknown>) => {
+    setSelectedTopic(topic);
+    setSearchParams({ topic: topic.id as string });
+  };
+
+  const handleBackToTopics = () => {
+    setSelectedTopic(null);
+    setSearchParams({});
+  };
 
   const handleVote = (e: React.MouseEvent, topicId: string, voteType: 'up' | 'down') => {
     e.stopPropagation();
@@ -562,59 +751,103 @@ const Discussions: React.FC = () => {
   };
 
   if (selectedTopic) {
-    return <TopicDetail topic={selectedTopic} onBack={() => setSelectedTopic(null)} />;
+    return <TopicDetail topic={selectedTopic} onBack={handleBackToTopics} />;
   }
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-cinzel text-3xl text-umurage-gold font-bold mb-2">{t('discussions.title')}</h1>
+          <h1 className="font-cinzel text-3xl text-umurage-gold font-bold mb-1">{t('discussions.title')}</h1>
           <p className="text-umurage-muted text-sm">Join community discussions about Rwandan culture, royal traditions, and history.</p>
         </div>
         <button
-          onClick={() => isAuthenticated ? setShowNewTopic(true) : openAuth('login')}
-          className="btn-gold flex items-center gap-2 flex-shrink-0 text-xs px-4 py-2.5 font-bold shadow-md"
+          onClick={() => (isAuthenticated ? setShowNewTopic(true) : openAuth('login'))}
+          className="btn-gold flex items-center gap-2 flex-shrink-0 text-xs px-4 py-2.5 font-bold shadow-md self-start sm:self-auto"
         >
           <PlusCircle size={16} />
           New Discussion
         </button>
       </div>
 
-      {/* Category filter */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-        {CATEGORIES.map(cat => (
-          <button
-            key={cat}
-            onClick={() => { setActiveCategory(cat); setPage(1); }}
-            className={`flex-shrink-0 text-xs px-4 py-2 rounded-full border font-semibold transition-all duration-200 ${
-              activeCategory === cat
-                ? 'bg-umurage-gold text-umurage-bg border-umurage-gold font-bold shadow-sm'
-                : 'border-umurage-border text-umurage-muted hover:border-umurage-gold/40 hover:text-umurage-gold bg-umurage-card'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+      {/* Search and Categories Bar */}
+      <div className="space-y-3">
+        <div className="relative max-w-md">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-umurage-subtle" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search discussions by title, topic, or content..."
+            className="w-full bg-umurage-card border border-umurage-border rounded-xl pl-10 pr-9 py-2.5 text-xs text-umurage-cream placeholder:text-umurage-subtle focus:outline-none focus:border-umurage-gold/60"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setPage(1);
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-umurage-subtle hover:text-umurage-cream"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Category filter */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                setActiveCategory(cat);
+                setPage(1);
+              }}
+              className={`flex-shrink-0 text-xs px-4 py-2 rounded-full border font-semibold transition-all duration-200 ${
+                activeCategory === cat
+                  ? 'bg-umurage-gold text-umurage-bg border-umurage-gold font-bold shadow-sm'
+                  : 'border-umurage-border text-umurage-muted hover:border-umurage-gold/40 hover:text-umurage-gold bg-umurage-card'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Stats bar */}
-      <div className="flex items-center gap-4 mb-5 text-umurage-subtle text-xs">
+      <div className="flex items-center gap-4 text-umurage-subtle text-xs">
         <span>{total} discussions</span>
         <span>·</span>
-        <span className="flex items-center gap-1"><Filter size={11} /> Filtered by: {activeCategory}</span>
+        <span className="flex items-center gap-1">
+          <Filter size={11} /> Filtered by: {activeCategory}
+          {searchQuery ? ` ("${searchQuery}")` : ''}
+        </span>
       </div>
 
       {/* Topics list */}
       {isLoading ? (
-        <div className="flex justify-center py-16"><Loader2 size={32} className="text-umurage-gold animate-spin" /></div>
+        <div className="flex justify-center py-16">
+          <Loader2 size={32} className="text-umurage-gold animate-spin" />
+        </div>
       ) : topics.length === 0 ? (
         <div className="umurage-card rounded-2xl p-12 text-center border border-dashed border-umurage-border">
           <MessageSquare size={40} className="text-umurage-gold/30 mx-auto mb-4" />
-          <h3 className="text-umurage-cream font-semibold text-lg mb-2">No discussions yet</h3>
-          <p className="text-umurage-muted text-sm mb-5">Be the first to start a conversation in this category!</p>
-          <button onClick={() => setShowNewTopic(true)} className="btn-gold px-6 py-2.5 text-sm font-bold">Start Discussion</button>
+          <h3 className="text-umurage-cream font-semibold text-lg mb-2">
+            {searchQuery ? 'No matching discussions found' : 'No discussions have started yet'}
+          </h3>
+          <p className="text-umurage-muted text-sm mb-5">
+            {searchQuery
+              ? 'Try changing your search terms or selecting a different category.'
+              : 'Be the first to start a conversation in this category!'}
+          </p>
+          <button onClick={() => setShowNewTopic(true)} className="btn-gold px-6 py-2.5 text-sm font-bold">
+            Start Discussion
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -626,7 +859,7 @@ const Discussions: React.FC = () => {
             return (
               <div
                 key={topic.id as string}
-                onClick={() => setSelectedTopic(topic)}
+                onClick={() => handleSelectTopic(topic)}
                 className="umurage-card rounded-2xl p-5 cursor-pointer group hover:border-umurage-gold/30 transition-all duration-200 border border-umurage-border"
               >
                 {(topic.pinned as boolean) && (

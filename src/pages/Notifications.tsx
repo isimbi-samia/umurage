@@ -22,13 +22,14 @@ const NotificationsPage: React.FC = () => {
   const markOne = useMarkOneRead();
   const deleteNotif = useDeleteNotification();
 
-  const handleClick = (notif: { id: string; post_id?: string | null; topic_id?: string | null; type: string; read: boolean; user_id: string }) => {
+  const handleClick = (notif: { id: string; post_id?: string | null; topic_id?: string | null; type: string; read: boolean; user_id: string; actor_id?: string | null }) => {
     if (!notif.read) {
       markOne.mutate({ notifId: notif.id, userId: notif.user_id });
     }
     if (notif.post_id) navigate(`/post/${notif.post_id}`);
     else if (notif.topic_id) navigate('/discussions');
     else if (notif.type === 'message') navigate('/messages');
+    else if (notif.type === 'follow' && notif.actor_id) navigate(`/profile/${notif.actor_id}`);
     else if (notif.type === 'order') navigate('/marketplace');
     else if (notif.type === 'course') navigate('/courses');
     else navigate('/notifications');
@@ -67,20 +68,20 @@ const NotificationsPage: React.FC = () => {
         <div className="rounded-2xl border border-dashed border-[#5c3417] p-10 text-center text-amber-100/70">
           <Bell className="mx-auto mb-3 text-amber-400/40" size={32} />
           <p className="text-sm font-semibold">You are all caught up!</p>
-          <p className="mt-1 text-xs text-amber-100/50">Messages, discussion replies, course activity, and marketplace updates will appear here.</p>
+          <p className="mt-1 text-xs text-amber-100/50">Messages, follows, discussion replies, and community interactions will appear here.</p>
         </div>
       ) : (
         <div className="space-y-2.5">
           {notifications.map((notif) => {
             const iconMap = {
-              like: <Heart size={16} className="text-rose-400" />,
-              follow: <Sparkles size={16} className="text-sky-400" />,
-              comment: <MessageCircle size={16} className="text-amber-400" />,
-              reply: <MessageCircle size={16} className="text-green-400" />,
-              verification: <Shield size={16} className="text-purple-400" />,
-              message: <MessageCircle size={16} className="text-indigo-400" />,
-              order: <ShoppingBag size={16} className="text-emerald-400" />,
-              course: <BookOpen size={16} className="text-cyan-400" />,
+              like: <Heart size={15} className="text-rose-400" />,
+              follow: <Sparkles size={15} className="text-sky-400" />,
+              comment: <MessageCircle size={15} className="text-amber-400" />,
+              reply: <MessageCircle size={15} className="text-green-400" />,
+              verification: <Shield size={15} className="text-purple-400" />,
+              message: <MessageCircle size={15} className="text-indigo-400" />,
+              order: <ShoppingBag size={15} className="text-emerald-400" />,
+              course: <BookOpen size={15} className="text-cyan-400" />,
             } as const;
 
             return (
@@ -91,8 +92,24 @@ const NotificationsPage: React.FC = () => {
                   notif.read ? 'border-[#3d2510] bg-[#221509] hover:bg-[#2c1b0c]' : 'border-amber-400/40 bg-[#2b1a0c] hover:bg-[#36210f]'
                 }`}
               >
-                <div className="rounded-full bg-[#140d07] p-2 flex-shrink-0 border border-[#3d2510]">
-                  {iconMap[notif.type as keyof typeof iconMap] || <Bell size={16} className="text-amber-400" />}
+                {/* Actor Avatar with Action Icon Badge */}
+                <div className="relative flex-shrink-0">
+                  {notif.actor?.avatar_url ? (
+                    <img
+                      src={notif.actor.avatar_url}
+                      alt={notif.actor.username || 'User'}
+                      className="w-9 h-9 rounded-full object-cover border border-[#4a2a12]"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#140d07] flex items-center justify-center border border-[#3d2510]">
+                      {iconMap[notif.type as keyof typeof iconMap] || <Bell size={15} className="text-amber-400" />}
+                    </div>
+                  )}
+                  {notif.actor?.avatar_url && (
+                    <div className="absolute -bottom-1 -right-1 rounded-full bg-[#140d07] p-0.5 border border-[#3d2510]">
+                      {iconMap[notif.type as keyof typeof iconMap] || <Bell size={11} className="text-amber-400" />}
+                    </div>
+                  )}
                 </div>
 
                 <div className="min-w-0 flex-1">
