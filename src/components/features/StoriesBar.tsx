@@ -99,11 +99,14 @@ export const GroupedStoryViewer: React.FC<GroupedStoryViewerProps> = ({
     }
   };
 
+  const isVideo = currentStory.type === 'video' || /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(currentStory.media_url || '');
+  const isAudio = currentStory.type === 'audio' || /\.(mp3|wav|m4a|aac)(\?.*)?$/i.test(currentStory.media_url || '');
+
   // ── Auto advance for Image stories (5 seconds) ─────────────────────────
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    if (currentStory && currentStory.type !== 'video') {
+    if (currentStory && !isVideo && !isAudio) {
       timerRef.current = setTimeout(() => {
         handleNext();
       }, 5000);
@@ -112,12 +115,11 @@ export const GroupedStoryViewer: React.FC<GroupedStoryViewerProps> = ({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentStory?.id, storyIdx, groupIdx]);
+  }, [currentStory?.id, storyIdx, groupIdx, isVideo, isAudio]);
 
   if (!currentGroup || !currentStory) return null;
 
   const expiresIn = Math.max(0, Math.floor((new Date(currentStory.expires_at).getTime() - Date.now()) / 1000 / 60 / 60));
-  const isVideo = currentStory.type === 'video';
 
   const handleDelete = () => {
     if (!user) return;
@@ -191,6 +193,20 @@ export const GroupedStoryViewer: React.FC<GroupedStoryViewerProps> = ({
               muted={sound ? (sound.muteOriginalAudio ?? true) : false}
               className="absolute inset-0 h-full w-full object-cover"
             />
+          ) : isAudio ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+              <div className="w-24 h-24 rounded-full bg-[#2a170a] border-2 border-[#d4a24c] flex items-center justify-center shadow-[0_0_25px_rgba(212,162,76,0.3)] animate-pulse">
+                <Music size={36} className="text-[#d4a24c]" />
+              </div>
+              <audio
+                key={currentStory.id}
+                src={currentStory.media_url}
+                autoPlay
+                controls
+                onEnded={handleNext}
+                className="w-64 mt-4"
+              />
+            </div>
           ) : (
             <img
               key={currentStory.id}

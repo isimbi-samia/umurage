@@ -1,63 +1,104 @@
 import React from 'react';
 import {
-  Users, ArrowLeft, Sparkles, UserPlus,
+  Users, ArrowLeft, Loader2, UserCheck, UserPlus,
 } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
+import { useFollowing, useToggleFollow } from '@/hooks/useFollow';
+
+interface PublicProfileSummary {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  verified: boolean | null;
+  verified_type: string | null;
+  role: string | null;
+}
 
 const FollowingList: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user: authUser, isAuthenticated, openAuth } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const { data: following = [], isLoading } = useQuery({
-    queryKey: ['following-list', user?.id],
+  const params = new URLSearchParams(location.search);
+  const targetUserId = params.get('user') || authUser?.id;
+  const isOwnList = !params.get('user') || params.get('user') === authUser?.id;
+
+  const { data: targetProfile, isLoading: targetProfileLoading } = useQuery({
+    queryKey: ['target-profile-summary', targetUserId],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!targetUserId) return null;
+      const { data, error } = await supabase
+        .from('public_profiles')
+        .select('id, username, full_name')
+        .eq('id', targetUserId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!targetUserId,
+    staleTime: 30000,
+  });
+
+  const { data: following = [], isLoading: followingLoading } = useQuery({
+    queryKey: ['following-list', targetUserId],
+    queryFn: async () => {
+      if (!targetUserId) return [];
       const { data: followRows, error } = await supabase
         .from('follows')
         .select('following_id, created_at')
-        .eq('follower_id', user.id)
+        .eq('follower_id', targetUserId)
         .order('created_at', { ascending: false });
       if (error) throw error;
       if (!followRows || followRows.length === 0) return [];
 
       const followingIds = followRows.map(f => f.following_id).filter(Boolean);
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profileErr } = await supabase
         .from('public_profiles')
         .select('id, username, full_name, avatar_url, verified, verified_type, role')
         .in('id', followingIds);
+      if (profileErr) throw profileErr;
 
       const map = new Map((profiles || []).map(p => [p.id, { ...p, verification_type: p.verified_type }]));
       return followRows.map(f => ({
-        following: map.get(f.following_id) || {
+        following: map.get(f.following_id) || ({
           id: f.following_id,
           username: 'Member',
+          full_name: 'Member',
           avatar_url: null,
           verified: false,
           role: 'user',
-        },
+        } as PublicProfileSummary),
       }));
     },
-    enabled: !!user?.id,
+    enabled: !!targetUserId,
     staleTime: 30000,
   });
 
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 animate-fade-in">
-        <div className="text-5xl mb-4">👥</div>
-        <h2 className="font-cinzel text-umurage-gold text-2xl font-bold mb-3">Sign In</h2>
-        <p className="text-umurage-muted text-sm mb-6">Sign in to view who you follow.</p>
-        <button onClick={() => navigate('/login')} className="btn-gold px-8 py-3">Sign In</button>
-      </div>
-    );
-  }
+  const { data: myFollowingSet } = useFollowing(authUser?.id);
+  const toggleFollow = useToggleFollow();
+
+  const handleFollowToggle = (id: string) => {
+    if (!isAuthenticated || !authUser) {
+      openAuth('login');
+      return;
+    }
+    const isFollowing = myFollowingSet?.has(id) || false;
+    toggleFollow.mutate({
+      followerId: authUser.id,
+      followingId: id,
+      isFollowing,
+    });
+  };
+
+  const displayName = targetProfile?.full_name || targetProfile?.username || (isOwnList ? 'You' : 'User');
+  const isLoading = followingLoading || targetProfileLoading;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(218,163,72,0.18),_transparent_24_),linear-gradient(135deg,_#140c06_0%,_#2b180d_55%,_#130a06_100%)] text-umurage-cream relative overflow-x-hidden">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(218,163,72,0.18),_transparent_24%),linear-gradient(135deg,_#140c06_0%,_#2b180d_55%,_#130a06_100%)] text-umurage-cream relative overflow-x-hidden">
       <div className="inyambo-bg" />
       <div className="fixed inset-0 imigongo-pattern pointer-events-none z-0 opacity-70" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_100%_0%,_rgba(218,163,72,0.14),_transparent_30%)]" />
@@ -65,56 +106,96 @@ const FollowingList: React.FC = () => {
       <div className="relative z-10 min-h-screen px-4 py-8 max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8 animate-fade-in">
-          <button onClick={() => navigate(-1)} className="p-2 text-umurage-subtle hover:text-umurage-cream transition-colors">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 text-umurage-subtle hover:text-umurage-cream transition-colors rounded-lg hover:bg-black/20"
+          >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="font-cinzel text-2xl text-umurage-gold font-bold uppercase tracking-[0.2em]">Following</h1>
-            <p className="text-umurage-muted text-sm">{following.length} people you follow</p>
+            <h1 className="font-cinzel text-2xl text-umurage-gold font-bold uppercase tracking-[0.2em]">
+              Following
+            </h1>
+            <p className="text-umurage-muted text-sm">
+              {isOwnList
+                ? `${following.length} ${following.length === 1 ? 'person you follow' : 'people you follow'}`
+                : `${following.length} ${following.length === 1 ? 'person' : 'people'} followed by ${displayName}`}
+            </p>
           </div>
         </div>
 
         {/* List */}
         {isLoading ? (
           <div className="flex justify-center py-24">
-            <Users size={32} className="text-umurage-gold animate-spin" />
+            <Loader2 size={32} className="text-umurage-gold animate-spin" />
           </div>
         ) : following.length === 0 ? (
           <div className="text-center py-24 animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-umurage-card border border-umurage-border flex items-center justify-center mx-auto mb-4">
-              <UserPlus size={24} className="text-umurage-gold/50" />
+              <Users size={24} className="text-umurage-gold/50" />
             </div>
             <h3 className="text-umurage-cream font-semibold mb-2">Not following anyone yet</h3>
-            <p className="text-umurage-muted text-sm">Explore the platform and follow creators, elders, and institutions.</p>
+            <p className="text-umurage-muted text-sm">
+              {isOwnList
+                ? 'Explore the platform and follow creators, elders, and cultural keepers.'
+                : `${displayName} is not following anyone yet.`}
+            </p>
           </div>
         ) : (
           <div className="space-y-3 animate-fade-in">
-            {following.map((follow: { following: { id: string; username: string | null; email: string; avatar_url: string | null; verified: boolean; verified_type: string | null; role: string; full_name: string | null } }) => {
-              const f = follow.following;
-              const displayName = f.full_name || f.username || f.email?.split('@')[0] || 'User';
+            {following.map((item) => {
+              const f = item.following;
+              const userDisplayName = f.full_name || f.username || 'User';
+              const isMe = authUser?.id === f.id;
+              const isFollowing = myFollowingSet?.has(f.id) || false;
+
               return (
-                <div key={f.id} className="umurage-card rounded-2xl p-4 flex items-center gap-4 animate-fade-in">
-                  <div className="relative flex-shrink-0">
-                    <img
-                      src={f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`}
-                      alt={displayName}
-                      className="w-12 h-12 rounded-full object-cover border border-umurage-border"
-                    />
-                    {f.verified && (
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-umurage-verified border-2 border-umurage-bg flex items-center justify-center">
-                        <span className="text-white text-[8px] font-bold">✓</span>
-                      </div>
-                    )}
+                <div key={f.id} className="umurage-card rounded-2xl p-4 flex items-center justify-between gap-4 animate-fade-in">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={f.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${userDisplayName}`}
+                        alt={userDisplayName}
+                        className="w-12 h-12 rounded-full object-cover border border-umurage-border"
+                      />
+                      {f.verified && (
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-umurage-verified border-2 border-umurage-bg flex items-center justify-center">
+                          <span className="text-white text-[8px] font-bold">✓</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        to={`/profile?user=${f.id}`}
+                        className="font-semibold text-umurage-cream hover:text-umurage-gold transition-colors truncate block"
+                      >
+                        {userDisplayName}
+                      </Link>
+                      <p className="text-umurage-subtle text-xs">@{f.username || 'member'}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <Link to={`/profile?user=${f.id}`} className="font-semibold text-umurage-cream hover:text-umurage-gold transition-colors truncate block">
-                      {displayName}
-                    </Link>
-                    <p className="text-umurage-subtle text-xs">@{f.username || f.email?.split('@')[0]}</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-umurage-gold text-xs">
-                    <UserPlus size={14} /> Following
-                  </div>
+
+                  {!isMe && (
+                    <button
+                      onClick={() => handleFollowToggle(f.id)}
+                      disabled={toggleFollow.isPending}
+                      className={`text-xs py-1.5 px-3.5 rounded-xl border font-semibold flex items-center gap-1.5 transition-all duration-200 flex-shrink-0 ${
+                        isFollowing
+                          ? 'border-umurage-border text-umurage-muted hover:border-red-500/40 hover:text-red-400'
+                          : 'btn-gold'
+                      }`}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <UserCheck size={13} /> Following
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus size={13} /> Follow
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               );
             })}

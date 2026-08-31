@@ -27,10 +27,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // Never intercept or cache Supabase, REST APIs, or non-GET requests
+  // Never intercept or cache Supabase, REST APIs, Edge Functions, or non-GET requests
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || url.pathname.startsWith('/functions/') || url.pathname.startsWith('/rest/')) {
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/functions/') ||
+    url.pathname.startsWith('/rest/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/realtime/') ||
+    url.hostname.includes('supabase.co') ||
+    request.headers.has('Authorization')
+  ) {
     return;
   }
 

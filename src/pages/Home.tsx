@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Loader2, Compass, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, Loader2, Compass, SlidersHorizontal, AlertCircle, RefreshCw } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import StoriesBar from '@/components/features/StoriesBar';
@@ -14,7 +14,7 @@ const Home: React.FC = () => {
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'trending'>('latest');
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts(activeTab, user?.id, sortBy);
+  const { data, isLoading, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = usePosts(activeTab, user?.id, sortBy);
   const { data: likedSet } = useUserLikes(user?.id);
   const { data: savedSet } = useUserSaves(user?.id);
 
@@ -94,11 +94,26 @@ const Home: React.FC = () => {
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error State with Retry Button */}
         {error && !isLoading && (
           <div className="rounded-xl border border-[#2d1e13] bg-[#160f09] p-6 text-center">
-            <p className="text-xs text-[#d4a24c]">Failed to load posts</p>
-            <p className="text-[11px] text-[#a89078] mt-1">Please try refreshing the page or check your connection.</p>
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-950/40 text-[#d4a24c] border border-red-800/30">
+              <AlertCircle size={18} />
+            </div>
+            <p className="text-sm font-medium text-[#d4a24c]">Failed to load posts</p>
+            <p className="text-xs text-[#a89078] mt-1 max-w-sm mx-auto">
+              {error instanceof Error && !navigator.onLine 
+                ? 'You appear to be offline. Please check your internet connection.' 
+                : 'Could not fetch cultural posts. Please try again.'}
+            </p>
+            <button
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="btn-gold text-xs px-4 py-2 mt-4 inline-flex items-center gap-1.5 font-semibold"
+            >
+              {isRefetching ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              <span>{isRefetching ? 'Retrying...' : 'Try Again'}</span>
+            </button>
           </div>
         )}
 

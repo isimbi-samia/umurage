@@ -45,13 +45,21 @@ export function useStories() {
       if (!storiesData || storiesData.length === 0) return [];
 
       const userIds = [...new Set(storiesData.map((s) => s.user_id))];
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('public_profiles')
-        .select('id, username, avatar_url, verified')
-        .in('id', userIds);
-      if (profilesError) throw profilesError;
+      const profileMap = new Map<string, any>();
 
-      const profileMap = new Map((profilesData || []).map((p) => [p.id, p]));
+      if (userIds.length > 0) {
+        try {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('public_profiles')
+            .select('id, username, avatar_url, verified')
+            .in('id', userIds);
+          if (!profilesError && profilesData) {
+            profilesData.forEach(p => profileMap.set(p.id, p));
+          }
+        } catch {
+          // Graceful fallback
+        }
+      }
 
       return storiesData.map((s) => ({
         ...s,

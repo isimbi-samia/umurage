@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Share2, X, Loader2, Sparkles, Volume2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -18,6 +19,7 @@ interface ShareToStoryModalProps {
 
 export const ShareToStoryModal: React.FC<ShareToStoryModalProps> = ({ isOpen, onClose, audioItem }) => {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [caption, setCaption] = useState(`Listening to "${audioItem.title}" on Umurage Oral History`);
   const [isSharing, setIsSharing] = useState(false);
 
@@ -46,6 +48,7 @@ export const ShareToStoryModal: React.FC<ShareToStoryModalProps> = ({ isOpen, on
 
       if (error) throw error;
 
+      qc.invalidateQueries({ queryKey: ['stories'] });
       toast.success('Oral history recording shared to your Story!');
       onClose();
     } catch (err: any) {

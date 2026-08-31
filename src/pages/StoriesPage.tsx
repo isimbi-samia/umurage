@@ -59,18 +59,28 @@ const StoriesPage: React.FC = () => {
             const { cleanCaption, sound } = extractSoundFromCaption(firstStory?.caption);
             const username = group.author?.username || 'User';
 
-            return (
-              <div
-                key={group.user_id}
-                onClick={() => setViewingGroupIdx(groupIdx)}
-                className="relative cursor-pointer overflow-hidden rounded-xl border border-[#2d1e13] bg-[#1a110a] h-64 group hover:border-[#c8960c]/60 transition-all duration-200"
-              >
-                {firstStory.type === 'video' ? (
-                  <video src={firstStory.media_url} className="h-full w-full object-cover" />
-                ) : (
-                  <img src={firstStory.media_url} alt={cleanCaption || 'Story'} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+              const isVideo = firstStory.type === 'video' || /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(firstStory.media_url || '');
+              const isAudio = firstStory.type === 'audio' || /\.(mp3|wav|m4a|aac)(\?.*)?$/i.test(firstStory.media_url || '');
+
+              return (
+                <div
+                  key={group.user_id}
+                  onClick={() => setViewingGroupIdx(groupIdx)}
+                  className="relative cursor-pointer overflow-hidden rounded-xl border border-[#2d1e13] bg-[#1a110a] h-64 group hover:border-[#c8960c]/60 transition-all duration-200"
+                >
+                  {isVideo ? (
+                    <video src={firstStory.media_url} className="h-full w-full object-cover" />
+                  ) : isAudio ? (
+                    <div className="h-full w-full flex flex-col items-center justify-center bg-[#201309] p-4 text-center">
+                      <div className="w-16 h-16 rounded-full bg-[#2c1a0e] border border-[#d4a24c] flex items-center justify-center mb-2 shadow-md">
+                        <Music size={24} className="text-[#d4a24c]" />
+                      </div>
+                      <span className="text-xs text-[#d4a24c] font-medium">Audio Story</span>
+                    </div>
+                  ) : (
+                    <img src={firstStory.media_url} alt={cleanCaption || 'Story'} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
                 {/* User Avatar Badge */}
                 <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs rounded-full p-1 pr-2.5 border border-white/10">

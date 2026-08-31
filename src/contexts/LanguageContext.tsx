@@ -28,6 +28,17 @@ const translations: Record<LangCode, Record<string, string>> = {
     'nav.profile': 'Profile',
     'nav.messages': 'Messages',
     'nav.notifications': 'Notifications',
+    'nav.upload': 'Upload',
+
+    // Feed Tabs & Sort
+    'feed.forYou': 'For You',
+    'feed.following': 'Following',
+    'feed.explore': 'Explore',
+    'feed.latest': 'Latest',
+    'feed.popular': 'Most Popular',
+    'feed.trending': 'Trending',
+    'feed.noFollowing': 'No posts from accounts you follow',
+    'feed.noPosts': 'No posts yet',
 
     // Titles
     'ai.title': 'AI Cultural Guide',
@@ -41,6 +52,11 @@ const translations: Record<LangCode, Record<string, string>> = {
     'oral.title': 'Oral History & Elder Stories',
     'map.title': 'Interactive Cultural Map',
     'events.title': 'Cultural Events',
+
+    // Notifications
+    'notif.title': 'Notifications',
+    'notif.markAllRead': 'Mark all as read',
+    'notif.noNotifs': 'No notifications yet',
 
     // Search & Actions
     'search.placeholder': 'Search culture, stories, books, videos...',
@@ -66,6 +82,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'auth.logout': 'Log Out',
     'settings.title': 'Settings',
     'settings.language': 'Language',
+    'poweredBy': 'Umurage Hub © 2026',
   },
 
   rw: {
@@ -87,6 +104,17 @@ const translations: Record<LangCode, Record<string, string>> = {
     'nav.profile': 'Umwirondoro',
     'nav.messages': 'Ubutumwa',
     'nav.notifications': 'Ibyimenyeshejo',
+    'nav.upload': 'Ohereza',
+
+    // Feed Tabs & Sort
+    'feed.forYou': 'Ibyakugenerwa',
+    'feed.following': 'Abo Ukurikira',
+    'feed.explore': 'Vumbura',
+    'feed.latest': 'Ibiheruka',
+    'feed.popular': 'Bikunzwe Cyane',
+    'feed.trending': 'Bigezweho',
+    'feed.noFollowing': 'Nta makuru y\'abo ukurikira arahagera',
+    'feed.noPosts': 'Nta nkuru zirahashyirwa',
 
     // Titles
     'ai.title': 'Umuyobozi w\'Umuco AI',
@@ -101,6 +129,11 @@ const translations: Record<LangCode, Record<string, string>> = {
     'map.title': 'Ikarita y\'Umuco n\'Amateka',
     'events.title': 'Ibirori by\'Umuco',
 
+    // Notifications
+    'notif.title': 'Ibyimenyeshejo',
+    'notif.markAllRead': 'Soma byose',
+    'notif.noNotifs': 'Nta byimenyeshejo bihari',
+
     // Search & Actions
     'search.placeholder': 'Shakisha umuco, inkuru, ibitabo, amashusho...',
     'follow': 'Kurikira',
@@ -111,7 +144,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'liked': 'Yakunzwe',
     'comment': 'Tanga Igitekerezo',
     'share': 'Sangiza',
-    'upload': 'Shyiraho',
+    'upload': 'Ohereza',
     'edit': 'Hindura',
     'delete': 'Siba',
     'cancel': 'Kanseri',
@@ -125,6 +158,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'auth.logout': 'Sohoka',
     'settings.title': 'Igenamiterere',
     'settings.language': 'Ururimi',
+    'poweredBy': 'Umurage Hub © 2026',
   },
 
   fr: {
@@ -146,6 +180,17 @@ const translations: Record<LangCode, Record<string, string>> = {
     'nav.profile': 'Profil',
     'nav.messages': 'Messages',
     'nav.notifications': 'Notifications',
+    'nav.upload': 'Publier',
+
+    // Feed Tabs & Sort
+    'feed.forYou': 'Pour Vous',
+    'feed.following': 'Abonnements',
+    'feed.explore': 'Explorer',
+    'feed.latest': 'Plus récents',
+    'feed.popular': 'Plus populaires',
+    'feed.trending': 'Tendances',
+    'feed.noFollowing': 'Aucune publication de vos abonnements',
+    'feed.noPosts': 'Aucune publication pour le moment',
 
     // Titles
     'ai.title': 'Guide Culturel IA',
@@ -160,6 +205,11 @@ const translations: Record<LangCode, Record<string, string>> = {
     'map.title': 'Carte Culturelle Interactive',
     'events.title': 'Événements Culturels',
 
+    // Notifications
+    'notif.title': 'Notifications',
+    'notif.markAllRead': 'Tout marquer comme lu',
+    'notif.noNotifs': 'Aucune notification pour le moment',
+
     // Search & Actions
     'search.placeholder': 'Rechercher culture, histoires, livres, vidéos...',
     'follow': 'Suivre',
@@ -170,7 +220,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'liked': 'Aimé',
     'comment': 'Commenter',
     'share': 'Partager',
-    'upload': 'Téléverser',
+    'upload': 'Publier',
     'edit': 'Modifier',
     'delete': 'Supprimer',
     'cancel': 'Annuler',
@@ -184,6 +234,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'auth.logout': 'Déconnexion',
     'settings.title': 'Paramètres',
     'settings.language': 'Langue',
+    'poweredBy': 'Umurage Hub © 2026',
   },
 
   sw: {
@@ -205,6 +256,17 @@ const translations: Record<LangCode, Record<string, string>> = {
     'nav.profile': 'Profaili',
     'nav.messages': 'Ujumbe',
     'nav.notifications': 'Arifa',
+    'nav.upload': 'Pakia',
+
+    // Feed Tabs & Sort
+    'feed.forYou': 'Kwa Ajili Yako',
+    'feed.following': 'Unaowafuata',
+    'feed.explore': 'Chunguza',
+    'feed.latest': 'Mpya Zaidi',
+    'feed.popular': 'Maarufu Zaidi',
+    'feed.trending': 'Inayovuma',
+    'feed.noFollowing': 'Hakuna machapisho kutoka kwa unaowafuata',
+    'feed.noPosts': 'Hakuna machapisho bado',
 
     // Titles
     'ai.title': 'Mwongozo wa Utamaduni wa AI',
@@ -218,6 +280,11 @@ const translations: Record<LangCode, Record<string, string>> = {
     'oral.title': 'Historia ya Mdomo',
     'map.title': 'Ramani ya Utamaduni',
     'events.title': 'Matukio ya Utamaduni',
+
+    // Notifications
+    'notif.title': 'Arifa',
+    'notif.markAllRead': 'Weka zote kuwa zimesomwa',
+    'notif.noNotifs': 'Hakuna arifa bado',
 
     // Search & Actions
     'search.placeholder': 'Tafuta utamaduni, hadithi, vitabu, video...',
@@ -243,6 +310,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     'auth.logout': 'Ondoka',
     'settings.title': 'Mipangilio',
     'settings.language': 'Lugha',
+    'poweredBy': 'Umurage Hub © 2026',
   },
 };
 

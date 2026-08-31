@@ -27,11 +27,15 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
         .neq('type', 'story')
         .limit(PAGE_SIZE + 1);
 
-      if (tab === 'following' && userId) {
-        const { data: followData } = await supabase
+      if (tab === 'following') {
+        if (!userId) {
+          return { items: [], nextCursor: null, hasMore: false };
+        }
+        const { data: followData, error: followErr } = await supabase
           .from('follows')
           .select('following_id')
           .eq('follower_id', userId);
+        if (followErr) throw followErr;
         const ids = followData?.map(f => f.following_id) || [];
         if (ids.length === 0) return { items: [], nextCursor: null, hasMore: false };
         query = query.in('user_id', ids);
@@ -58,40 +62,55 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
 
       const { data, error } = await query;
       if (error) {
+        // If auth session expired/invalid, try safe session refresh once
+        if (error.message?.includes('JWT') || error.code === 'PGRST301' || error.message?.includes('token')) {
+          try {
+            await supabase.auth.getSession();
+          } catch {
+            // ignore
+          }
+        }
         console.error('Error fetching posts:', error);
         throw error;
       }
 
       const rawItems = data || [];
-      // Populate author information from public_profiles
+      // Populate author information from public_profiles with guaranteed fallback
       const authorUserIds = [...new Set(rawItems.map(p => p.user_id).filter(Boolean))];
-      if (authorUserIds.length > 0) {
-        const { data: authorProfiles, error: profileErr } = await supabase
-          .from('public_profiles')
-          .select('id, username, full_name, bio, avatar_url, role, verified, verified_type, followers_count, following_count, posts_count')
-          .in('id', authorUserIds);
+      const authorMap = new Map<string, any>();
 
-        if (!profileErr && authorProfiles) {
-          const authorMap = new Map(authorProfiles.map(ap => [
-            ap.id,
-            {
-              ...ap,
-              verification_type: ap.verified_type,
-            },
-          ]));
-          rawItems.forEach(p => {
-            p.author = authorMap.get(p.user_id) || {
-              id: p.user_id,
-              username: p.author_name || 'Umurage Member',
-              full_name: p.author_name || 'Umurage Member',
-              avatar_url: null,
-              role: 'user',
-              verified: false,
-              verification_type: null,
-            };
-          });
+      if (authorUserIds.length > 0) {
+        try {
+          const { data: authorProfiles, error: profileErr } = await supabase
+            .from('public_profiles')
+            .select('id, username, full_name, bio, avatar_url, role, verified, verified_type, followers_count, following_count, posts_count')
+            .in('id', authorUserIds);
+
+          if (!profileErr && authorProfiles) {
+            authorProfiles.forEach(ap => {
+              authorMap.set(ap.id, {
+                ...ap,
+                verification_type: ap.verified_type,
+              });
+            });
+          }
+        } catch {
+          // Graceful fallback on network glitch
         }
       }
+
+      // Guarantee author object is populated for every single post
+      rawItems.forEach(p => {
+        p.author = authorMap.get(p.user_id) || {
+          id: p.user_id,
+          username: p.author_name || 'Umurage Member',
+          full_name: p.author_name || 'Umurage Member',
+          avatar_url: null,
+          role: 'user',
+          verified: false,
+          verification_type: null,
+        };
+      });
 
       const items = rawItems.slice(0, PAGE_SIZE);
       const lastItem = items[items.length - 1];
@@ -105,6 +124,7 @@ export function usePosts(tab: PostTab = 'foryou', userId?: string, sortBy: SortO
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
     staleTime: 30000,
+    retry: (failureCount) => failureCount < 2,
   });
 }
 

@@ -105,6 +105,7 @@ function useUserPosts(userId?: string) {
         .from('posts')
         .select('id, title, description, type, thumbnail_url, media_url, duration, category, region, tags, created_at, likes_count, comments_count, shares_count, views, user_id')
         .eq('user_id', userId)
+        .neq('type', 'story')
         .order('created_at', { ascending: false });
       if (error) throw error;
       if (!posts || posts.length === 0) return [];
@@ -382,7 +383,13 @@ const Profile: React.FC = () => {
     if (!targetUserId) return;
     toggleFollow.mutate(
       { followerId: authUser.id, followingId: targetUserId, isFollowing: !!isFollowing },
-      { onSuccess: () => { refetchFollow(); qc.invalidateQueries({ queryKey: ['profile', targetUserId] }); } }
+      {
+        onSuccess: () => {
+          refetchFollow();
+          qc.invalidateQueries({ queryKey: ['profile', targetUserId] });
+          qc.invalidateQueries({ queryKey: ['profile', authUser.id] });
+        }
+      }
     );
   };
 
@@ -581,8 +588,8 @@ const Profile: React.FC = () => {
             <div className="mt-3 flex flex-wrap gap-4">
               {[
                 { label: 'Posts', value: profile.posts_count ?? 0, to: '#' },
-                { label: 'Followers', value: profile.followers_count ?? 0, to: '/profile/followers' },
-                { label: 'Following', value: profile.following_count ?? 0, to: '/profile/following' },
+                { label: 'Followers', value: profile.followers_count ?? 0, to: targetUserId ? `/profile/followers?user=${targetUserId}` : '/profile/followers' },
+                { label: 'Following', value: profile.following_count ?? 0, to: targetUserId ? `/profile/following?user=${targetUserId}` : '/profile/following' },
               ].map(stat => (
                 <Link
                   key={stat.label}

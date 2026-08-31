@@ -64,6 +64,15 @@ export function useToggleFollow() {
     onSuccess: (_d, { followerId, followingId }) => {
       qc.invalidateQueries({ queryKey: ['following', followerId] });
       qc.invalidateQueries({ queryKey: ['follow-status', followerId, followingId] });
+      qc.invalidateQueries({ queryKey: ['is-following', followerId, followingId] });
+      qc.invalidateQueries({ queryKey: ['profile', followerId] });
+      qc.invalidateQueries({ queryKey: ['profile', followingId] });
+      qc.invalidateQueries({ queryKey: ['followers', followingId] });
+      qc.invalidateQueries({ queryKey: ['followers', followerId] });
+      qc.invalidateQueries({ queryKey: ['following-list', followerId] });
+      qc.invalidateQueries({ queryKey: ['following-list', followingId] });
+      qc.invalidateQueries({ queryKey: ['verified-creators'] });
+      qc.invalidateQueries({ queryKey: ['posts'] });
     },
     onError: () => toast.error('Failed to update follow'),
   });
