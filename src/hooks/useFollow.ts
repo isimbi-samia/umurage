@@ -123,16 +123,32 @@ export function useCreateCulturalEvent() {
       title: string;
       description?: string;
       event_date: string;
+      start_date?: string;
       location?: string;
       event_type?: string;
+      category?: string;
       image_url?: string;
     }) => {
-      const { data, error } = await supabase.from('cultural_events').insert(event).select().single();
+      const startDate = event.start_date || `${event.event_date}T10:00:00`;
+      const payload = {
+        creator_id: event.user_id,
+        user_id: event.user_id,
+        title: event.title,
+        description: event.description || null,
+        event_date: event.event_date,
+        start_date: startDate,
+        location: event.location || null,
+        event_type: event.event_type || 'Cultural Ceremony',
+        category: event.category || event.event_type || 'Cultural Ceremony',
+        image_url: event.image_url || null,
+      };
+      const { data, error } = await supabase.from('cultural_events').insert(payload).select().single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cultural_events'] });
+      qc.invalidateQueries({ queryKey: ['events-all'] });
       toast.success('Cultural event created!');
     },
     onError: (err: Error) => toast.error(err.message),

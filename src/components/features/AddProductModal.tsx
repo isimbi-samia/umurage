@@ -11,22 +11,14 @@ interface AddProductModalProps {
   onSuccess: () => void;
 }
 
-const DEFAULT_PRODUCT_IMAGES = [
-  'https://images.unsplash.com/photo-1516307365426-bea591f05011?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1547153760-18fc86324498?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-];
-
 export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Craft');
-  const [price, setPrice] = useState('15000');
-  const [currency, setCurrency] = useState('RWF');
-  const [stockCount, setStockCount] = useState('10');
-  const [location, setLocation] = useState('Kigali');
-  const [selectedImage, setSelectedImage] = useState(DEFAULT_PRODUCT_IMAGES[0]);
+  const [price, setPrice] = useState('');
+  const [currency] = useState('RWF');
+  const [stockCount, setStockCount] = useState('1');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,23 +37,28 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClos
 
     setIsSubmitting(true);
     try {
-      let finalImageUrl = selectedImage;
+      let finalImageUrl: string | null = null;
       if (imageFile) {
-        const uploadRes = await uploadMediaToStorage(imageFile, 'image', user.id, 'products');
-        finalImageUrl = uploadRes.url;
+        const path = `${user.id}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('images')
+          .upload(path, imageFile, { contentType: imageFile.type, upsert: true });
+        if (uploadErr) throw uploadErr;
+        const { data: pubData } = supabase.storage.from('images').getPublicUrl(path);
+        finalImageUrl = pubData.publicUrl;
       }
 
       const { error } = await supabase.from('marketplace_products').insert({
         seller_id: user.id,
         title: title.trim(),
         name: title.trim(),
-        description: description.trim(),
+        description: description.trim() || null,
         category,
         price: Number(price),
-        currency,
+        currency: currency || 'RWF',
         stock_count: Number(stockCount) || 1,
         image_url: finalImageUrl,
-        is_featured: true,
+        is_featured: false,
       });
 
       if (error) throw error;

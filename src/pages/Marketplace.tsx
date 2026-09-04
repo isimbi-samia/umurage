@@ -81,11 +81,24 @@ export const Marketplace: React.FC = () => {
       const sellerMap = new Map<string, any>();
 
       if (sellerIds.length > 0) {
+        const { data: shops } = await supabase
+          .from('public_sellers')
+          .select('user_id, business_name, district, city')
+          .in('user_id', sellerIds);
+        const shopMap = new Map<string, any>();
+        (shops || []).forEach((s: any) => shopMap.set(s.user_id, s));
+
         const { data: profiles } = await supabase
           .from('public_profiles')
           .select('id, username, avatar_url, verified')
           .in('id', sellerIds);
-        (profiles || []).forEach((pr: any) => sellerMap.set(pr.id, pr));
+        (profiles || []).forEach((pr: any) => {
+          const shop = shopMap.get(pr.id);
+          sellerMap.set(pr.id, {
+            ...pr,
+            username: shop?.business_name || pr.username || 'Rwandan Cultural Artisan',
+          });
+        });
       }
 
       const mapped = rawItems.map((p: any) => ({
@@ -93,15 +106,16 @@ export const Marketplace: React.FC = () => {
         title: p.title || p.name || 'Made-in-Rwanda Product',
         name: p.title || p.name || 'Made-in-Rwanda Product',
         description: p.description || '',
-        price: p.price ?? 12000,
+        price: p.price ?? 0,
         currency: p.currency || 'RWF',
         category: p.category || 'Craft',
-        image_url: p.image_url || 'https://images.unsplash.com/photo-1516307365426-bea591f05011?w=400&h=300&fit=crop',
-        is_featured: p.is_featured ?? true,
-        rating: p.rating ?? 4.9,
-        review_count: p.review_count ?? 12,
+        image_url: p.image_url || '',
+        is_featured: p.is_featured ?? false,
+        rating: p.rating ?? 0,
+        review_count: p.review_count ?? 0,
+        stock_count: p.stock_count ?? 0,
         seller_id: p.seller_id,
-        seller: sellerMap.get(p.seller_id) || { username: 'Artisan Creator' },
+        seller: sellerMap.get(p.seller_id) || { username: 'Rwandan Cultural Artisan' },
       }));
 
       return mapped as MarketplaceProduct[];
@@ -152,18 +166,28 @@ export const Marketplace: React.FC = () => {
 
         <div className="flex gap-2">
           {sellerProfile ? (
-            <button
-              onClick={() => setIsAddProductOpen(true)}
-              className="btn-gold text-xs px-4 py-2.5 flex items-center gap-1.5 font-bold shadow-md"
-            >
-              <PlusCircle size={16} /> List Product
-            </button>
+            sellerProfile.status === 'approved' ? (
+              <button
+                onClick={() => setIsAddProductOpen(true)}
+                className="btn-gold text-xs px-4 py-2.5 flex items-center gap-1.5 font-bold shadow-md"
+              >
+                <PlusCircle size={16} /> {t('marketplace.listProduct')}
+              </button>
+            ) : (
+              <button
+                disabled
+                className="bg-amber-900/20 border border-amber-700/40 text-amber-300 text-xs px-4 py-2.5 flex items-center gap-1.5 font-semibold cursor-not-allowed opacity-80"
+                title="Seller application is pending admin review."
+              >
+                <Store size={16} /> Seller Pending Review
+              </button>
+            )
           ) : (
             <button
               onClick={() => isAuthenticated ? setIsSellerModalOpen(true) : openAuth('login')}
               className="btn-outline-gold text-xs px-4 py-2.5 flex items-center gap-1.5 font-bold"
             >
-              <Store size={16} /> Become a Seller
+              <Store size={16} /> {t('marketplace.startSelling')}
             </button>
           )}
         </div>
@@ -211,11 +235,23 @@ export const Marketplace: React.FC = () => {
       ) : filteredProducts.length === 0 ? (
         <div className="umurage-card rounded-2xl p-12 text-center border border-dashed border-umurage-border">
           <ShoppingBag size={40} className="text-umurage-gold/30 mx-auto mb-3" />
-          <h3 className="text-umurage-cream font-semibold text-lg mb-1">No products found</h3>
-          <p className="text-umurage-muted text-sm mb-4">No listings match category "{selectedCategory}" with query "{search}".</p>
-          {sellerProfile && (
-            <button onClick={() => setIsAddProductOpen(true)} className="btn-gold text-xs px-5 py-2.5">
-              Add First Listing
+          <h3 className="text-umurage-cream font-semibold text-lg mb-1">
+            {search || selectedCategory !== 'All' ? `No products match filter` : t('marketplace.emptyTitle')}
+          </h3>
+          <p className="text-umurage-muted text-sm mb-5 max-w-md mx-auto">
+            {search || selectedCategory !== 'All' ? `Try broadening your search criteria or clearing filters.` : t('marketplace.emptySubtitle')}
+          </p>
+          {sellerProfile ? (
+            sellerProfile.status === 'approved' ? (
+              <button onClick={() => setIsAddProductOpen(true)} className="btn-gold text-xs px-5 py-2.5 font-bold">
+                + {t('marketplace.listProduct')}
+              </button>
+            ) : (
+              <span className="text-amber-400 text-xs font-medium">Your seller application is under review.</span>
+            )
+          ) : (
+            <button onClick={() => isAuthenticated ? setIsSellerModalOpen(true) : openAuth('login')} className="btn-gold text-xs px-5 py-2.5 font-bold">
+              {t('marketplace.startSelling')}
             </button>
           )}
         </div>
@@ -224,12 +260,19 @@ export const Marketplace: React.FC = () => {
           {filteredProducts.map((product) => (
             <div key={product.id} className="umurage-card rounded-2xl overflow-hidden group cursor-pointer border border-umurage-border flex flex-col justify-between">
               <div>
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={product.image_url}
-                    alt={product.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                <div className="relative h-48 overflow-hidden bg-umurage-surface/50 flex items-center justify-center">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="text-center p-4">
+                      <ShoppingBag size={32} className="text-umurage-gold/30 mx-auto mb-2" />
+                      <span className="text-umurage-subtle text-xs">Cultural Item</span>
+                    </div>
+                  )}
                   {product.is_featured && (
                     <span className="absolute top-3 left-3 bg-umurage-gold text-umurage-bg text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm">
                       Made-in-Rwanda
@@ -249,18 +292,20 @@ export const Marketplace: React.FC = () => {
                     {product.title}
                   </h3>
                   <p className="text-umurage-muted text-xs line-clamp-2 mb-3 leading-relaxed">{product.description}</p>
-                  <p className="text-umurage-subtle text-[11px] mb-3">Artisan: {product.seller?.username || 'Verified Rwandan Seller'}</p>
+                  <p className="text-umurage-subtle text-[11px] mb-3">Artisan: {product.seller?.username || 'Rwandan Cultural Artisan'}</p>
                 </div>
               </div>
 
               <div className="p-4 pt-0 flex items-center justify-between border-t border-umurage-border/40 mt-auto">
                 <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={10} className={i < Math.floor(product.rating || 5) ? 'text-umurage-gold fill-current' : 'text-umurage-border'} />
-                    ))}
-                    <span className="text-umurage-subtle text-[10px] ml-0.5">({product.review_count})</span>
-                  </div>
+                  {(product.review_count || 0) > 0 ? (
+                    <div className="flex items-center gap-1 mb-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={10} className={i < Math.floor(product.rating || 0) ? 'text-umurage-gold fill-current' : 'text-umurage-border'} />
+                      ))}
+                      <span className="text-umurage-subtle text-[10px] ml-0.5">({product.review_count})</span>
+                    </div>
+                  ) : null}
                   <p className="text-umurage-gold font-bold text-base">{formatPrice(product.price, product.currency)}</p>
                 </div>
                 <button

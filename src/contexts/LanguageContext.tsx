@@ -83,6 +83,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     'settings.title': 'Settings',
     'settings.language': 'Language',
     'poweredBy': 'Umurage Hub © 2026',
+
+    // Events & Marketplace Phase 4
+    'events.emptyTitle': 'No upcoming cultural events have been added yet.',
+    'events.emptySubtitle': 'Be the first to share a cultural gathering or festival with the community.',
+    'events.createBtn': 'Create an Event',
+    'marketplace.emptyTitle': 'No cultural products have been listed yet.',
+    'marketplace.emptySubtitle': 'Support Rwandan cultural artisans and traditional creators.',
+    'marketplace.startSelling': 'Become a Seller',
+    'marketplace.listProduct': 'List Product',
+    'marketplace.payOnDelivery': 'Pay on Delivery',
   },
 
   rw: {
@@ -159,6 +169,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     'settings.title': 'Igenamiterere',
     'settings.language': 'Ururimi',
     'poweredBy': 'Umurage Hub © 2026',
+
+    // Events & Marketplace Phase 4
+    'events.emptyTitle': 'Nta birori by\'umuco birahagera.',
+    'events.emptySubtitle': 'Ba uwa mbere gusangiza umuryango ibirori cyangwa iserukiramuco.',
+    'events.createBtn': 'Kurema Ibyabaye',
+    'marketplace.emptyTitle': 'Nta bintu by\'umuco birashyirwa mu isoko.',
+    'marketplace.emptySubtitle': 'Shyigikira abakora ibihangano gakondo n\'abanyamuga b\'u Rwanda.',
+    'marketplace.startSelling': 'Ba Umugurisha',
+    'marketplace.listProduct': 'Shyiraho Igihangano',
+    'marketplace.payOnDelivery': 'Kwishura Umaze Kwakira',
   },
 
   fr: {
@@ -235,6 +255,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     'settings.title': 'Paramètres',
     'settings.language': 'Langue',
     'poweredBy': 'Umurage Hub © 2026',
+
+    // Events & Marketplace Phase 4
+    'events.emptyTitle': 'Aucun événement culturel à venir pour le moment.',
+    'events.emptySubtitle': 'Soyez le premier à partager un rassemblement culturel avec la communauté.',
+    'events.createBtn': 'Créer un Événement',
+    'marketplace.emptyTitle': 'Aucun produit culturel n\'a encore été mis en vente.',
+    'marketplace.emptySubtitle': 'Soutenez les artisans culturels et créateurs traditionnels rwandais.',
+    'marketplace.startSelling': 'Devenir Vendeur',
+    'marketplace.listProduct': 'Lister un Produit',
+    'marketplace.payOnDelivery': 'Paiement à la Livraison',
   },
 
   sw: {
@@ -311,6 +341,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     'settings.title': 'Mipangilio',
     'settings.language': 'Lugha',
     'poweredBy': 'Umurage Hub © 2026',
+
+    // Events & Marketplace Phase 4
+    'events.emptyTitle': 'Hakuna matukio ya utamaduni yajayo bado.',
+    'events.emptySubtitle': 'Kuwa wa kwanza kushiriki mkusanyiko wa utamaduni na jamii.',
+    'events.createBtn': 'Tengeneza Tendo',
+    'marketplace.emptyTitle': 'Hakuna bidhaa za utamaduni zilizowekwa sokoni bado.',
+    'marketplace.emptySubtitle': 'Saidia mafundi wa utamaduni na wabunifu wa jadi wa Rwanda.',
+    'marketplace.startSelling': 'Muuza',
+    'marketplace.listProduct': 'Weka Bidhaa',
+    'marketplace.payOnDelivery': 'Lipa Wakati wa Kupokea',
   },
 };
 

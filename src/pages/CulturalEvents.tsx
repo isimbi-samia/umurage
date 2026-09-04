@@ -188,12 +188,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, userId, de
       let imageUrl: string | undefined;
       if (imageFile) {
         const ext = imageFile.name.split('.').pop() || 'jpg';
-        const path = `${userId}/events/${Date.now()}.${ext}`;
+        const path = `${userId}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
         const { error: uploadError } = await supabase.storage
-          .from('umurage-media')
-          .upload(path, imageFile, { contentType: imageFile.type });
+          .from('images')
+          .upload(path, imageFile, { contentType: imageFile.type, upsert: true });
         if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from('umurage-media').getPublicUrl(path);
+        const { data } = supabase.storage.from('images').getPublicUrl(path);
         imageUrl = data.publicUrl;
       }
 
@@ -202,8 +202,10 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, userId, de
         title: title.trim(),
         description: description.trim() || undefined,
         event_date: eventDate,
+        start_date: `${eventDate}T${eventTime || '10:00'}:00`,
         location: location,
         event_type: eventType,
+        category: eventType,
         image_url: imageUrl,
       });
 
@@ -974,11 +976,17 @@ const EventsPage: React.FC = () => {
               {events.length === 0 && (
                 <div className="text-center py-16">
                   <Calendar size={48} className="text-umurage-gold/20 mx-auto mb-4" />
-                  <h3 className="text-umurage-cream font-semibold mb-2">No events {selectedFilter !== 'All' ? `for "${selectedFilter}"` : 'yet'}</h3>
-                  <p className="text-umurage-muted text-sm mb-5">Be the first to create a cultural event!</p>
-                  {isAuthenticated && (
+                  <h3 className="text-umurage-cream font-semibold text-lg mb-2">
+                    {selectedFilter !== 'All' ? `No events for "${selectedFilter}"` : t('events.emptyTitle')}
+                  </h3>
+                  <p className="text-umurage-muted text-sm mb-5 max-w-md mx-auto">{t('events.emptySubtitle')}</p>
+                  {isAuthenticated ? (
                     <button onClick={() => setShowCreateModal(true)} className="btn-gold px-6 py-2.5">
-                      + Create Event
+                      + {t('events.createBtn')}
+                    </button>
+                  ) : (
+                    <button onClick={() => openAuth('login')} className="btn-outline-gold px-6 py-2.5">
+                      + {t('events.createBtn')}
                     </button>
                   )}
                 </div>
